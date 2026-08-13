@@ -5,6 +5,8 @@
 ## Qué se ha completado
 
 - Se creó el repositorio Git local en `C:\Users\jesus\Downloads\TurnamentX`.
+- Se creó el repositorio privado `TournamentX` en la cuenta de GitHub `Progamaster2308`.
+- Se publicó `main` y las ocho ramas de trabajo en GitHub.
 - Se estableció `main` como rama principal.
 - Se agregó una descripción general del proyecto en `README.md`.
 - Se documentaron los módulos, alcances y reglas de colaboración en `docs/TEAM_WORKFLOW.md`.
@@ -27,8 +29,10 @@
 
 ## Flujo recomendado para cada integrante
 
+Repositorio: `https://github.com/Progamaster2308/TournamentX`
+
 ```powershell
-git clone <URL-DEL-REPOSITORIO>
+git clone https://github.com/Progamaster2308/TournamentX.git
 cd TournamentX
 git switch <RAMA-ASIGNADA>
 git pull origin <RAMA-ASIGNADA>
@@ -46,11 +50,9 @@ Cada integrante debe abrir un pull request desde su rama hacia `main`. Los cambi
 
 ## Pendientes inmediatos
 
-1. Publicar el repositorio en GitHub.
-2. Subir `main` y las ocho ramas remotas.
-3. Agregar como colaboradores a los integrantes cuando estén disponibles sus usuarios de GitHub.
-4. Definir la arquitectura tecnológica y generar el esqueleto de la aplicación.
-5. Configurar reglas de protección de `main` y revisión mediante pull requests.
+1. Agregar como colaboradores a los integrantes cuando estén disponibles sus usuarios de GitHub.
+2. Definir la arquitectura tecnológica y generar el esqueleto de la aplicación.
+3. Configurar reglas de protección de `main` y revisión mediante pull requests.
 
 ## Seguridad
 
