@@ -29,6 +29,72 @@ El alcance exacto y el flujo de colaboración se encuentran en [docs/TEAM_WORKFL
 4. Abrir un pull request hacia `main` y solicitar revisión.
 5. No subir secretos, credenciales ni archivos `.env`.
 
-## Estado
+## Backend Dev 8 — Premios y pagos
 
-Repositorio inicial preparado para el desarrollo colaborativo del MVP.
+Esta rama contiene una API REST en JavaScript para administrar patrocinadores, bolsas de premios, aportaciones, distribuciones y recibos. Stripe y Binance Pay operan de forma simulada durante el MVP; no se requieren claves reales.
+
+### Requisitos
+
+- Node.js 20 o posterior.
+- PostgreSQL 14 o posterior.
+
+### Instalación
+
+```bash
+npm install
+copy .env.example .env
+npm run db:init
+npm run dev
+```
+
+Antes de inicializar la base, crea la base de datos indicada en `DATABASE_URL`. La API estará disponible en `http://localhost:3000`.
+
+### Autenticación
+
+Las rutas administrativas reciben un JWT mediante `Authorization: Bearer TOKEN`. El token debe incluir:
+
+```json
+{
+  "sub": "uuid-del-usuario",
+  "role": "admin"
+}
+```
+
+Los roles autorizados para modificar premios son `admin` y `organizer`. La clave para verificar el token se configura con `JWT_SECRET` y deberá coincidir con la del módulo de autenticación de Dev 1.
+
+### Endpoints
+
+| Método | Ruta | Descripción | Acceso |
+| --- | --- | --- | --- |
+| GET | `/api/health` | Estado de la API | Público |
+| GET | `/api/sponsors` | Lista patrocinadores | JWT |
+| POST | `/api/sponsors` | Crea un patrocinador | Admin/Organizador |
+| GET | `/api/prize-pools` | Lista bolsas | JWT |
+| POST | `/api/prize-pools` | Crea una bolsa | Admin/Organizador |
+| GET | `/api/prize-pools/:id` | Detalle y aportaciones | JWT |
+| POST | `/api/prize-pools/:id/contributions` | Simula un fondeo | Admin/Organizador |
+| PUT | `/api/prize-pools/:id/distribution` | Define porcentajes | Admin/Organizador |
+| POST | `/api/prize-pools/:id/payouts` | Libera un premio y genera recibo | Admin/Organizador |
+| GET | `/api/receipts/:code` | Verifica un recibo | Público |
+
+Ejemplo de distribución:
+
+```json
+{
+  "rules": [
+    { "position": 1, "percentage": 50 },
+    { "position": 2, "percentage": 30 },
+    { "position": 3, "percentage": 20 }
+  ]
+}
+```
+
+### Pruebas
+
+```bash
+npm test
+```
+
+### Estado
+
+Backend inicial del módulo Dev 8 preparado para integrarse con autenticación, torneos y equipos.
