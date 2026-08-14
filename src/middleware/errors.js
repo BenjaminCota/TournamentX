@@ -3,8 +3,8 @@ function notFound(req, res) {
 }
 
 function errorHandler(error, _req, res, _next) {
-  if (error.code === '23505') return res.status(409).json({ error: 'El registro ya existe' });
-  if (error.code === '23503') return res.status(409).json({ error: 'El registro está relacionado con otros datos' });
+  if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El registro ya existe' });
+  if (['ER_NO_REFERENCED_ROW_2', 'ER_ROW_IS_REFERENCED_2'].includes(error.code)) return res.status(409).json({ error: 'El registro está relacionado con otros datos' });
   const status = error.status || 500;
   return res.status(status).json({
     error: status === 500 ? 'Error interno del servidor' : error.message,

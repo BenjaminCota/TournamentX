@@ -21,11 +21,13 @@ async function list(req, res, next) {
 async function create(req, res, next) {
   try {
     const { tournamentId, name, currency, targetAmount } = req.validated.body;
-    const { rows } = await db.query(
-      `INSERT INTO prize_pools (tournament_id, name, currency, target_amount, created_by)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [tournamentId, name, currency, targetAmount || null, req.user.sub],
+    const id = crypto.randomUUID();
+    await db.query(
+      `INSERT INTO prize_pools (id, tournament_id, name, currency, target_amount, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [id, tournamentId, name, currency, targetAmount || null, req.user.sub],
     );
+    const { rows } = await db.query(`${poolSelect} WHERE id = $1`, [id]);
     res.status(201).json({ data: rows[0] });
   } catch (error) { next(error); }
 }
@@ -57,12 +59,14 @@ async function contribute(req, res, next) {
 
     const payment = await paymentGateway.createPayment({ provider, amount, currency: prizePool.currency, reference: poolId });
     const contribution = await db.transaction(async (client) => {
-      const { rows } = await client.query(
-        `INSERT INTO contributions (prize_pool_id, sponsor_id, amount, currency, provider, provider_reference, status, metadata)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-        [poolId, sponsorId, amount, prizePool.currency, provider, payment.providerReference, payment.status, payment.metadata],
+      const id = crypto.randomUUID();
+      await client.query(
+        `INSERT INTO contributions (id, prize_pool_id, sponsor_id, amount, currency, provider, provider_reference, status, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [id, poolId, sponsorId, amount, prizePool.currency, provider, payment.providerReference, payment.status, JSON.stringify(payment.metadata)],
       );
       if (payment.status === 'paid') await client.query('UPDATE prize_pools SET funded_amount = funded_amount + $1, updated_at = NOW() WHERE id = $2', [amount, poolId]);
+      const { rows } = await client.query('SELECT * FROM contributions WHERE id = $1', [id]);
       return rows[0];
     });
     res.status(201).json({ data: contribution, payment: { checkoutUrl: payment.checkoutUrl, simulated: true } });
@@ -78,7 +82,7 @@ async function defineDistribution(req, res, next) {
     await db.transaction(async (client) => {
       await client.query('DELETE FROM distribution_rules WHERE prize_pool_id = $1', [poolId]);
       for (const rule of calculated) {
-        await client.query('INSERT INTO distribution_rules (prize_pool_id, position, percentage, amount) VALUES ($1,$2,$3,$4)', [poolId, rule.position, rule.percentage, rule.amount]);
+        await client.query('INSERT INTO distribution_rules (id, prize_pool_id, position, percentage, amount) VALUES ($1,$2,$3,$4,$5)', [crypto.randomUUID(), poolId, rule.position, rule.percentage, rule.amount]);
       }
       await client.query("UPDATE prize_pools SET status = 'locked', updated_at = NOW() WHERE id = $1", [poolId]);
     });
@@ -99,12 +103,14 @@ async function releasePayout(req, res, next) {
     if (!rule) throw new HttpError(404, 'No existe una regla para esa posición');
     if (!['locked', 'distributed'].includes(rule.status)) throw new HttpError(409, 'La distribución aún no está bloqueada');
     const receiptCode = `TX-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-    const { rows } = await db.query(
-      `INSERT INTO payouts (prize_pool_id, recipient_id, position, amount, currency, destination, receipt_code, released_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, recipient_id AS "recipientId", position, amount, currency, status, receipt_code AS "receiptCode", released_at AS "releasedAt"`,
-      [poolId, recipientId, position, rule.amount, rule.currency, destination, receiptCode, req.user.sub],
+    const payoutId = crypto.randomUUID();
+    await db.query(
+      `INSERT INTO payouts (id, prize_pool_id, recipient_id, position, amount, currency, destination, receipt_code, released_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [payoutId, poolId, recipientId, position, rule.amount, rule.currency, destination, receiptCode, req.user.sub],
     );
-    const pending = await db.query('SELECT COUNT(*)::int AS count FROM distribution_rules dr LEFT JOIN payouts p ON p.prize_pool_id = dr.prize_pool_id AND p.position = dr.position WHERE dr.prize_pool_id = $1 AND p.id IS NULL', [poolId]);
+    const { rows } = await db.query('SELECT id, recipient_id AS "recipientId", position, amount, currency, status, receipt_code AS "receiptCode", released_at AS "releasedAt" FROM payouts WHERE id = $1', [payoutId]);
+    const pending = await db.query('SELECT COUNT(*) AS count FROM distribution_rules dr LEFT JOIN payouts p ON p.prize_pool_id = dr.prize_pool_id AND p.position = dr.position WHERE dr.prize_pool_id = $1 AND p.id IS NULL', [poolId]);
     if (pending.rows[0].count === 0) await db.query("UPDATE prize_pools SET status = 'distributed', updated_at = NOW() WHERE id = $1", [poolId]);
     res.status(201).json({ data: rows[0] });
   } catch (error) { next(error); }

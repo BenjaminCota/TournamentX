@@ -4,7 +4,8 @@ const { pool } = require('../config/database');
 
 async function main() {
   const sql = await fs.readFile(path.join(__dirname, '../../database/schema.sql'), 'utf8');
-  await pool.query(sql);
+  const statements = sql.split(';').map((statement) => statement.trim()).filter(Boolean);
+  for (const statement of statements) await pool.query(statement);
   console.log('Base de datos inicializada correctamente.');
   await pool.end();
 }

@@ -36,7 +36,7 @@ Esta rama contiene una API REST en JavaScript para administrar patrocinadores, b
 ### Requisitos
 
 - Node.js 20 o posterior.
-- PostgreSQL 14 o posterior.
+- MySQL 8 o posterior.
 
 ### Instalación
 
@@ -47,7 +47,7 @@ npm run db:init
 npm run dev
 ```
 
-Antes de inicializar la base, crea la base de datos indicada en `DATABASE_URL`. La API estará disponible en `http://localhost:3000`.
+Antes de inicializar, crea en MySQL la base indicada en `DATABASE_URL`. Por ejemplo: `CREATE DATABASE tournamentx;`. Después ejecuta `npm run db:init`. La API estará disponible en `http://localhost:3000`.
 
 ### Autenticación
 

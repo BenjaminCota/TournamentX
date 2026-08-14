@@ -1,5 +1,7 @@
 # Contrato de integración del módulo Dev 8
 
+El módulo utiliza MySQL 8 mediante `mysql2`. La cadena de conexión se define en `DATABASE_URL`.
+
 ## Dependencias con otros módulos
 
 La tabla `prize_pools` almacena `tournament_id`, pero no agrega una llave foránea todavía porque la tabla de torneos pertenece a otro módulo. `recipient_id` representa al equipo o jugador ganador y sigue la misma estrategia. Al integrar ramas, estos campos deben enlazarse con los nombres definitivos de las tablas compartidas.
