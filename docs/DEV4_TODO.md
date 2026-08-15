@@ -13,7 +13,7 @@
   Dev 3.
 - [x] **2. API base de partidos.** Crear el módulo `matches` con rutas para
   consultar, crear y obtener partidos; añadir validación, errores y pruebas.
-- [ ] **3. Calendarios y programación.** Crear calendarios y generar la agenda
+- [x] **3. Calendarios y programación.** Crear calendarios y generar la agenda
   inicial a partir de equipos, fechas, sedes y formato proporcionados por
   torneos.
 - [ ] **4. Persistencia MySQL.** Incorporar tablas e índices de calendarios y

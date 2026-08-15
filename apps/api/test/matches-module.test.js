@@ -46,3 +46,41 @@ test('Dev 4 valida partidos y devuelve 404 para IDs desconocidos', async () => {
   assert.equal(missing.status, 404);
   assert.match(missing.body.error, /partido no encontrado/i);
 });
+
+test('Dev 4 genera un calendario todos-contra-todos con sus partidos', async () => {
+  const created = await request(app).post('/api/schedules').send({
+    tournamentId: 'tour-3',
+    teamIds: ['team-lnx', 'team-titans', 'team-orbit'],
+    startsAt: '2026-08-22T18:00:00.000Z',
+    endsAt: '2026-08-22T21:00:00.000Z',
+    slotMinutes: 60,
+    venue: 'Arena Universitaria',
+    mode: 'best_of_3',
+    format: 'round_robin',
+  });
+
+  assert.equal(created.status, 201);
+  assert.equal(created.body.status, 'published');
+  assert.equal(created.body.matches.length, 3);
+  assert.deepEqual(created.body.matches.map((match) => match.scheduledAt), [
+    '2026-08-22T18:00:00.000Z',
+    '2026-08-22T19:00:00.000Z',
+    '2026-08-22T20:00:00.000Z',
+  ]);
+
+  const detail = await request(app).get(`/api/schedules/${created.body.id}`);
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.matches.length, 3);
+});
+
+test('Dev 4 rechaza una eliminación directa sin equipos potencia de dos', async () => {
+  const invalid = await request(app).post('/api/schedules').send({
+    tournamentId: 'tour-4',
+    teamIds: ['team-lnx', 'team-titans', 'team-orbit'],
+    startsAt: '2026-08-22T18:00:00.000Z',
+    format: 'single_elimination',
+  });
+
+  assert.equal(invalid.status, 400);
+  assert.match(invalid.body.error, /datos de entrada inválidos/i);
+});

@@ -67,10 +67,12 @@ scheduled | postponed → cancelled
 | `POST` | `/api/matches` | Crea un partido programado. |
 | `PATCH` | `/api/matches/:id/score` | Actualiza marcador y/o estado; requiere rol de Admin, Organizador o Árbitro cuando auth esté integrada. |
 | `GET` | `/api/schedules/:id` | Obtiene un calendario y sus partidos. |
-| `POST` | `/api/schedules` | Crea un calendario vacío. |
+| `GET` | `/api/schedules` | Lista calendarios, opcionalmente por `tournamentId`. |
+| `POST` | `/api/schedules` | Crea el calendario y genera la agenda inicial. |
 
-La generación automática y los eventos Socket.IO pertenecen a entregas
-posteriores; no se incluyen en esta primera API.
+El generador actual acepta `round_robin` y `single_elimination`, recibe los
+equipos en orden, y asigna bloques consecutivos de `slotMinutes`. Los eventos
+Socket.IO pertenecen a una entrega posterior.
 
 ## Dependencias y acuerdos necesarios
 
