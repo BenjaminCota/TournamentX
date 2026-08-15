@@ -4,11 +4,15 @@ const prizePoolsRoutes = require('./prize-pools.routes');
 const receiptsRoutes = require('./receipts.routes');
 const contributionsRoutes = require('./contributions.routes');
 const rewardsRoutes = require('./rewards.routes');
+const teamsRoutes = require('../modules/teams/teams.routes');
+const playersRoutes = require('../modules/teams/players.routes');
 
 router.use('/sponsors', sponsorsRoutes);
 router.use('/prize-pools', prizePoolsRoutes);
 router.use('/receipts', receiptsRoutes);
 router.use('/contributions', contributionsRoutes);
 router.use('/rewards', rewardsRoutes);
+router.use('/teams', teamsRoutes);
+router.use('/players', playersRoutes);
 
 module.exports = router;
