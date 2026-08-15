@@ -11,7 +11,7 @@
 - [x] **1. Contrato de partidos.** Definir las entidades `Match`, `Schedule`,
   marcador, estados y filtros; acordar los IDs de torneo y equipo con Dev 2 y
   Dev 3.
-- [ ] **2. API base de partidos.** Crear el módulo `matches` con rutas para
+- [x] **2. API base de partidos.** Crear el módulo `matches` con rutas para
   consultar, crear y obtener partidos; añadir validación, errores y pruebas.
 - [ ] **3. Calendarios y programación.** Crear calendarios y generar la agenda
   inicial a partir de equipos, fechas, sedes y formato proporcionados por
