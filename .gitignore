@@ -25,3 +25,6 @@ Thumbs.db
 # Archivos temporales
 *.tmp
 *.swp
+
+# Notas personales (no se comparten en el repo)
+MIS_TAREAS.md
