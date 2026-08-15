@@ -15,6 +15,44 @@ export interface User {
   position?: string;
 }
 
+export interface PlayerProfile {
+  id: string;
+  name: string;
+  lastname: string;
+  nickname: string;
+  avatar: string;
+  sport: string;
+  position: string;
+  nationality: string;
+  status: 'active' | 'inactive' | 'suspended';
+  createdAt: string;
+  updatedAt: string;
+  currentTeamId?: string | null;
+  currentTeamName?: string | null;
+  currentRole?: string | null;
+  history?: Array<{
+    id: string;
+    teamId: string;
+    teamName: string;
+    role: string;
+    status: 'Actual' | 'Finalizado';
+    joinedAt: string;
+    leftAt?: string | null;
+  }>;
+}
+
+export interface TeamMember {
+  id: string;
+  playerId: string;
+  name: string;
+  nickname: string;
+  role: string;
+  ovr: number;
+  avatar: string;
+  kda: string;
+  status: 'active' | 'inactive';
+}
+
 export type TournamentStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'UPCOMING';
 export type TournamentFormat = 'SINGLE_ELIMINATION' | 'DOUBLE_ELIMINATION' | 'GROUP_STAGE_PLAYOFFS' | 'ROUND_ROBIN' | 'SWISS';
 
@@ -75,6 +113,7 @@ export interface Team {
   id: string;
   name: string;
   tag: string;
+  abbreviation?: string;
   logo: string;
   tier: string;
   globalRank: number;
@@ -85,15 +124,13 @@ export interface Team {
   trend: 'UP' | 'DOWN' | 'EQUAL';
   region: string;
   bio: string;
-  roster: {
-    id: string;
-    name: string;
-    nickname: string;
-    role: string;
-    ovr: number;
-    avatar: string;
-    kda?: string;
-  }[];
+  description?: string;
+  sport?: string;
+  competitionType?: string;
+  status?: 'active' | 'inactive' | 'draft';
+  createdAt?: string;
+  updatedAt?: string;
+  roster: TeamMember[];
 }
 
 export interface MatchScoreboard {

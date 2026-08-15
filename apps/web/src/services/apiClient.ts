@@ -25,6 +25,16 @@ export const tournamentXApi = {
   sponsors: () => request('/sponsors'),
   prizePools: () => request('/prize-pools'),
   rewards: () => request('/rewards'),
+  teams: () => request('/teams'),
+  team: (id: string) => request(`/teams/${id}`),
+  createTeam: (data: unknown) => request('/teams', { method: 'POST', body: data }),
+  updateTeam: (id: string, data: unknown) => request(`/teams/${id}`, { method: 'PATCH', body: data }),
+  players: () => request('/players'),
+  player: (id: string) => request(`/players/${id}`),
+  createPlayer: (data: unknown) => request('/players', { method: 'POST', body: data }),
+  updatePlayer: (id: string, data: unknown) => request(`/players/${id}`, { method: 'PATCH', body: data }),
+  addRosterMember: (teamId: string, data: unknown) => request(`/teams/${teamId}/roster`, { method: 'POST', body: data }),
+  removeRosterMember: (teamId: string, playerId: string) => request(`/teams/${teamId}/roster/${playerId}`, { method: 'DELETE' }),
   addContribution: (prizePoolId: number, data: unknown) =>
     request(`/prize-pools/${prizePoolId}/contributions`, { method: 'POST', body: data }),
   updateContributionStatus: (contributionId: number, status: string) =>
