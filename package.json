@@ -1,29 +1,14 @@
 {
-  "name": "tournamentx-rewards-payments",
+  "name": "tournamentx",
+  "private": true,
   "version": "1.0.0",
-  "description": "Backend del módulo de patrocinadores, premios y pagos de TournamentX",
-  "main": "src/server.js",
+  "workspaces": ["apps/api", "apps/web"],
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
-    "test": "node --test",
-    "db:init": "node src/scripts/init-db.js"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "helmet": "^8.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
-    "mysql2": "^3.14.3",
-    "swagger-ui-express": "^5.0.1",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "supertest": "^7.1.0"
+    "dev:api": "npm run dev --workspace @tournamentx/api",
+    "dev:web": "npm run dev --workspace @tournamentx/web",
+    "build": "npm run build --workspace @tournamentx/web",
+    "test": "npm run test --workspace @tournamentx/api",
+    "check": "npm run lint --workspace @tournamentx/web && npm run test --workspace @tournamentx/api",
+    "db:init": "npm run db:init --workspace @tournamentx/api"
   }
 }
