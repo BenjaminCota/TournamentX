@@ -133,6 +133,25 @@ export interface Team {
   roster: TeamMember[];
 }
 
+export type MatchStatus = 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled';
+
+export interface TournamentMatch {
+  id: string;
+  scheduleId: string | null;
+  tournamentId: string;
+  roundId: string | null;
+  team1Id: string;
+  team2Id: string;
+  scheduledAt: string;
+  venue: string | null;
+  mode: 'best_of_1' | 'best_of_3' | 'best_of_5';
+  status: MatchStatus;
+  score: { team1: number; team2: number };
+  streamUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface MatchScoreboard {
   id: string;
   tournamentName: string;

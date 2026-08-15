@@ -93,6 +93,7 @@ export default function App() {
     return initial ? JSON.parse(initial).map(normalizePlayer) : INITIAL_USERS;
   });
   const [selectedTeamId, setSelectedTeamId] = useState<string>('team-lnx');
+  const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>();
 
   useEffect(() => {
     const loadData = async () => {
@@ -292,6 +293,10 @@ export default function App() {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
   };
+  const navigateToMatch = (matchId: string) => {
+    setSelectedMatchId(matchId);
+    setActiveTab('live_match');
+  };
 
   return (
     <div id="tournamentx-app-root" className="min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
@@ -311,7 +316,7 @@ export default function App() {
           <main className="flex-1 bg-[#0a0b0e] pb-16">
             {activeTab === 'dashboard' && <DashboardView onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} />}
             {activeTab === 'tournaments' && <TournamentsView onNavigate={navigate} currentUserRole={currentUserRole} onOpenCreateWizard={openTournamentWizard} />}
-            {activeTab === 'live_match' && <LiveMatchView currentUserRole={currentUserRole} />}
+            {activeTab === 'live_match' && <LiveMatchView currentUserRole={currentUserRole} matchId={selectedMatchId} />}
             {activeTab === 'players' && (
               <PlayersView
                 currentUserRole={currentUserRole}
@@ -341,7 +346,7 @@ export default function App() {
                 onRemoveRosterMember={handleRemoveRosterMember}
               />
             )}
-            {activeTab === 'calendar' && <CalendarView onNavigate={navigate} />}
+            {activeTab === 'calendar' && <CalendarView onOpenMatch={navigateToMatch} />}
             {activeTab === 'analytics' && <AnalyticsView />}
             {activeTab === 'esports' && <EsportsArenaView onWatchLiveMatch={() => navigate('live_match')} />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}

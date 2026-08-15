@@ -22,7 +22,7 @@
   válido en el entorno MySQL compartido.
 - [x] **5. Marcador y resultado.** Implementar la actualización autorizada de
   resultados y las transiciones `scheduled → live → completed`.
-- [ ] **6. Integración visual.** Sustituir los datos mock de `CalendarView` y
+- [x] **6. Integración visual.** Sustituir los datos mock de `CalendarView` y
   `LiveMatchView` por el cliente HTTP, incluyendo carga, vacío y error.
 - [ ] **7. Tiempo real.** Acordar eventos y añadir Socket.IO para emitir y
   consumir cambios de marcador; notificar los módulos de analítica y alertas.
