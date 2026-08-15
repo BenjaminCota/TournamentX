@@ -26,7 +26,7 @@ import {
   Youtube,
   Zap,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Platform = "Twitch" | "YouTube";
 
@@ -129,6 +129,8 @@ function formatViewers(value: number) {
 }
 
 export default function Home() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [splashLeaving, setSplashLeaving] = useState(false);
   const [activeSection, setActiveSection] = useState("Transmisiones");
   const [selectedGame, setSelectedGame] = useState("Todos");
   const [platform, setPlatform] = useState<"Todas" | Platform>("Todas");
@@ -137,6 +139,21 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add("splash-active");
+    const leaveTimer = window.setTimeout(() => setSplashLeaving(true), 2550);
+    const closeTimer = window.setTimeout(() => {
+      setShowSplash(false);
+      document.body.classList.remove("splash-active");
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(leaveTimer);
+      window.clearTimeout(closeTimer);
+      document.body.classList.remove("splash-active");
+    };
+  }, []);
 
   const visibleStreams = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -188,6 +205,22 @@ export default function Home() {
 
   return (
     <main className="site-shell">
+      {showSplash && (
+        <div
+          className={splashLeaving ? "splash-screen leaving" : "splash-screen"}
+          role="status"
+          aria-live="polite"
+          aria-label="Cargando TournamentX"
+        >
+          <div className="splash-grid" aria-hidden="true" />
+          <div className="splash-content">
+            <span className="splash-kicker">LA ARENA ESTÁ LISTA</span>
+            <img className="splash-logo" src="/tournamentx-logo.png" alt="TournamentX" />
+            <p>COMPITE <i /> CONECTA <i /> DOMINA</p>
+            <div className="splash-progress" aria-hidden="true"><span /></div>
+          </div>
+        </div>
+      )}
       <header className="topbar">
         <button className="brand" onClick={() => jumpTo("Transmisiones")} aria-label="Volver al inicio">
           <img src="/tournamentx-logo.png" alt="TournamentX" />

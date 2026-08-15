@@ -31,7 +31,9 @@ El alcance exacto y el flujo de colaboración se encuentran en [docs/TEAM_WORKFL
 
 ## Estado
 
-Repositorio inicial preparado para el desarrollo colaborativo del MVP.
+La rama `main` contiene la plantilla visual compartida del MVP. Al iniciar, presenta durante tres segundos la identidad de TournamentX y después carga la experiencia principal.
+
+Cada módulo debe partir de `main`, conservar el splash de marca y adaptar únicamente sus páginas o componentes asignados.
 
 ## Módulo Dev 6 — Esports & Media
 
