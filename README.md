@@ -32,3 +32,23 @@ El alcance exacto y el flujo de colaboración se encuentran en [docs/TEAM_WORKFL
 ## Estado
 
 Repositorio inicial preparado para el desarrollo colaborativo del MVP.
+
+## Módulo Dev 6 — Esports & Media
+
+La rama `dev-6/esports-media` incluye un panel web funcional para:
+
+- visualizar y filtrar transmisiones de Twitch y YouTube;
+- buscar torneos, canales y videojuegos;
+- crear y administrar lobbies competitivos;
+- copiar códigos de acceso para equipos;
+- consultar audiencia, retención y métricas por videojuego;
+- operar en escritorio, tablet y móvil con la identidad rosa, negra y blanca de TournamentX.
+
+### Ejecución local
+
+```powershell
+npm install
+npm run dev
+```
+
+La interfaz funciona con información demostrativa. Para conectar datos reales se deben configurar las variables descritas en `.env.example` con credenciales de Twitch Developer y YouTube Data API v3.
