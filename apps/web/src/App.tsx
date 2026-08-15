@@ -14,12 +14,13 @@ import { EsportsArenaView } from './features/media/EsportsArenaView';
 import { SedesMapView } from './features/geolocation/SedesMapView';
 import { RecompensasView } from './features/rewards/RecompensasView';
 import { LoginView } from './features/auth/LoginView';
-import { Team, User, UserRole } from './types';
-import { INITIAL_USERS, MOCK_TEAMS } from './data/mockData';
+import { Team, Tournament, User, UserRole } from './types';
+import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
 
 const TEAM_STORAGE_KEY = 'tournamentx-dev3-teams';
 const PLAYER_STORAGE_KEY = 'tournamentx-dev3-players';
+const TOURNAMENT_STORAGE_KEY = 'tournamentx-dev2-tournaments';
 
 function normalizeTeam(team: Team | Record<string, unknown>): Team {
   const roster = Array.isArray((team as Team).roster) ? (team as Team).roster : [];
@@ -92,14 +93,19 @@ export default function App() {
     const initial = typeof window !== 'undefined' ? localStorage.getItem(PLAYER_STORAGE_KEY) : null;
     return initial ? JSON.parse(initial).map(normalizePlayer) : INITIAL_USERS;
   });
+  const [tournaments, setTournaments] = useState<Tournament[]>(() => {
+    const initial = typeof window !== 'undefined' ? localStorage.getItem(TOURNAMENT_STORAGE_KEY) : null;
+    return initial ? JSON.parse(initial) : MOCK_TOURNAMENTS;
+  });
   const [selectedTeamId, setSelectedTeamId] = useState<string>('team-lnx');
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [fetchedTeams, fetchedPlayers] = await Promise.all([
+        const [fetchedTeams, fetchedPlayers, fetchedTournaments] = await Promise.all([
           tournamentXApi.teams().catch(() => null),
           tournamentXApi.players().catch(() => null),
+          tournamentXApi.tournaments().catch(() => null),
         ]);
         if (Array.isArray(fetchedTeams) && fetchedTeams.length > 0) {
           setTeams(fetchedTeams.map(normalizeTeam));
@@ -108,6 +114,10 @@ export default function App() {
         if (Array.isArray(fetchedPlayers) && fetchedPlayers.length > 0) {
           setPlayers(fetchedPlayers.map(normalizePlayer));
           localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(fetchedPlayers.map(normalizePlayer)));
+        }
+        if (Array.isArray(fetchedTournaments) && fetchedTournaments.length > 0) {
+          setTournaments(fetchedTournaments as Tournament[]);
+          localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(fetchedTournaments));
         }
       } catch {
         // Se conserva el fallback local cuando la API no esté disponible.
@@ -120,8 +130,9 @@ export default function App() {
     if (typeof window !== 'undefined') {
       localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(teams));
       localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
+      localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(tournaments));
     }
-  }, [teams, players]);
+  }, [teams, players, tournaments]);
 
   const selectedTeam = useMemo(() => teams.find((team) => team.id === selectedTeamId) || teams[0] || MOCK_TEAMS[0], [teams, selectedTeamId]);
 
@@ -286,6 +297,87 @@ export default function App() {
     }));
   };
 
+  const handleCreateTournament = async (data: Partial<Tournament>) => {
+    const payload: Tournament = {
+      id: `tour-${Date.now()}`,
+      name: data.name || 'Nuevo torneo',
+      description: data.description || '',
+      game: data.game || 'Valorant',
+      gameCategory: data.gameCategory || 'FPS',
+      banner: data.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1200&auto=format&fit=crop&q=80',
+      prizePool: data.prizePool || '$0',
+      prizeAmountUSD: data.prizeAmountUSD ?? 0,
+      status: 'OPEN',
+      format: data.format || 'SINGLE_ELIMINATION',
+      dates: data.dates || '',
+      registeredTeams: 0,
+      maxTeams: data.maxTeams ?? 16,
+      privacy: data.privacy || 'PUBLIC',
+      organizer: data.organizer || 'TournamentX Pro Staff',
+      tier: data.tier || 'PRO CIRCUIT',
+      venue: data.venue,
+    };
+    try {
+      const created = await tournamentXApi.createTournament(payload) as Tournament;
+      setTournaments((current) => [created, ...current]);
+      return created;
+    } catch {
+      setTournaments((current) => [payload, ...current]);
+      return payload;
+    }
+  };
+
+  const refreshTournament = async (tournamentId: string) => {
+    const updated = await tournamentXApi.tournament(tournamentId) as Tournament;
+    setTournaments((current) => current.map((t) => t.id === tournamentId ? updated : t));
+    return updated;
+  };
+
+  const handleReportBracketResult = async (tournamentId: string, matchId: string, score1: number, score2: number) => {
+    try {
+      await tournamentXApi.reportBracketMatchResult(tournamentId, matchId, score1, score2);
+      await refreshTournament(tournamentId);
+    } catch (error) {
+      if (!(error instanceof TypeError)) {
+        // La API respondió (p. ej. rechazó un empate en eliminación directa): no se aplica localmente.
+        throw error;
+      }
+      // Fallback local solo cuando la API no está disponible: refleja el resultado sin avanzar la llave.
+      setTournaments((current) => current.map((t) => {
+        if (t.id !== tournamentId || !t.rounds) return t;
+        return {
+          ...t,
+          rounds: t.rounds.map((round) => ({
+            ...round,
+            matches: round.matches.map((m) => m.id === matchId
+              ? {
+                ...m,
+                team1: { ...m.team1, score: score1, winner: score1 > score2 },
+                team2: { ...m.team2, score: score2, winner: score2 > score1 },
+                status: 'FINISHED' as const,
+              }
+              : m),
+          })),
+        };
+      }));
+    }
+  };
+
+  const handleRegisterParticipant = async (tournamentId: string, data: { teamId?: string; teamName: string; seed?: number }) => {
+    await tournamentXApi.registerTournamentParticipant(tournamentId, data);
+    await refreshTournament(tournamentId);
+  };
+
+  const handleGenerateGroups = async (tournamentId: string, groupCount: number) => {
+    await tournamentXApi.generateTournamentGroups(tournamentId, groupCount);
+    await refreshTournament(tournamentId);
+  };
+
+  const handleGenerateBracket = async (tournamentId: string) => {
+    await tournamentXApi.generateTournamentBracket(tournamentId);
+    await refreshTournament(tournamentId);
+  };
+
   const openTournamentWizard = () => setShowCreateWizard(true);
   const navigate = (tab: TabId) => setActiveTab(tab);
   const navigateToTeam = (teamId: string) => {
@@ -310,7 +402,18 @@ export default function App() {
 
           <main className="flex-1 bg-[#0a0b0e] pb-16">
             {activeTab === 'dashboard' && <DashboardView onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} />}
-            {activeTab === 'tournaments' && <TournamentsView onNavigate={navigate} currentUserRole={currentUserRole} onOpenCreateWizard={openTournamentWizard} />}
+            {activeTab === 'tournaments' && (
+              <TournamentsView
+                onNavigate={navigate}
+                currentUserRole={currentUserRole}
+                onOpenCreateWizard={openTournamentWizard}
+                tournaments={tournaments}
+                onReportBracketResult={handleReportBracketResult}
+                onRegisterParticipant={handleRegisterParticipant}
+                onGenerateGroups={handleGenerateGroups}
+                onGenerateBracket={handleGenerateBracket}
+              />
+            )}
             {activeTab === 'live_match' && <LiveMatchView currentUserRole={currentUserRole} />}
             {activeTab === 'players' && (
               <PlayersView
@@ -353,6 +456,7 @@ export default function App() {
       {showCreateWizard && (
         <TournamentCreateWizard
           onClose={() => setShowCreateWizard(false)}
+          onCreateTournament={handleCreateTournament}
           onTournamentCreated={() => {
             setShowCreateWizard(false);
             navigate('tournaments');
