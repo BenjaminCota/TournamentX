@@ -24,7 +24,7 @@
   resultados y las transiciones `scheduled → live → completed`.
 - [x] **6. Integración visual.** Sustituir los datos mock de `CalendarView` y
   `LiveMatchView` por el cliente HTTP, incluyendo carga, vacío y error.
-- [ ] **7. Tiempo real.** Acordar eventos y añadir Socket.IO para emitir y
+- [x] **7. Tiempo real.** Acordar eventos y añadir Socket.IO para emitir y
   consumir cambios de marcador; notificar los módulos de analítica y alertas.
 - [ ] **8. Cierre.** Pruebas de API y frontend, documentación de endpoints y
   guía de integración para el pull request.

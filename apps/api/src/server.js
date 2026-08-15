@@ -1,6 +1,23 @@
 const app = require('./app');
 const env = require('./config/env');
+const http = require('node:http');
+const { Server } = require('socket.io');
 
-app.listen(env.port, () => {
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: env.socketCorsOrigin, methods: ['GET', 'POST', 'PATCH'] },
+});
+
+app.set('io', io);
+io.on('connection', (socket) => {
+  socket.on('subscribe-match', (matchId) => {
+    if (typeof matchId === 'string' && matchId.trim()) socket.join(`match:${matchId}`);
+  });
+  socket.on('unsubscribe-match', (matchId) => {
+    if (typeof matchId === 'string') socket.leave(`match:${matchId}`);
+  });
+});
+
+server.listen(env.port, () => {
   console.log(`TournamentX Rewards API disponible en http://localhost:${env.port}`);
 });

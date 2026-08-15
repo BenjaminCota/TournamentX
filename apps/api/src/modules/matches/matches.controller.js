@@ -33,6 +33,7 @@ async function updateMatchScore(req, res, next) {
   try {
     const match = await matchStore.updateMatchScore(req.validated.params.id, req.validated.body);
     if (!match) throw new HttpError(404, 'Partido no encontrado');
+    req.app.get('io')?.to(`match:${match.id}`).emit('match-update', match);
     res.json(match);
   } catch (error) {
     next(error);

@@ -13,6 +13,7 @@ import {
 import { MOCK_LIVE_MATCH } from '../../data/mockData';
 import { Team, TournamentMatch, UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { io } from 'socket.io-client';
 
 interface LiveMatchViewProps {
   currentUserRole: UserRole;
@@ -57,6 +58,19 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, m
     loadMatch();
     return () => { active = false; };
   }, [matchId]);
+
+  useEffect(() => {
+    if (!apiMatch?.id) return;
+    const socket = io(import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000');
+    socket.emit('subscribe-match', apiMatch.id);
+    socket.on('match-update', (updatedMatch: TournamentMatch) => {
+      if (updatedMatch.id === apiMatch.id) setApiMatch(updatedMatch);
+    });
+    return () => {
+      socket.emit('unsubscribe-match', apiMatch.id);
+      socket.disconnect();
+    };
+  }, [apiMatch?.id]);
 
   const teamName = (teamId: string | undefined, fallback: string) => teams.find((team) => team.id === teamId)?.name || teamId || fallback;
 

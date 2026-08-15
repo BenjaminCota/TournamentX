@@ -7,5 +7,6 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET || 'development-only-secret',
+  socketCorsOrigin: process.env.SOCKET_CORS_ORIGIN || 'http://localhost:4173',
   paymentsMode: process.env.PAYMENTS_MODE || 'simulated',
 };

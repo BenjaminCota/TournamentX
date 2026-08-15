@@ -79,6 +79,14 @@ Puede iniciarse un partido como `live` con su primer marcador, y finalizarlo
 como `completed`; los partidos finalizados o cancelados no aceptan más cambios
 de marcador.
 
+## Tiempo real
+
+El cliente se conecta a `VITE_SOCKET_URL` y emite `subscribe-match` con el ID
+del partido. Después de una actualización válida de marcador, la API emite
+`match-update` solamente a la sala `match:<id>`. Para desarrollo local, usar
+`VITE_SOCKET_URL=http://localhost:3000` y
+`SOCKET_CORS_ORIGIN=http://localhost:4173`.
+
 ## Dependencias y acuerdos necesarios
 
 | Módulo | Contrato requerido | Situación |
