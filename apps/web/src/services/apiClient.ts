@@ -40,5 +40,22 @@ export const tournamentXApi = {
   updateContributionStatus: (contributionId: number, status: string) =>
     request(`/contributions/${contributionId}/status`, { method: 'PATCH', body: { status } }),
   registerResults: (prizePoolId: number, data: unknown) =>
-    request(`/prize-pools/${prizePoolId}/results`, { method: 'POST', body: data })
+    request(`/prize-pools/${prizePoolId}/results`, { method: 'POST', body: data }),
+  tournaments: () => request('/tournaments'),
+  tournament: (id: string) => request(`/tournaments/${id}`),
+  createTournament: (data: unknown) => request('/tournaments', { method: 'POST', body: data }),
+  tournamentParticipants: (tournamentId: string) => request(`/tournaments/${tournamentId}/participants`),
+  registerTournamentParticipant: (tournamentId: string, data: unknown) =>
+    request(`/tournaments/${tournamentId}/participants`, { method: 'POST', body: data }),
+  tournamentGroups: (tournamentId: string) => request(`/tournaments/${tournamentId}/groups`),
+  generateTournamentGroups: (tournamentId: string, groupCount: number) =>
+    request(`/tournaments/${tournamentId}/groups/generate`, { method: 'POST', body: { groupCount } }),
+  reportGroupMatchResult: (tournamentId: string, matchId: string, score1: number, score2: number) =>
+    request(`/tournaments/${tournamentId}/group-matches/${matchId}/result`, { method: 'PUT', body: { score1, score2 } }),
+  generateTournamentBracket: (tournamentId: string) =>
+    request(`/tournaments/${tournamentId}/bracket/generate`, { method: 'POST' }),
+  tournamentBracket: (tournamentId: string) => request(`/tournaments/${tournamentId}/bracket`),
+  reportBracketMatchResult: (tournamentId: string, matchId: string, score1: number, score2: number) =>
+    request(`/tournaments/${tournamentId}/bracket-matches/${matchId}/result`, { method: 'PUT', body: { score1, score2 } }),
+  tournamentStatus: (tournamentId: string) => request(`/tournaments/${tournamentId}/status`)
 };

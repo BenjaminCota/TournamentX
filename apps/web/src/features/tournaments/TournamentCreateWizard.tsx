@@ -14,14 +14,18 @@ import confetti from 'canvas-confetti';
 
 interface WizardProps {
   onClose: () => void;
+  onCreateTournament: (payload: Partial<Tournament>) => Promise<Tournament> | Tournament;
   onTournamentCreated: (newTour: Tournament) => void;
 }
 
 export const TournamentCreateWizard: React.FC<WizardProps> = ({
   onClose,
+  onCreateTournament,
   onTournamentCreated
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Form State
   const [name, setName] = useState('VCT Masters Santiago 2026');
@@ -46,50 +50,39 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
     { number: 7, title: 'Premios' }
   ];
 
-  const handleFinish = () => {
-    const newTournament: Tournament = {
-      id: `tour-${Date.now()}`,
-      name,
-      description,
-      game,
-      gameCategory,
-      banner: bannerUrl,
-      prizePool: `$${prizePool} USD`,
-      prizeAmountUSD: parseInt(prizePool.replace(/,/g, '')) || 25000,
-      status: 'OPEN',
-      format,
-      dates,
-      registeredTeams: 1,
-      maxTeams,
-      privacy,
-      organizer: 'TournamentX Pro Staff',
-      tier: 'PRO CIRCUIT',
-      venue,
-      rounds: [
-        {
-          id: 1,
-          name: 'Cuartos de Final',
-          matches: [
-            {
-              id: 'nm-1',
-              roundId: 1,
-              matchNumber: 1,
-              team1: { id: 't-1', name: 'Luminex Esports', score: 0 },
-              team2: { id: 't-2', name: 'Titans', score: 0 },
-              status: 'SCHEDULED'
-            }
-          ]
-        }
-      ]
-    };
+  const handleFinish = async () => {
+    setSubmitError(null);
+    setIsSubmitting(true);
+    try {
+      const created = await onCreateTournament({
+        name,
+        description,
+        game,
+        gameCategory,
+        banner: bannerUrl,
+        prizePool: `$${prizePool} USD`,
+        prizeAmountUSD: parseInt(prizePool.replace(/,/g, '')) || 0,
+        format,
+        dates,
+        maxTeams,
+        privacy,
+        organizer: 'TournamentX Pro Staff',
+        tier: 'PRO CIRCUIT',
+        venue
+      });
 
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
 
-    onTournamentCreated(newTournament);
+      onTournamentCreated(created);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'No se pudo crear el torneo. Intenta de nuevo.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -437,7 +430,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
         </div>
 
         {/* Wizard Footer Controls */}
-        <div className="p-6 bg-[#131624] border-t border-[#1e2230] flex items-center justify-between">
+        <div className="p-6 bg-[#131624] border-t border-[#1e2230] flex items-center justify-between gap-4">
           <button
             type="button"
             disabled={currentStep === 1}
@@ -447,6 +440,10 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             <ArrowLeft className="w-4 h-4" />
             <span>ANTERIOR</span>
           </button>
+
+          {submitError && (
+            <span className="text-xs font-semibold text-red-400 text-right flex-1">{submitError}</span>
+          )}
 
           {currentStep < 7 ? (
             <button
@@ -460,11 +457,12 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
           ) : (
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={handleFinish}
-              className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-emerald-500/30 hover:scale-105 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-emerald-500/30 hover:scale-105 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Trophy className="w-4 h-4" />
-              <span>PUBLICAR Y ACTIVAR TORNEO</span>
+              <span>{isSubmitting ? 'PUBLICANDO…' : 'PUBLICAR Y ACTIVAR TORNEO'}</span>
             </button>
           )}
         </div>
