@@ -27,4 +27,20 @@ async function getById(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { list, create, getById };
+async function update(req, res, next) {
+  try {
+    const { id } = req.validated.params;
+    const current = await db.query('SELECT * FROM sponsors WHERE id = $1', [id]);
+    if (!current.rows[0]) throw new HttpError(404, 'Patrocinador no encontrado');
+    const body = req.validated.body;
+    await db.query(
+      `UPDATE sponsors SET name = $1, contact_email = $2, logo_url = $3, active = $4 WHERE id = $5`,
+      [body.name ?? current.rows[0].name, body.contactEmail ?? current.rows[0].contact_email,
+        body.logoUrl === undefined ? current.rows[0].logo_url : body.logoUrl,
+        body.active ?? Boolean(current.rows[0].active), id],
+    );
+    return getById(req, res, next);
+  } catch (error) { return next(error); }
+}
+
+module.exports = { list, create, getById, update };

@@ -49,13 +49,22 @@ async function getById(req, res, next) {
 async function contribute(req, res, next) {
   try {
     const poolId = req.validated.params.id;
-    const { sponsorId, amount, provider } = req.validated.body;
+    const { sponsorId, amount, provider, idempotencyKey } = req.validated.body;
     const poolResult = await db.query('SELECT * FROM prize_pools WHERE id = $1', [poolId]);
     const prizePool = poolResult.rows[0];
     if (!prizePool) throw new HttpError(404, 'Bolsa de premios no encontrada');
     if (prizePool.status !== 'funding') throw new HttpError(409, 'La bolsa no acepta más aportaciones');
     const sponsor = await db.query('SELECT id FROM sponsors WHERE id = $1 AND active = TRUE', [sponsorId]);
     if (!sponsor.rows[0]) throw new HttpError(404, 'Patrocinador no encontrado o inactivo');
+
+    if (idempotencyKey) {
+      const previous = await db.query(
+        `SELECT c.* FROM payment_idempotency i JOIN contributions c ON c.id = i.contribution_id
+         WHERE i.idempotency_key = $1`,
+        [idempotencyKey],
+      );
+      if (previous.rows[0]) return res.json({ data: previous.rows[0], reused: true });
+    }
 
     const payment = await paymentGateway.createPayment({ provider, amount, currency: prizePool.currency, reference: poolId });
     const contribution = await db.transaction(async (client) => {
@@ -65,8 +74,14 @@ async function contribute(req, res, next) {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
         [id, poolId, sponsorId, amount, prizePool.currency, provider, payment.providerReference, payment.status, JSON.stringify(payment.metadata)],
       );
+      if (idempotencyKey) await client.query('INSERT INTO payment_idempotency (idempotency_key, contribution_id) VALUES ($1,$2)', [idempotencyKey, id]);
       if (payment.status === 'paid') await client.query('UPDATE prize_pools SET funded_amount = funded_amount + $1, updated_at = NOW() WHERE id = $2', [amount, poolId]);
       const { rows } = await client.query('SELECT * FROM contributions WHERE id = $1', [id]);
+      await client.query(
+        `INSERT INTO payment_events (id, contribution_id, event_type, previous_status, new_status, performed_by, notes)
+         VALUES ($1,$2,'created',NULL,'pending',$3,$4)`,
+        [crypto.randomUUID(), id, req.user.sub, `Orden simulada creada con ${provider}`],
+      );
       return rows[0];
     });
     res.status(201).json({ data: contribution, payment: { checkoutUrl: payment.checkoutUrl, simulated: true } });
@@ -116,4 +131,17 @@ async function releasePayout(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { list, create, getById, contribute, defineDistribution, releasePayout };
+async function cancel(req, res, next) {
+  try {
+    const { rows } = await db.query('SELECT * FROM prize_pools WHERE id = $1', [req.validated.params.id]);
+    const prizePool = rows[0];
+    if (!prizePool) throw new HttpError(404, 'Bolsa de premios no encontrada');
+    if (!['draft', 'funding'].includes(prizePool.status)) throw new HttpError(409, 'La bolsa ya no puede cancelarse');
+    if (Number(prizePool.funded_amount) > 0) throw new HttpError(409, 'Reembolsa primero todas las aportaciones pagadas');
+    await db.query("UPDATE prize_pools SET status = 'cancelled' WHERE id = $1", [prizePool.id]);
+    const updated = await db.query(`${poolSelect} WHERE id = $1`, [prizePool.id]);
+    res.json({ data: updated.rows[0] });
+  } catch (error) { next(error); }
+}
+
+module.exports = { list, create, getById, contribute, defineDistribution, releasePayout, cancel };

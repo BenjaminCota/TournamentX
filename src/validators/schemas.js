@@ -14,7 +14,7 @@ const prizePool = z.object({
   params: z.any(), query: z.any(),
 });
 const contribution = z.object({
-  body: z.object({ sponsorId: uuid, amount: money, provider: z.enum(['stripe', 'binance_pay']) }),
+  body: z.object({ sponsorId: uuid, amount: money, provider: z.enum(['stripe', 'binance_pay']), idempotencyKey: z.string().trim().min(8).max(100).optional() }),
   params: z.object({ id: uuid }), query: z.any(),
 });
 const distribution = z.object({
@@ -25,5 +25,41 @@ const payout = z.object({
   body: z.object({ recipientId: uuid, position: z.coerce.number().int().positive(), destination: z.string().trim().min(3).max(200) }),
   params: z.object({ id: uuid }), query: z.any(),
 });
+const paymentStatus = z.object({
+  body: z.object({ status: z.enum(['paid', 'failed', 'refunded']), notes: z.string().trim().max(255).optional() }),
+  params: z.object({ id: uuid }), query: z.any(),
+});
+const sponsorUpdate = z.object({
+  body: z.object({ name: z.string().trim().min(2).max(120).optional(), contactEmail: z.string().email().optional(), logoUrl: z.string().url().nullable().optional(), active: z.boolean().optional() }).refine((body) => Object.keys(body).length > 0, 'Envía al menos un campo'),
+  params: z.object({ id: uuid }), query: z.any(),
+});
+const reward = z.object({
+  body: z.object({
+    sponsorId: uuid.optional(), prizePoolId: uuid.optional(),
+    rewardType: z.enum(['physical', 'game_code', 'gift_card', 'coupon']),
+    name: z.string().trim().min(2).max(120), description: z.string().trim().max(500).optional(),
+    quantity: z.coerce.number().int().positive().max(10000).default(1), milestone: z.string().trim().max(120).optional(),
+  }), params: z.any(), query: z.any(),
+});
+const rewardAssignment = z.object({
+  body: z.object({ recipientId: uuid, redemptionCode: z.string().trim().min(4).max(100).optional() }),
+  params: z.object({ id: uuid }), query: z.any(),
+});
+const rewardAssignmentStatus = z.object({
+  body: z.object({ status: z.enum(['redeemed', 'delivered', 'cancelled']) }),
+  params: z.object({ id: uuid }), query: z.any(),
+});
+const tournamentResults = z.object({
+  body: z.object({
+    tournamentId: uuid,
+    source: z.string().trim().min(2).max(50).default('api'),
+    winners: z.array(z.object({
+      recipientId: uuid,
+      recipientType: z.enum(['team', 'player']),
+      position: z.coerce.number().int().positive(),
+      destination: z.string().trim().min(3).max(200).optional(),
+    })).min(1).refine((winners) => new Set(winners.map((winner) => winner.position)).size === winners.length, 'Las posiciones no pueden repetirse'),
+  }), params: z.object({ id: uuid }), query: z.any(),
+});
 
-module.exports = { idParams, sponsor, prizePool, contribution, distribution, payout };
+module.exports = { idParams, sponsor, sponsorUpdate, prizePool, contribution, distribution, payout, paymentStatus, reward, rewardAssignment, rewardAssignmentStatus, tournamentResults };

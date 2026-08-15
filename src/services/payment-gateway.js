@@ -13,9 +13,9 @@ async function createPayment({ provider, amount, currency, reference }) {
   const providerReference = `${provider === 'stripe' ? 'pi_test' : 'bp_test'}_${crypto.randomUUID()}`;
   return {
     providerReference,
-    status: 'paid',
+    status: 'pending',
     checkoutUrl: `/api/payments/${providerReference}`,
-    metadata: { simulated: true, reference, amount, currency },
+    metadata: { simulated: true, reference, amount, currency, instructions: 'Confirma o rechaza el pago desde la API administrativa.' },
   };
 }
 

@@ -13,3 +13,9 @@ test('protege las rutas administrativas', async () => {
   const response = await request(app).get('/api/sponsors');
   assert.equal(response.status, 401);
 });
+
+test('publica la documentación Swagger', async () => {
+  const response = await request(app).get('/api/docs/');
+  assert.equal(response.status, 200);
+  assert.match(response.text, /TournamentX API/);
+});

@@ -12,8 +12,8 @@ El middleware JWT espera `sub` y `role`. Los roles internos de la API están nor
 
 1. Un administrador u organizador registra al patrocinador.
 2. Crea una bolsa asociada con un torneo.
-3. Registra una aportación con `stripe` o `binance_pay`.
-4. El simulador confirma el pago y aumenta el monto fondeado.
+3. Registra una aportación con `stripe` o `binance_pay`; la orden comienza como `pending`.
+4. Un administrador simula su aprobación o rechazo. Solamente una aprobación aumenta el monto fondeado.
 5. Define porcentajes que sumen exactamente 100.
 6. La bolsa queda bloqueada como escrow lógico.
 7. Registra un payout por cada posición y obtiene un código de recibo.
@@ -21,4 +21,4 @@ El middleware JWT espera `sub` y `role`. Los roles internos de la API están nor
 
 ## Límites del simulador
 
-El simulador no contacta servicios externos ni mueve dinero. Devuelve referencias con prefijo `pi_test` o `bp_test`. Para una integración real, se debe reemplazar `src/services/payment-gateway.js` y validar webhooks firmados antes de marcar una aportación como pagada.
+El simulador no contacta servicios externos ni mueve dinero. Devuelve referencias con prefijo `pi_test` o `bp_test`. Cada transición se guarda en `payment_events`; también permite simular fallos y reembolsos. Las credenciales reales de las plataformas no son necesarias.

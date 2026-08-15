@@ -8,5 +8,6 @@ router.use(authenticate);
 router.get('/', controller.list);
 router.get('/:id', validate(schemas.idParams), controller.getById);
 router.post('/', authorize('admin', 'organizer'), validate(schemas.sponsor), controller.create);
+router.patch('/:id', authorize('admin', 'organizer'), validate(schemas.sponsorUpdate), controller.update);
 
 module.exports = router;
