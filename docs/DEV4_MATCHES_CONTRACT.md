@@ -93,3 +93,10 @@ Socket.IO pertenecen a una entrega posterior.
 3. La creación exige `tournamentId`, dos equipos distintos y `scheduledAt`.
 4. La pantalla de calendario puede mapear el resultado sin depender de nombres
    codificados.
+
+## Persistencia
+
+Con `DATABASE_URL` configurada, calendarios y partidos se almacenan en las
+tablas MySQL `schedules` y `matches`. La creación de un calendario y de sus
+partidos generados se realiza en una transacción. Sin esa variable, el módulo
+usa datos temporales para desarrollo local y pruebas automatizadas.

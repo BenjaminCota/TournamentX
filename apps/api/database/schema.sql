@@ -145,3 +145,40 @@ CREATE TABLE IF NOT EXISTS tournament_winners (
   UNIQUE KEY uq_import_position (result_import_id, position),
   INDEX idx_winner_recipient (recipient_id)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS schedules (
+  id CHAR(36) PRIMARY KEY,
+  tournament_id VARCHAR(120) NOT NULL,
+  starts_at DATETIME(3) NOT NULL,
+  ends_at DATETIME(3) NOT NULL,
+  status ENUM('draft', 'published', 'completed', 'cancelled') NOT NULL DEFAULT 'draft',
+  format ENUM('round_robin', 'single_elimination') NOT NULL,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  INDEX idx_schedules_tournament (tournament_id),
+  INDEX idx_schedules_starts_at (starts_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS matches (
+  id CHAR(36) PRIMARY KEY,
+  schedule_id CHAR(36) NULL,
+  tournament_id VARCHAR(120) NOT NULL,
+  round_id VARCHAR(120) NULL,
+  team1_id VARCHAR(120) NOT NULL,
+  team2_id VARCHAR(120) NOT NULL,
+  scheduled_at DATETIME(3) NOT NULL,
+  venue VARCHAR(160) NULL,
+  mode ENUM('best_of_1', 'best_of_3', 'best_of_5') NOT NULL DEFAULT 'best_of_1',
+  status ENUM('scheduled', 'live', 'completed', 'postponed', 'cancelled') NOT NULL DEFAULT 'scheduled',
+  score_team1 INT UNSIGNED NOT NULL DEFAULT 0,
+  score_team2 INT UNSIGNED NOT NULL DEFAULT 0,
+  stream_url TEXT NULL,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  CONSTRAINT chk_match_distinct_teams CHECK (team1_id <> team2_id),
+  CONSTRAINT chk_match_scores_nonnegative CHECK (score_team1 >= 0 AND score_team2 >= 0),
+  CONSTRAINT fk_matches_schedule FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE SET NULL,
+  INDEX idx_matches_schedule (schedule_id),
+  INDEX idx_matches_tournament_status (tournament_id, status),
+  INDEX idx_matches_scheduled_at (scheduled_at)
+) ENGINE=InnoDB;

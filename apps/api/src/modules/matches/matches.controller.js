@@ -3,7 +3,7 @@ const matchStore = require('./match-store');
 
 async function listMatches(req, res, next) {
   try {
-    const matches = matchStore.listMatches(req.validated.query);
+    const matches = await matchStore.listMatches(req.validated.query);
     res.json(matches);
   } catch (error) {
     next(error);
@@ -12,7 +12,7 @@ async function listMatches(req, res, next) {
 
 async function getMatch(req, res, next) {
   try {
-    const match = matchStore.getMatch(req.validated.params.id);
+    const match = await matchStore.getMatch(req.validated.params.id);
     if (!match) throw new HttpError(404, 'Partido no encontrado');
     res.json(match);
   } catch (error) {
@@ -22,7 +22,7 @@ async function getMatch(req, res, next) {
 
 async function createMatch(req, res, next) {
   try {
-    const match = matchStore.createMatch(req.validated.body);
+    const match = await matchStore.createMatch(req.validated.body);
     res.status(201).json(match);
   } catch (error) {
     next(error);

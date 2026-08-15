@@ -16,8 +16,10 @@
 - [x] **3. Calendarios y programación.** Crear calendarios y generar la agenda
   inicial a partir de equipos, fechas, sedes y formato proporcionados por
   torneos.
-- [ ] **4. Persistencia MySQL.** Incorporar tablas e índices de calendarios y
+- [x] **4. Persistencia MySQL.** Incorporar tablas e índices de calendarios y
   partidos al esquema compartido, tras coordinar el cambio con el equipo.
+  Verificación pendiente: ejecutar `npm run db:init` con un `DATABASE_URL`
+  válido en el entorno MySQL compartido.
 - [ ] **5. Marcador y resultado.** Implementar la actualización autorizada de
   resultados y las transiciones `scheduled → live → completed`.
 - [ ] **6. Integración visual.** Sustituir los datos mock de `CalendarView` y
