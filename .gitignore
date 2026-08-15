@@ -3,6 +3,10 @@ node_modules/
 dist/
 build/
 coverage/
+.next/
+.vinext/
+.wrangler/
+.open-next/
 
 # Variables de entorno y secretos
 .env
