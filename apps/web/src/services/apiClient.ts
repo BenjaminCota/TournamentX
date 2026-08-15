@@ -35,6 +35,13 @@ export const tournamentXApi = {
   updatePlayer: (id: string, data: unknown) => request(`/players/${id}`, { method: 'PATCH', body: data }),
   addRosterMember: (teamId: string, data: unknown) => request(`/teams/${teamId}/roster`, { method: 'POST', body: data }),
   removeRosterMember: (teamId: string, playerId: string) => request(`/teams/${teamId}/roster/${playerId}`, { method: 'DELETE' }),
+  matches: () => request('/matches'),
+  match: (id: string) => request(`/matches/${id}`),
+  updateMatchScore: (id: string, data: unknown, token?: string) => request(`/matches/${id}/score`, {
+    method: 'PATCH',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: data,
+  }),
   addContribution: (prizePoolId: number, data: unknown) =>
     request(`/prize-pools/${prizePoolId}/contributions`, { method: 'POST', body: data }),
   updateContributionStatus: (contributionId: number, status: string) =>

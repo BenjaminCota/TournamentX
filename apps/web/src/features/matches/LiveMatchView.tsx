@@ -11,20 +11,68 @@ import {
   Minus
 } from 'lucide-react';
 import { MOCK_LIVE_MATCH } from '../../data/mockData';
-import { UserRole } from '../../types';
+import { Team, TournamentMatch, UserRole } from '../../types';
+import { tournamentXApi } from '../../services/apiClient';
+import { io } from 'socket.io-client';
 
 interface LiveMatchViewProps {
   currentUserRole: UserRole;
+  matchId?: string;
 }
 
-export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole }) => {
-  const [matchData, setMatchData] = useState(MOCK_LIVE_MATCH);
+export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, matchId }) => {
+  const [matchData] = useState(MOCK_LIVE_MATCH);
+  const [apiMatch, setApiMatch] = useState<TournamentMatch | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoadingMatch, setIsLoadingMatch] = useState(true);
+  const [scoreError, setScoreError] = useState('');
+  const [isSavingScore, setIsSavingScore] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [seconds, setSeconds] = useState(45 * 60 + 12);
   const [feed, setFeed] = useState(matchData.killFeed);
 
-  const canControlScore = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro';
+  const canControlScore = (currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro')
+    && Boolean(apiMatch) && !['completed', 'cancelled'].includes(apiMatch.status);
+
+  useEffect(() => {
+    let active = true;
+    const loadMatch = async () => {
+      try {
+        setIsLoadingMatch(true);
+        setScoreError('');
+        const selected = matchId
+          ? await tournamentXApi.match(matchId)
+          : (await tournamentXApi.matches() as TournamentMatch[]).find((match) => match.status === 'live') || null;
+        const nextTeams = await tournamentXApi.teams();
+        if (active) {
+          setApiMatch(selected as TournamentMatch | null);
+          setTeams(Array.isArray(nextTeams) ? nextTeams as Team[] : []);
+        }
+      } catch {
+        if (active) setScoreError('No fue posible cargar el partido desde la API.');
+      } finally {
+        if (active) setIsLoadingMatch(false);
+      }
+    };
+    loadMatch();
+    return () => { active = false; };
+  }, [matchId]);
+
+  useEffect(() => {
+    if (!apiMatch?.id) return;
+    const socket = io(import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000');
+    socket.emit('subscribe-match', apiMatch.id);
+    socket.on('match-update', (updatedMatch: TournamentMatch) => {
+      if (updatedMatch.id === apiMatch.id) setApiMatch(updatedMatch);
+    });
+    return () => {
+      socket.emit('unsubscribe-match', apiMatch.id);
+      socket.disconnect();
+    };
+  }, [apiMatch?.id]);
+
+  const teamName = (teamId: string | undefined, fallback: string) => teams.find((team) => team.id === teamId)?.name || teamId || fallback;
 
   // Live timer simulator
   useEffect(() => {
@@ -74,17 +122,22 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole })
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const handleAdjustScore = (team: 1 | 2, delta: number) => {
-    if (team === 1) {
-      setMatchData(prev => ({
-        ...prev,
-        team1: { ...prev.team1, score: Math.max(0, prev.team1.score + delta) }
-      }));
-    } else {
-      setMatchData(prev => ({
-        ...prev,
-        team2: { ...prev.team2, score: Math.max(0, prev.team2.score + delta) }
-      }));
+  const handleAdjustScore = async (team: 1 | 2, delta: number) => {
+    if (!apiMatch || isSavingScore) return;
+    const score = {
+      team1Score: team === 1 ? Math.max(0, apiMatch.score.team1 + delta) : apiMatch.score.team1,
+      team2Score: team === 2 ? Math.max(0, apiMatch.score.team2 + delta) : apiMatch.score.team2,
+      status: apiMatch.status === 'scheduled' ? 'live' : apiMatch.status,
+    };
+    try {
+      setIsSavingScore(true);
+      setScoreError('');
+      const updated = await tournamentXApi.updateMatchScore(apiMatch.id, score, import.meta.env.VITE_MATCH_TOKEN);
+      setApiMatch(updated as TournamentMatch);
+    } catch {
+      setScoreError('No fue posible actualizar el marcador. Inicia sesión con un JWT de árbitro u organizador.');
+    } finally {
+      setIsSavingScore(false);
     }
   };
 
@@ -96,10 +149,10 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole })
           <div className="flex items-center gap-3">
             <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono-code font-bold text-xs flex items-center gap-1.5 animate-pulse">
               <Radio className="w-3.5 h-3.5" />
-              ● EN VIVO | Grand Finals - Mapa 3
+              ● {apiMatch?.status === 'live' ? 'EN VIVO' : (apiMatch?.status || 'CARGANDO').toUpperCase()} | {apiMatch?.roundId || 'Partido'}
             </span>
             <span className="text-xs font-mono-code text-slate-400 bg-[#161926] px-3 py-1 rounded-full border border-[#232738]">
-              {matchData.map}
+              {apiMatch?.mode || matchData.bestOf}
             </span>
           </div>
 
@@ -117,9 +170,9 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole })
               NOVA
             </div>
             <div>
-              <div className="text-[11px] font-tech text-[#ff2e83] font-bold uppercase tracking-wider">SEED #{matchData.team1.seed}</div>
+              <div className="text-[11px] font-tech text-[#ff2e83] font-bold uppercase tracking-wider">EQUIPO 1</div>
               <h2 className="font-brand font-black text-3xl sm:text-5xl text-white uppercase tracking-tight italic">
-                {matchData.team1.name}
+                {teamName(apiMatch?.team1Id, matchData.team1.name)}
               </h2>
             </div>
           </div>
@@ -129,6 +182,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole })
             <div className="flex items-center gap-4 px-6 py-3 rounded-2xl bg-[#0b0c12] border border-[#23273b] shadow-2xl">
               {canControlScore && (
                 <button
+                  disabled={isSavingScore}
                   onClick={() => handleAdjustScore(1, -1)}
                   className="p-1 rounded bg-[#1e2230] text-slate-400 hover:text-white"
                   title="Restar punto Nova"
@@ -138,19 +192,20 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole })
               )}
 
               <span className="font-brand font-black text-5xl sm:text-6xl text-white">
-                {matchData.team1.score}
+                {apiMatch?.score.team1 ?? matchData.team1.score}
               </span>
 
               <span className="font-tech text-xs font-bold text-slate-500 px-1 uppercase">
-                {matchData.bestOf}
+                {apiMatch?.mode || matchData.bestOf}
               </span>
 
               <span className="font-brand font-black text-5xl sm:text-6xl text-[#ff2e83]">
-                {matchData.team2.score}
+                {apiMatch?.score.team2 ?? matchData.team2.score}
               </span>
 
               {canControlScore && (
                 <button
+                  disabled={isSavingScore}
                   onClick={() => handleAdjustScore(2, 1)}
                   className="p-1 rounded bg-[#1e2230] text-slate-400 hover:text-white"
                   title="Sumar punto Raven"
@@ -170,9 +225,9 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole })
           {/* Team 2: RAVEN */}
           <div className="flex items-center gap-4 text-right">
             <div>
-              <div className="text-[11px] font-tech text-slate-400 font-bold uppercase tracking-wider">SEED #{matchData.team2.seed}</div>
+              <div className="text-[11px] font-tech text-slate-400 font-bold uppercase tracking-wider">EQUIPO 2</div>
               <h2 className="font-brand font-black text-3xl sm:text-5xl text-white uppercase tracking-tight italic">
-                {matchData.team2.name}
+                {teamName(apiMatch?.team2Id, matchData.team2.name)}
               </h2>
             </div>
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#202438] border border-[#2e344e] flex items-center justify-center font-brand font-black text-2xl text-white shadow-inner">
@@ -181,6 +236,9 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole })
           </div>
         </div>
       </div>
+
+      {isLoadingMatch && <p className="rounded-xl border border-[#252a3d] bg-[#11131c] p-4 text-sm text-slate-400">Cargando datos del partido…</p>}
+      {scoreError && <p className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">{scoreError}</p>}
 
       {/* 2-COLUMN: STREAM PLAYER & LIVE KILL FEED */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
