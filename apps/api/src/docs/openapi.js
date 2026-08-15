@@ -98,6 +98,40 @@ module.exports = {
     '/api/rewards/recipients/{id}': {
       get: { summary: 'Consulta premios de un equipo o jugador', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Premios obtenidos' } } },
     },
+    '/api/matches': {
+      get: { security: [], summary: 'Lista partidos y permite filtrar por torneo, calendario, estado y fecha', responses: { 200: { description: 'Partidos obtenidos' } } },
+      post: {
+        security: [], summary: 'Crea un partido programado',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['tournamentId', 'team1Id', 'team2Id', 'scheduledAt'], properties: {
+          tournamentId: { type: 'string' }, scheduleId: { type: 'string' }, roundId: { type: 'string' }, team1Id: { type: 'string' }, team2Id: { type: 'string' },
+          scheduledAt: { type: 'string', format: 'date-time' }, venue: { type: 'string' }, mode: { type: 'string', enum: ['best_of_1', 'best_of_3', 'best_of_5'] },
+        } } } } }, responses: { 201: { description: 'Partido creado' } },
+      },
+    },
+    '/api/matches/{id}': {
+      get: { security: [], summary: 'Obtiene un partido', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Partido encontrado' }, 404: { description: 'No encontrado' } } },
+    },
+    '/api/matches/{id}/score': {
+      patch: {
+        summary: 'Actualiza marcador o estado y emite match-update por Socket.IO', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: {
+          team1Score: { type: 'integer', minimum: 0 }, team2Score: { type: 'integer', minimum: 0 }, status: { type: 'string', enum: ['scheduled', 'live', 'completed', 'postponed', 'cancelled'] },
+        } } } } }, responses: { 200: { description: 'Marcador actualizado' }, 401: { description: 'JWT requerido' }, 409: { description: 'Transición no válida' } },
+      },
+    },
+    '/api/schedules': {
+      get: { security: [], summary: 'Lista calendarios', responses: { 200: { description: 'Calendarios obtenidos' } } },
+      post: {
+        security: [], summary: 'Crea un calendario y genera su agenda inicial',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['tournamentId', 'teamIds', 'startsAt'], properties: {
+          tournamentId: { type: 'string' }, teamIds: { type: 'array', items: { type: 'string' }, minItems: 2 }, startsAt: { type: 'string', format: 'date-time' },
+          endsAt: { type: 'string', format: 'date-time' }, slotMinutes: { type: 'integer', minimum: 15 }, format: { type: 'string', enum: ['round_robin', 'single_elimination'] },
+        } } } } }, responses: { 201: { description: 'Calendario generado' } },
+      },
+    },
+    '/api/schedules/{id}': {
+      get: { security: [], summary: 'Obtiene un calendario con sus partidos', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Calendario encontrado' }, 404: { description: 'No encontrado' } } },
+    },
     '/api/receipts/{code}': {
       get: { security: [], summary: 'Verifica un recibo', parameters: [{ in: 'path', name: 'code', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Recibo válido' }, 404: { description: 'No encontrado' } } },
     },

@@ -26,10 +26,10 @@
   `LiveMatchView` por el cliente HTTP, incluyendo carga, vacío y error.
 - [x] **7. Tiempo real.** Acordar eventos y añadir Socket.IO para emitir y
   consumir cambios de marcador; notificar los módulos de analítica y alertas.
-- [ ] **8. Cierre.** Pruebas de API y frontend, documentación de endpoints y
+- [x] **8. Cierre.** Pruebas de API y frontend, documentación de endpoints y
   guía de integración para el pull request.
 
-## Próxima entrega
+## Estado final
 
-Implementar el contrato y el módulo API mínimo de partidos, sin modificar aún
-el esquema MySQL ni las carpetas de otros módulos.
+Módulo listo para revisión. Consultar `docs/DEV4_PULL_REQUEST.md` antes de
+abrir el pull request.
