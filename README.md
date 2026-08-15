@@ -1,56 +1,185 @@
 # TournamentX
 
-Plataforma web para la gestión integral de torneos deportivos y competencias de esports. TournamentX centraliza la administración de participantes, formatos de competencia, calendarios, resultados en vivo, estadísticas, transmisiones y recompensas.
+TournamentX es una plataforma para administrar torneos de deportes tradicionales y esports. Este repositorio contiene la aplicación web, la API y el esquema MySQL en un monorepo compartido.
 
-## Objetivo
+## Tecnologías
 
-Construir una plataforma híbrida que cubra tanto deportes tradicionales —como fútbol, básquetbol y voleibol— como esports —Valorant, League of Legends, Rocket League, EA FC, Free Fire y Roblox—.
+- Web: React 19, TypeScript, Vite, Tailwind CSS y Leaflet.
+- API: Node.js, Express, Zod y JWT.
+- Base de datos: MySQL 8.
+- Tiempo real previsto: Socket.IO.
+- Pagos del MVP: simulaciones locales de Stripe y Binance Pay.
 
-## Módulos de trabajo
+No existe una integración de inteligencia artificial ni se cargan recursos de fuentes externas para la tipografía.
 
-| Integrante | Módulo | Rama |
-| --- | --- | --- |
-| Dev 1 | Core y autenticación | `dev-1/core-auth` |
-| Dev 2 | Motor de torneos y brackets | `dev-2/tournament-brackets` |
-| Dev 3 | Gestión de equipos y jugadores | `dev-3/teams-players` |
-| Dev 4 | Calendario y partidos en vivo | `dev-4/schedule-live` |
-| Dev 5 | Estadísticas y dashboard analítico | `dev-5/analytics-dashboard` |
-| Dev 6 | Esports e integración media | `dev-6/esports-media` |
-| Dev 7 | Geolocalización y notificaciones | `dev-7/geolocation-notifications` |
-| Dev 8 | Recompensas y pasarela dual | `dev-8/rewards-payments` |
+## Estructura
 
-El alcance exacto y el flujo de colaboración se encuentran en [docs/TEAM_WORKFLOW.md](docs/TEAM_WORKFLOW.md).
-
-## Flujo Git
-
-1. Trabajar únicamente en la rama asignada.
-2. Mantener los commits pequeños y descriptivos.
-3. Sincronizar los cambios recientes de `main` antes de abrir un pull request.
-4. Abrir un pull request hacia `main` y solicitar revisión.
-5. No subir secretos, credenciales ni archivos `.env`.
-
-## Estado
-
-La rama `main` contiene la plantilla visual compartida del MVP. Al iniciar, presenta durante tres segundos la identidad de TournamentX y después carga la experiencia principal.
-
-Cada módulo debe partir de `main`, conservar el splash de marca y adaptar únicamente sus páginas o componentes asignados.
-
-## Módulo Dev 6 — Esports & Media
-
-La rama `dev-6/esports-media` incluye un panel web funcional para:
-
-- visualizar y filtrar transmisiones de Twitch y YouTube;
-- buscar torneos, canales y videojuegos;
-- crear y administrar lobbies competitivos;
-- copiar códigos de acceso para equipos;
-- consultar audiencia, retención y métricas por videojuego;
-- operar en escritorio, tablet y móvil con la identidad rosa, negra y blanca de TournamentX.
-
-### Ejecución local
-
-```powershell
-npm install
-npm run dev
+```text
+project-torneo/
+├── apps/
+│   ├── api/
+│   │   ├── database/schema.sql       Esquema MySQL
+│   │   ├── public/                   Página básica de la API
+│   │   ├── src/
+│   │   │   ├── config/               Entorno y conexión MySQL
+│   │   │   ├── controllers/          Casos de uso del módulo 8
+│   │   │   ├── docs/                 Especificación OpenAPI
+│   │   │   ├── middleware/           JWT, validación y errores
+│   │   │   ├── modules/              Espacio de los ocho módulos
+│   │   │   ├── routes/               Rutas Express
+│   │   │   ├── services/             Pagos y cálculo de premios
+│   │   │   ├── validators/           Esquemas Zod
+│   │   │   ├── app.js                Aplicación Express
+│   │   │   └── server.js             Arranque de la API
+│   │   └── test/                      Pruebas unitarias e integración
+│   └── web/
+│       ├── src/
+│       │   ├── data/                  Datos temporales de presentación
+│       │   ├── features/              Pantallas agrupadas por dominio
+│       │   ├── services/              Cliente HTTP
+│       │   ├── shared/                Componentes compartidos
+│       │   ├── App.tsx                Composición y navegación
+│       │   └── types.ts               Tipos comunes actuales
+│       └── package.json
+├── docs/
+│   ├── DEV8_API.md                    Contrato del módulo de premios
+│   ├── MODULE_OWNERSHIP.md            Responsables y rutas de trabajo
+│   └── TEAM_WORKFLOW.md               Flujo de Git del equipo
+├── package.json                       Comandos del monorepo
+└── package-lock.json                  Versiones únicas de dependencias
 ```
 
-La interfaz funciona con información demostrativa. Para conectar datos reales se deben configurar las variables descritas en `.env.example` con credenciales de Twitch Developer y YouTube Data API v3.
+## Distribución de trabajo
+
+| Dev | Responsabilidad | Frontend | Backend |
+| --- | --- | --- | --- |
+| 1 | Core y autenticación | `features/auth` | `modules/auth` |
+| 2 | Torneos y brackets | `features/tournaments` | `modules/tournaments` |
+| 3 | Equipos y jugadores | `features/teams` | `modules/teams` |
+| 4 | Calendario y partidos | `features/matches` | `modules/matches` |
+| 5 | Estadísticas y dashboard | `features/analytics` | `modules/analytics` |
+| 6 | Esports y medios | `features/media` | `modules/media` |
+| 7 | Sedes y notificaciones | `features/geolocation` | `modules/geolocation` |
+| 8 | Premios, patrocinadores y pagos | `features/rewards` | API de premios existente |
+
+Las rutas de frontend parten de `apps/web/src/` y las de backend de `apps/api/src/`.
+
+## Instalación
+
+Requisitos: Node.js 20 o posterior y MySQL 8.
+
+```bash
+npm install
+```
+
+Crea la configuración local de la API:
+
+```powershell
+Copy-Item apps/api/.env.example apps/api/.env
+```
+
+Ejemplo seguro:
+
+```env
+PORT=3000
+NODE_ENV=development
+DATABASE_URL=mysql://root:password@localhost:3306/tournamentx
+JWT_SECRET=replace-with-a-long-random-secret
+PAYMENTS_MODE=simulated
+```
+
+No se deben subir archivos `.env`, contraseñas ni llaves privadas.
+
+## Inicializar MySQL
+
+Crea primero una base llamada `tournamentx` y ejecuta:
+
+```bash
+npm run db:init
+```
+
+El comando utiliza `apps/api/database/schema.sql` y puede ejecutarse nuevamente sin borrar los datos existentes.
+
+## Ejecutar localmente
+
+Abre dos terminales desde la raíz.
+
+Terminal 1:
+
+```bash
+npm run dev:api
+```
+
+Terminal 2:
+
+```bash
+npm run dev:web
+```
+
+- Aplicación: `http://localhost:4173`
+- API: `http://localhost:3000`
+- Estado: `http://localhost:3000/api/health`
+- Documentación: `http://localhost:3000/api/docs`
+
+## Stripe y Binance Pay
+
+Los dos proveedores funcionan como simulaciones del MVP:
+
+- Stripe genera referencias con prefijo `pi_test_`.
+- Binance Pay genera referencias con prefijo `bp_test_`.
+- Las aportaciones empiezan en estado `pending`.
+- Un administrador u organizador puede aprobar, rechazar o reembolsar la operación.
+- Las transiciones se guardan en `payment_events`.
+- No se contactan servicios externos ni se mueve dinero.
+
+Debe mantenerse:
+
+```env
+PAYMENTS_MODE=simulated
+```
+
+Las credenciales reales no son necesarias para este proyecto.
+
+## Comandos
+
+```bash
+npm run dev:web       # frontend en el puerto 4173
+npm run dev:api       # API en el puerto 3000
+npm run db:init       # crea o actualiza el esquema local
+npm run check         # TypeScript y pruebas de API
+npm run build         # build de producción del frontend
+npm test              # pruebas del backend
+```
+
+Prueba completa con MySQL:
+
+```powershell
+$env:RUN_DB_TESTS='1'; npm test
+```
+
+## Forma de trabajo
+
+1. Trabaja únicamente en la rama asignada.
+2. Modifica primero la carpeta de tu módulo.
+3. Coordina cambios en `App.tsx`, `shared`, `config`, `middleware`, contratos o SQL.
+4. Ejecuta `npm run check` antes de crear un commit.
+5. Describe en el pull request las rutas, tablas o eventos modificados.
+6. No mezcles ajustes visuales de otros módulos sin avisar a su responsable.
+7. Nunca subas secretos o dependencias instaladas.
+
+Formato de commits recomendado:
+
+```text
+feat(rewards): registrar aportación simulada
+fix(matches): corregir actualización del marcador
+docs(core): documentar contrato de autenticación
+```
+
+## Estado actual
+
+- Estructura preparada para ocho módulos.
+- Web compilando correctamente.
+- API del módulo 8 conectada a MySQL.
+- Stripe y Binance Pay verificados en modo simulado.
+- Pruebas unitarias y transaccionales disponibles.
+- Integraciones definitivas con autenticación, torneos, equipos y jugadores pendientes de los contratos de los demás desarrolladores.

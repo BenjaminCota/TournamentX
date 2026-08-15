@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TournamentX API</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 48px 20px; background: #fff; color: #111; font-family: Arial, sans-serif; line-height: 1.5; }
+    main { max-width: 760px; margin: auto; }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    h2 { font-size: 18px; margin-top: 32px; }
+    code { background: #f2f2f2; padding: 2px 6px; }
+    li { margin: 8px 0; }
+    .status { border: 1px solid #111; padding: 12px; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>TournamentX</h1>
+    <p>Backend de premios, patrocinadores y pagos.</p>
+    <div class="status">API activa: <code>GET /api/health</code></div>
+    <h2>Recursos disponibles</h2>
+    <ul>
+      <li><code>/api/sponsors</code> — patrocinadores</li>
+      <li><code>/api/prize-pools</code> — bolsas de premios</li>
+      <li><code>/api/contributions</code> — historial y estados de pagos simulados</li>
+      <li><code>/api/rewards</code> — premios físicos, códigos y cupones</li>
+      <li><code>/api/receipts/:code</code> — consulta de recibos</li>
+    </ul>
+    <p><a href="/api/docs">Abrir documentación Swagger</a></p>
+    <p>Esta página es únicamente informativa. El módulo no incluye frontend.</p>
+  </main>
+</body>
+</html>
