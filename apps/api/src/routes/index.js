@@ -6,6 +6,7 @@ const contributionsRoutes = require('./contributions.routes');
 const rewardsRoutes = require('./rewards.routes');
 const teamsRoutes = require('../modules/teams/teams.routes');
 const playersRoutes = require('../modules/teams/players.routes');
+const tournamentsRoutes = require('../modules/tournaments/tournaments.routes');
 
 router.use('/sponsors', sponsorsRoutes);
 router.use('/prize-pools', prizePoolsRoutes);
@@ -14,5 +15,6 @@ router.use('/contributions', contributionsRoutes);
 router.use('/rewards', rewardsRoutes);
 router.use('/teams', teamsRoutes);
 router.use('/players', playersRoutes);
+router.use('/tournaments', tournamentsRoutes);
 
 module.exports = router;
