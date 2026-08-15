@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const database = require('../../config/database');
 const env = require('../../config/env');
+const HttpError = require('../../utils/http-error');
 
 const matches = [
   {
@@ -72,4 +73,48 @@ async function createMatch({ scheduleId, tournamentId, roundId, team1Id, team2Id
   return match;
 }
 
-module.exports = { databaseEnabled, listMatches, getMatch, createMatch };
+function canTransition(currentStatus, nextStatus) {
+  if (currentStatus === nextStatus) return true;
+  return {
+    scheduled: ['live', 'postponed', 'cancelled'],
+    live: ['completed'],
+    postponed: ['scheduled', 'cancelled'],
+    completed: [],
+    cancelled: [],
+  }[currentStatus].includes(nextStatus);
+}
+
+async function updateMatchScore(matchId, { team1Score, team2Score, status }) {
+  const current = await getMatch(matchId);
+  if (!current) return null;
+
+  const nextStatus = status || current.status;
+  const scoreChanged = team1Score !== undefined || team2Score !== undefined;
+  if (!canTransition(current.status, nextStatus)) {
+    throw new HttpError(409, `No se puede cambiar un partido de ${current.status} a ${nextStatus}`);
+  }
+  if (scoreChanged && ['completed', 'cancelled'].includes(current.status)) {
+    throw new HttpError(409, 'No se puede modificar el marcador de un partido finalizado o cancelado');
+  }
+  if (scoreChanged && !['live', 'completed'].includes(nextStatus)) {
+    throw new HttpError(409, 'El marcador solo puede actualizarse cuando el partido está en vivo o se finaliza');
+  }
+
+  const score = {
+    team1: team1Score === undefined ? current.score.team1 : team1Score,
+    team2: team2Score === undefined ? current.score.team2 : team2Score,
+  };
+  if (!databaseEnabled()) {
+    const match = matches.find((entry) => entry.id === matchId);
+    Object.assign(match, { status: nextStatus, score, updatedAt: new Date().toISOString() });
+    return serialize(match);
+  }
+
+  await database.query(
+    'UPDATE matches SET score_team1 = $1, score_team2 = $2, status = $3 WHERE id = $4',
+    [score.team1, score.team2, nextStatus, matchId],
+  );
+  return getMatch(matchId);
+}
+
+module.exports = { databaseEnabled, listMatches, getMatch, createMatch, updateMatchScore };

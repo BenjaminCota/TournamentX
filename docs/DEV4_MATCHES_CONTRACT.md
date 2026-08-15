@@ -65,7 +65,7 @@ scheduled | postponed → cancelled
 | `GET` | `/api/matches` | Lista y filtra por `tournamentId`, `scheduleId`, `status`, `from` y `to`. |
 | `GET` | `/api/matches/:id` | Obtiene el detalle de un partido. |
 | `POST` | `/api/matches` | Crea un partido programado. |
-| `PATCH` | `/api/matches/:id/score` | Actualiza marcador y/o estado; requiere rol de Admin, Organizador o Árbitro cuando auth esté integrada. |
+| `PATCH` | `/api/matches/:id/score` | Actualiza marcador y/o estado; requiere JWT con rol `admin`, `organizer` o `referee`. |
 | `GET` | `/api/schedules/:id` | Obtiene un calendario y sus partidos. |
 | `GET` | `/api/schedules` | Lista calendarios, opcionalmente por `tournamentId`. |
 | `POST` | `/api/schedules` | Crea el calendario y genera la agenda inicial. |
@@ -73,6 +73,11 @@ scheduled | postponed → cancelled
 El generador actual acepta `round_robin` y `single_elimination`, recibe los
 equipos en orden, y asigna bloques consecutivos de `slotMinutes`. Los eventos
 Socket.IO pertenecen a una entrega posterior.
+
+El marcador se envía como `team1Score` y `team2Score` en la misma solicitud.
+Puede iniciarse un partido como `live` con su primer marcador, y finalizarlo
+como `completed`; los partidos finalizados o cancelados no aceptan más cambios
+de marcador.
 
 ## Dependencias y acuerdos necesarios
 

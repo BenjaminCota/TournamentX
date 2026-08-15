@@ -41,4 +41,23 @@ const createMatch = z.object({
   }),
 });
 
-module.exports = { listMatches, matchId, createMatch };
+const updateMatchScore = z.object({
+  params: z.object({ id: opaqueId }),
+  query: z.any(),
+  body: z.object({
+    team1Score: z.coerce.number().int().min(0).optional(),
+    team2Score: z.coerce.number().int().min(0).optional(),
+    status: z.enum(matchStatuses).optional(),
+  }).superRefine((body, context) => {
+    const hasTeam1 = body.team1Score !== undefined;
+    const hasTeam2 = body.team2Score !== undefined;
+    if (!hasTeam1 && !hasTeam2 && !body.status) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Envía un marcador o un estado' });
+    }
+    if (hasTeam1 !== hasTeam2) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Envía ambos marcadores juntos', path: ['team2Score'] });
+    }
+  }),
+});
+
+module.exports = { listMatches, matchId, createMatch, updateMatchScore };

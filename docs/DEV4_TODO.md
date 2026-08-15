@@ -20,7 +20,7 @@
   partidos al esquema compartido, tras coordinar el cambio con el equipo.
   Verificación pendiente: ejecutar `npm run db:init` con un `DATABASE_URL`
   válido en el entorno MySQL compartido.
-- [ ] **5. Marcador y resultado.** Implementar la actualización autorizada de
+- [x] **5. Marcador y resultado.** Implementar la actualización autorizada de
   resultados y las transiciones `scheduled → live → completed`.
 - [ ] **6. Integración visual.** Sustituir los datos mock de `CalendarView` y
   `LiveMatchView` por el cliente HTTP, incluyendo carga, vacío y error.

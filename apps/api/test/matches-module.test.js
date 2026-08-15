@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 
 test('Dev 4 expone y filtra partidos programados', async () => {
@@ -83,4 +84,35 @@ test('Dev 4 rechaza una eliminación directa sin equipos potencia de dos', async
 
   assert.equal(invalid.status, 400);
   assert.match(invalid.body.error, /datos de entrada inválidos/i);
+});
+
+test('Dev 4 protege y actualiza el marcador con transiciones válidas', async () => {
+  const created = await request(app).post('/api/matches').send({
+    tournamentId: 'tour-live',
+    team1Id: 'team-lnx',
+    team2Id: 'team-titans',
+    scheduledAt: '2026-08-23T18:00:00.000Z',
+  });
+  const token = jwt.sign({ sub: 'referee-1', role: 'referee' }, process.env.JWT_SECRET || 'development-only-secret');
+
+  const unauthenticated = await request(app).patch(`/api/matches/${created.body.id}/score`).send({ status: 'live' });
+  assert.equal(unauthenticated.status, 401);
+
+  const live = await request(app).patch(`/api/matches/${created.body.id}/score`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ team1Score: 2, team2Score: 1, status: 'live' });
+  assert.equal(live.status, 200);
+  assert.equal(live.body.status, 'live');
+  assert.deepEqual(live.body.score, { team1: 2, team2: 1 });
+
+  const completed = await request(app).patch(`/api/matches/${created.body.id}/score`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ status: 'completed' });
+  assert.equal(completed.status, 200);
+  assert.equal(completed.body.status, 'completed');
+
+  const afterCompletion = await request(app).patch(`/api/matches/${created.body.id}/score`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ team1Score: 3, team2Score: 1 });
+  assert.equal(afterCompletion.status, 409);
 });

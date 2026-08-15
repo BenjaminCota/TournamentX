@@ -29,4 +29,14 @@ async function createMatch(req, res, next) {
   }
 }
 
-module.exports = { listMatches, getMatch, createMatch };
+async function updateMatchScore(req, res, next) {
+  try {
+    const match = await matchStore.updateMatchScore(req.validated.params.id, req.validated.body);
+    if (!match) throw new HttpError(404, 'Partido no encontrado');
+    res.json(match);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { listMatches, getMatch, createMatch, updateMatchScore };
