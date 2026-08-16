@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS contributions (
   INDEX idx_contributions_pool (prize_pool_id)
 ) ENGINE=InnoDB;
 
+ALTER TABLE contributions MODIFY COLUMN status ENUM('pending', 'authorized', 'paid', 'failed', 'cancelled', 'refunded') NOT NULL DEFAULT 'pending';
+
 CREATE TABLE IF NOT EXISTS distribution_rules (
   id CHAR(36) PRIMARY KEY,
   prize_pool_id CHAR(36) NOT NULL,
@@ -84,6 +86,10 @@ CREATE TABLE IF NOT EXISTS payment_events (
   INDEX idx_payment_events_contribution (contribution_id),
   INDEX idx_payment_events_created (created_at)
 ) ENGINE=InnoDB;
+
+ALTER TABLE payment_events MODIFY COLUMN event_type ENUM('created', 'authorized', 'approved', 'captured', 'failed', 'cancelled', 'refunded') NOT NULL;
+ALTER TABLE payment_events MODIFY COLUMN previous_status ENUM('pending', 'authorized', 'paid', 'failed', 'cancelled', 'refunded') NULL;
+ALTER TABLE payment_events MODIFY COLUMN new_status ENUM('pending', 'authorized', 'paid', 'failed', 'cancelled', 'refunded') NOT NULL;
 
 CREATE TABLE IF NOT EXISTS payment_idempotency (
   idempotency_key VARCHAR(100) PRIMARY KEY,

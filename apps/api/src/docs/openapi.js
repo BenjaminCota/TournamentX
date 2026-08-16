@@ -3,7 +3,7 @@ module.exports = {
   info: {
     title: 'TournamentX — Rewards & Payments API',
     version: '1.0.0',
-    description: 'API del módulo Dev 8. Stripe y Binance Pay funcionan únicamente como simuladores.',
+    description: 'API financiera de Dev 8. Soporta simulación, Stripe Test con captura manual y preparación segura de Binance Pay C2B.',
   },
   servers: [{ url: 'http://localhost:3000', description: 'Servidor local' }],
   components: {
@@ -48,7 +48,7 @@ module.exports = {
     },
     '/api/prize-pools/{id}/contributions': {
       post: {
-        summary: 'Crea una orden de aportación simulada', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
+        summary: 'Crea una aportación simulada o una autorización de prueba', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ContributionInput' } } } }, responses: { 201: { description: 'Orden pendiente creada' } },
       },
     },
@@ -78,12 +78,21 @@ module.exports = {
     '/api/contributions/{id}/status': {
       patch: {
         summary: 'Aprueba, rechaza o reembolsa una aportación simulada', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
-        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['paid', 'failed', 'refunded'] }, notes: { type: 'string' } } } } } },
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['authorized', 'paid', 'failed', 'cancelled', 'refunded'] }, notes: { type: 'string' } } } } } },
         responses: { 200: { description: 'Estado actualizado' } },
       },
     },
     '/api/contributions/{id}/history': {
       get: { summary: 'Consulta la auditoría de una aportación', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Historial obtenido' } } },
+    },
+    '/api/contributions/{id}/stripe/capture': {
+      post: { summary: 'Captura una autorización Stripe Test', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Autorización capturada' }, 409: { description: 'La aportación no está autorizada' } } },
+    },
+    '/api/contributions/{id}/stripe/cancel': {
+      post: { summary: 'Cancela una autorización Stripe Test', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Autorización cancelada' }, 409: { description: 'La aportación ya no puede cancelarse' } } },
+    },
+    '/api/webhooks/stripe': {
+      post: { security: [], summary: 'Recibe eventos firmados de Stripe', responses: { 200: { description: 'Evento procesado' }, 400: { description: 'Firma inválida' } } },
     },
     '/api/rewards': {
       get: { summary: 'Lista premios en especie y cupones', responses: { 200: { description: 'Lista obtenida' } } },

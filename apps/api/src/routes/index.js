@@ -9,6 +9,7 @@ const playersRoutes = require('../modules/teams/players.routes');
 const tournamentsRoutes = require('../modules/tournaments/tournaments.routes');
 const matchesRoutes = require('../modules/matches/matches.routes');
 const schedulesRoutes = require('../modules/matches/schedules.routes');
+const dev8DemoRoutes = require('./dev8-demo.routes');
 
 router.use('/sponsors', sponsorsRoutes);
 router.use('/prize-pools', prizePoolsRoutes);
@@ -20,5 +21,6 @@ router.use('/players', playersRoutes);
 router.use('/tournaments', tournamentsRoutes);
 router.use('/matches', matchesRoutes);
 router.use('/schedules', schedulesRoutes);
+router.use('/dev8-demo', dev8DemoRoutes);
 
 module.exports = router;

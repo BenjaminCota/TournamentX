@@ -7,11 +7,13 @@ const swaggerUi = require('swagger-ui-express');
 const openapi = require('./docs/openapi');
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errors');
+const stripeWebhookController = require('./controllers/stripe-webhook.controller');
 
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json', limit: '100kb' }), stripeWebhookController.handle);
 app.use(express.json({ limit: '100kb' }));
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, '../public')));

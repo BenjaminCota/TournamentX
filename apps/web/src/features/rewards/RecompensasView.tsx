@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   CreditCard, 
   DollarSign, 
@@ -13,76 +13,208 @@ import {
   Ticket,
   PackageCheck
 } from 'lucide-react';
-import { MOCK_ESCROW_TRANSACTIONS } from '../../data/mockData';
 import { EscrowTransaction, UserRole } from '../../types';
 import confetti from 'canvas-confetti';
+import { QRCodeSVG } from 'qrcode.react';
+import { loadStripe, Stripe, StripeCardElement } from '@stripe/stripe-js';
 
 interface RecompensasViewProps {
   currentUserRole: UserRole;
 }
 
+const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
+type DemoSession = { token: string; stripePublishableKey?: string | null; sponsor: { id: string; name: string }; prizePool: { id: string; name: string } };
+type ApiContribution = { id: string; amount: number; currency: string; provider: 'stripe' | 'binance_pay'; providerReference: string; status: string; sponsorName: string; createdAt?: string };
+type Sponsor = { id: string; name: string; contactEmail: string; active: boolean };
+type Reward = { id: string; name: string; rewardType: string; quantity: number; assignedQuantity: number };
+type Rule = { position: number; percentage: number; amount: number };
+type Payout = { id: string; recipientId: string; position: number; amount: number; currency: string; status: string; receiptCode: string };
+type Winner = { recipientId: string; recipientType: string; position: number };
+type PoolDetails = { id: string; status: string; fundedAmount: number; distributionRules: Rule[]; payouts: Payout[]; winners: Winner[] };
+
 export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRole }) => {
-  const [transactions, setTransactions] = useState<EscrowTransaction[]>(MOCK_ESCROW_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<EscrowTransaction[]>([]);
+  const [demoSession, setDemoSession] = useState<DemoSession | null>(null);
+  const [connectionMessage, setConnectionMessage] = useState('Preparando la información...');
   const [activeGateway, setActiveGateway] = useState<'STRIPE' | 'BINANCE_PAY'>('STRIPE');
   const [selectedReceipt, setSelectedReceipt] = useState<EscrowTransaction | null>(null);
-  const [amountInput, setAmountInput] = useState('5,000');
+  const [amountInput, setAmountInput] = useState('5000');
   const [payerName, setPayerName] = useState('Team Luminex Vault');
-  const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
+  const [selectedSponsorId, setSelectedSponsorId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [successTx, setSuccessTx] = useState<EscrowTransaction | null>(null);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [poolDetails, setPoolDetails] = useState<PoolDetails | null>(null);
+  const [qrContent, setQrContent] = useState('binance://pay?mode=simulated');
+  const [paymentStatuses, setPaymentStatuses] = useState<Record<string, string>>({});
+  const stripeRef = useRef<Stripe | null>(null);
+  const cardElementRef = useRef<StripeCardElement | null>(null);
+  const [stripeReady, setStripeReady] = useState(false);
 
-  const handleProcessPayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-
-    const generatedUUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
+  const apiRequest = async (path: string, options: RequestInit = {}, token = demoSession?.token) => {
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.message || 'No fue posible completar la operación');
+    return body;
+  };
 
-    setTimeout(() => {
-      const newTx: EscrowTransaction = {
-        id: `tx-${Date.now()}`,
-        uuid: generatedUUID,
-        tournamentId: 'tour-1',
-        tournamentName: 'PRO LEAGUE SEASON 5',
-        amountUSD: parseInt(amountInput.replace(/,/g, '')) || 5000,
-        gateway: activeGateway,
-        status: 'LOCKED',
-        date: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        payer: payerName,
-        recipientTeam: 'Pendiente de Finalista',
-        txHash: activeGateway === 'BINANCE_PAY' 
-          ? `0x${Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('')}`
-          : `pi_${Date.now()}_secret`
-      };
+  const mapContribution = (item: ApiContribution): EscrowTransaction => ({
+    id: item.id,
+    uuid: item.id,
+    tournamentId: demoSession?.prizePool.id || 'demo',
+    tournamentName: demoSession?.prizePool.name || 'Bolsa Demo Módulo 8',
+    amountUSD: Number(item.amount),
+    gateway: item.provider === 'stripe' ? 'STRIPE' : 'BINANCE_PAY',
+    status: 'LOCKED',
+    date: item.createdAt ? new Date(item.createdAt).toLocaleString() : new Date().toLocaleString(),
+    payer: item.sponsorName || 'Patrocinador Demo',
+    recipientTeam: 'Pendiente de Finalista',
+    txHash: item.providerReference,
+  });
 
-      setTransactions([newTx, ...transactions]);
+  const loadData = async (active: DemoSession) => {
+    const [contributionsBody, sponsorsBody, rewardsBody, poolBody] = await Promise.all([
+      apiRequest(`/contributions?prizePoolId=${active.prizePool.id}`, {}, active.token),
+      apiRequest('/sponsors', {}, active.token),
+      apiRequest(`/rewards?prizePoolId=${active.prizePool.id}`, {}, active.token),
+      apiRequest(`/prize-pools/${active.prizePool.id}`, {}, active.token),
+    ]);
+    setTransactions((contributionsBody.data as ApiContribution[]).map((item) => ({
+      ...mapContribution(item), tournamentId: active.prizePool.id, tournamentName: active.prizePool.name,
+    })));
+    setPaymentStatuses(Object.fromEntries((contributionsBody.data as ApiContribution[]).map((item) => [item.id, item.status])));
+    setSponsors(sponsorsBody.data); setRewards(rewardsBody.data); setPoolDetails(poolBody.data);
+    if (!selectedSponsorId && sponsorsBody.data[0]) { setSelectedSponsorId(sponsorsBody.data[0].id); setPayerName(sponsorsBody.data[0].name); }
+  };
+
+  useEffect(() => { void (async () => {
+    try {
+      const definitiveToken = localStorage.getItem('tournamentx_token');
+      const definitivePoolId = localStorage.getItem('tournamentx_prize_pool_id');
+      const definitivePoolName = localStorage.getItem('tournamentx_prize_pool_name');
+      const definitiveSponsorId = localStorage.getItem('tournamentx_sponsor_id');
+      const active = definitiveToken && definitivePoolId && definitiveSponsorId
+        ? { token: definitiveToken, stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null, sponsor: { id: definitiveSponsorId, name: 'Patrocinador' }, prizePool: { id: definitivePoolId, name: definitivePoolName || 'Bolsa de premios' } }
+        : await apiRequest('/dev8-demo/session', { method: 'POST' }, null);
+      setDemoSession(active);
+      setSelectedSponsorId(active.sponsor.id);
+      await loadData(active);
+      setConnectionMessage('Todo está listo');
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'Error de conexión'); }
+  })(); }, []);
+
+  useEffect(() => {
+    if (activeGateway !== 'STRIPE' || !demoSession?.stripePublishableKey) return;
+    setStripeReady(false);
+    let cancelled = false;
+    void (async () => {
+      const stripe = await loadStripe(demoSession.stripePublishableKey as string);
+      if (!stripe || cancelled) return;
+      stripeRef.current = stripe;
+      const elements = stripe.elements();
+      const card = elements.create('card', {
+        style: { base: { color: '#cbd5e1', fontSize: '13px', '::placeholder': { color: '#64748b' } }, invalid: { color: '#fb7185' } },
+      });
+      card.mount('#stripe-card-element'); cardElementRef.current = card; setStripeReady(true);
+    })();
+    return () => { cancelled = true; cardElementRef.current?.unmount(); cardElementRef.current = null; setStripeReady(false); };
+  }, [activeGateway, demoSession?.stripePublishableKey]);
+
+  const handleProcessPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!demoSession) return;
+    if (poolDetails?.status !== 'funding') { setConnectionMessage('La bolsa está bloqueada y ya no acepta aportaciones'); return; }
+    setIsProcessing(true);
+    try {
+      const provider = activeGateway === 'STRIPE' ? 'stripe' : 'binance_pay';
+      const created = await apiRequest(`/prize-pools/${demoSession.prizePool.id}/contributions`, {
+        method: 'POST', body: JSON.stringify({ sponsorId: selectedSponsorId || demoSession.sponsor.id, amount: Number(amountInput), provider, idempotencyKey: crypto.randomUUID() }),
+      });
+      if (provider === 'stripe') {
+        setConnectionMessage('Validando la tarjeta...');
+        if (!stripeRef.current || !cardElementRef.current || !created.payment.clientSecret) throw new Error('El formulario de tarjeta todavía no está listo; espera un momento');
+        const confirmation = await stripeRef.current.confirmCardPayment(created.payment.clientSecret, { payment_method: { card: cardElementRef.current } });
+        if (confirmation.error) throw new Error(confirmation.error.message || 'Stripe rechazó los datos de prueba');
+        for (let attempt = 0; attempt < 24; attempt += 1) {
+          const listed = await apiRequest('/contributions');
+          const current = (listed.data as ApiContribution[]).find((item) => item.id === created.data.id);
+          if (current?.status === 'authorized') break;
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        await apiRequest(`/contributions/${created.data.id}/stripe/capture`, { method: 'POST' });
+        setConnectionMessage('Aportación con tarjeta registrada');
+      } else {
+        setQrContent(created.payment.qrContent);
+        await apiRequest(`/contributions/${created.data.id}/binance/simulate`, { method: 'POST', body: JSON.stringify({ status: 'paid' }) });
+        setConnectionMessage('Aportación con Binance registrada');
+      }
+      const completed = { ...created.data, status: 'paid', sponsorName: payerName } as ApiContribution;
+      const newTx = mapContribution(completed);
       setSuccessTx(newTx);
-      setIsProcessing(false);
-
+      await loadData(demoSession);
       confetti({
         particleCount: 80,
         spread: 60,
         origin: { y: 0.6 }
       });
-    }, 800);
+    } catch (error) {
+      setConnectionMessage(error instanceof Error ? error.message : 'No fue posible procesar el pago');
+    } finally { setIsProcessing(false); }
   };
 
-  const handleReleaseEscrow = (txId: string) => {
+  const handleReleaseEscrow = async (_txId: string) => {
     if (currentUserRole !== 'Admin' && currentUserRole !== 'Organizador') {
       alert('Solo los Administradores u Organizadores pueden liberar fondos de custodia.');
       return;
     }
 
-    setTransactions(transactions.map(t => {
-      if (t.id === txId) {
-        return { ...t, status: 'RELEASED', recipientTeam: 'LUMINEX ESPORTS (Ganador)' };
-      }
-      return t;
-    }));
+    if (!demoSession || !poolDetails?.distributionRules.length) return alert('Primero configura y bloquea la distribución.');
+    const pendingRule = poolDetails.distributionRules.find((rule) => !poolDetails.payouts.some((payout) => payout.position === rule.position));
+    if (!pendingRule) return alert('Todos los pagos ya fueron entregados.');
+    const knownWinner = poolDetails.winners.find((winner) => winner.position === pendingRule.position);
+    const recipientId = knownWinner?.recipientId || window.prompt(`Identificador del ganador de la posición ${pendingRule.position}`);
+    if (!recipientId) return;
+    try {
+      await apiRequest(`/prize-pools/${demoSession.prizePool.id}/payouts`, { method: 'POST', body: JSON.stringify({ recipientId, position: pendingRule.position, destination: `simulated:winner:${recipientId}` }) });
+      await loadData(demoSession); setConnectionMessage(`Payout de la posición ${pendingRule.position} liberado`);
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible entregar el pago'); }
+  };
 
-    alert('Los fondos se entregaron correctamente al equipo ganador.');
+  const addSponsor = async () => {
+    if (!demoSession) return;
+    const name = window.prompt('Nombre del patrocinador'); const contactEmail = window.prompt('Correo del patrocinador');
+    if (!name || !contactEmail) return;
+    try { await apiRequest('/sponsors', { method: 'POST', body: JSON.stringify({ name, contactEmail }) }); await loadData(demoSession); }
+    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el patrocinador'); }
+  };
+
+  const addReward = async () => {
+    if (!demoSession) return;
+    const name = window.prompt('Nombre del premio o cupón'); if (!name) return;
+    const quantity = Number(window.prompt('Cantidad disponible', '1') || 1);
+    try { await apiRequest('/rewards', { method: 'POST', body: JSON.stringify({ prizePoolId: demoSession.prizePool.id, rewardType: 'coupon', name, quantity }) }); await loadData(demoSession); }
+    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el premio'); }
+  };
+
+  const configureDistribution = async () => {
+    if (!demoSession) return;
+    if (!poolDetails || Number(poolDetails.fundedAmount) <= 0) { setConnectionMessage('Registra al menos una aportación pagada antes de distribuir'); return; }
+    try {
+      await apiRequest(`/prize-pools/${demoSession.prizePool.id}/distribution`, { method: 'PUT', body: JSON.stringify({ rules: [{ position: 1, percentage: 60 }, { position: 2, percentage: 25 }, { position: 3, percentage: 15 }] }) });
+      await loadData(demoSession); setConnectionMessage('Distribución guardada correctamente');
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible configurar la distribución'); }
+  };
+
+  const downloadReceipt = async (receiptCode: string) => {
+    try {
+      const body = await apiRequest(`/receipts/${receiptCode}`, {}, null);
+      const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${receiptCode}.json`; link.click(); URL.revokeObjectURL(url);
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible descargar el recibo'); }
   };
 
   return (
@@ -95,14 +227,14 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
             Premios y pagos
           </h1>
           <p className="text-xs text-slate-400 mt-1 font-tech">
-            Bolsas de premios en custodia garantizada, pagos con Stripe y Binance Pay (USDT) con recibos criptográficos
+            Administra aportaciones, premios y pagos a ganadores en un solo lugar
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <span className="text-xs font-mono-code bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4" />
-            Fondos protegidos
+            {connectionMessage}
           </span>
         </div>
       </div>
@@ -161,7 +293,10 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
               <div className="relative mt-1">
                 <DollarSign className="w-4 h-4 text-emerald-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="text"
+                  type="number"
+                  min="1"
+                  max="1000000000"
+                  step="0.01"
                   required
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
@@ -174,52 +309,29 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
               <label className="text-xs font-mono-code uppercase font-bold text-slate-300">
                 Nombre del Patrocinador / Entidad
               </label>
-              <input
-                type="text"
-                required
-                value={payerName}
-                onChange={(e) => setPayerName(e.target.value)}
-                className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1"
-              />
+              <select required value={selectedSponsorId} onChange={(e) => { setSelectedSponsorId(e.target.value); setPayerName(sponsors.find((item) => item.id === e.target.value)?.name || 'Patrocinador'); }} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1">
+                {sponsors.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
             </div>
 
             {activeGateway === 'STRIPE' ? (
               <div className="space-y-3 p-4 rounded-2xl bg-[#141724] border border-[#232738]">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span className="font-mono-code">Stripe Simulated Elements</span>
-                  <span className="text-emerald-400 font-bold">256-bit SSL</span>
+                  <span className="font-mono-code">Tarjeta de prueba</span>
+                  <span className="text-emerald-400 font-bold">Sin dinero real</span>
                 </div>
-                <input
-                  type="text"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  className="w-full bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-2 text-xs font-mono-code text-slate-300"
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    defaultValue="12/28"
-                    className="w-full bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-2 text-xs font-mono-code text-slate-300"
-                  />
-                  <input
-                    type="text"
-                    defaultValue="CVC 889"
-                    className="w-full bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-2 text-xs font-mono-code text-slate-300"
-                  />
-                </div>
+                <div id="stripe-card-element" className="w-full min-h-10 bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-3" />
+                <p className="text-[10px] text-slate-500">Prueba: 4242 4242 4242 4242 · vencimiento futuro · CVC de 3 dígitos · cualquier C.P.</p>
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-[#141724] border border-[#F0B90B]/30 flex items-center gap-4">
                 <div className="w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 flex items-center justify-center">
-                  {/* Mock QR Code */}
-                  <div className="w-full h-full bg-[#0a0b0e] rounded p-1 flex items-center justify-center text-center">
-                    <QrCode className="w-12 h-12 text-[#F0B90B]" />
-                  </div>
+                  <QRCodeSVG value={qrContent} size={68} level="M" />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-bold text-white">Escanea con Binance App</div>
+                  <div className="text-xs font-bold text-white">Pago de prueba con Binance Pay</div>
                   <p className="text-[11px] text-slate-400">
-                    Acepta USDT, BTC, ETH, BUSD en red BEP-20 con confirmación instantánea.
+                    El QR local reproduce el formato de pago; no mueve criptomonedas reales.
                   </p>
                 </div>
               </div>
@@ -227,14 +339,14 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
 
             <button
               type="submit"
-              disabled={isProcessing}
+              disabled={isProcessing || !demoSession || poolDetails?.status !== 'funding' || (activeGateway === 'STRIPE' && !stripeReady)}
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {isProcessing ? (
                 <span>Procesando...</span>
               ) : (
                 <>
-                  <span>Confirmar aportación</span>
+                  <span>{poolDetails?.status === 'funding' ? 'Confirmar aportación' : 'Bolsa bloqueada'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -253,11 +365,11 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
                   onClick={() => setSelectedReceipt(successTx)}
                   className="text-xs text-white underline hover:text-emerald-300 font-mono-code"
                 >
-                  Ver Recibo UUID
+                  Ver comprobante
                 </button>
               </div>
               <p className="text-[11px] font-mono-code text-slate-400">
-                UUID: {successTx.uuid}
+                Folio: {successTx.uuid}
               </p>
             </div>
           )}
@@ -307,11 +419,13 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
                         ${tx.amountUSD.toLocaleString()} USD
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono-code font-bold ${
-                        tx.status === 'LOCKED'
+                        paymentStatuses[tx.id] === 'paid'
                           ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : paymentStatuses[tx.id] === 'authorized'
+                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                            : 'bg-slate-500/10 text-slate-400 border border-slate-500/30'
                       }`}>
-                        {tx.status === 'LOCKED' ? '🔒 BLOQUEADO' : '✓ LIBERADO'}
+                        {paymentStatuses[tx.id] === 'authorized' ? 'AUTORIZADO' : paymentStatuses[tx.id] === 'paid' ? 'PAGADO / EN CUSTODIA' : (paymentStatuses[tx.id] || 'PENDIENTE').toUpperCase()}
                       </span>
                     </div>
                   </div>
@@ -322,17 +436,10 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
                       className="text-[11px] text-[#ff2e83] hover:underline flex items-center gap-1 font-semibold"
                     >
                       <FileText className="w-3.5 h-3.5" />
-                      Descargar Recibo / Cupón
+                      Ver aportación
                     </button>
 
-                    {tx.status === 'LOCKED' && (
-                      <button
-                        onClick={() => handleReleaseEscrow(tx.id)}
-                        className="px-3 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white font-mono-code text-[10px] font-bold transition-colors cursor-pointer"
-                      >
-                        Liberar al Ganador
-                      </button>
-                    )}
+                    <span className="text-[10px] text-slate-500">{paymentStatuses[tx.id] === 'paid' ? 'Fondos sumados a la bolsa' : 'Esperando confirmación'}</span>
                   </div>
                 </div>
               ))}
@@ -340,25 +447,34 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
           </div>
 
           <div className="pt-4 border-t border-[#1e2230] text-[11px] font-mono-code text-slate-500 flex items-center justify-between">
-            <span>Regla de Payout: 1er 60% • 2do 25% • 3er 15%</span>
-            <span className="text-emerald-400">Ledger Verificado</span>
+            <span>{poolDetails?.distributionRules.length ? `Regla: ${poolDetails.distributionRules.map((rule) => `${rule.position}º ${rule.percentage}%`).join(' • ')}` : 'Distribución todavía no configurada'}</span>
+            {!poolDetails?.distributionRules.length ? <button onClick={configureDistribution} disabled={!poolDetails || Number(poolDetails.fundedAmount) <= 0} className="text-[#ff2e83] font-bold disabled:text-slate-600">CONFIGURAR 60/25/15</button> : <span className="text-emerald-400">Distribución confirmada</span>}
           </div>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <section className="bg-[#10121a] border border-[#1e2230] rounded-3xl p-6 space-y-5">
-          <div className="flex items-center justify-between"><div><h2 className="font-display font-black text-xl text-white flex items-center gap-2"><Building2 className="w-5 h-5 text-[#ff2e83]" /> Patrocinadores</h2><p className="text-xs text-slate-400 mt-1">Entidades disponibles para financiar bolsas y recompensas.</p></div><button className="px-3 py-2 rounded-xl bg-[#ff2e83] text-white text-xs font-bold">＋ AGREGAR</button></div>
-          {[['HyperX LATAM', 'contacto@hyperx.test', 'ACTIVO'], ['Arena Sports MX', 'alianzas@arena.test', 'ACTIVO'], ['GamePass Partners', 'rewards@gamepass.test', 'INACTIVO']].map(([name, email, status]) => <div key={name} className="flex items-center justify-between p-3 rounded-2xl bg-[#151824] border border-[#24293b]"><div><div className="font-bold text-sm text-white">{name}</div><div className="text-[11px] text-slate-500">{email}</div></div><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${status === 'ACTIVO' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-500/15 text-slate-500'}`}>{status}</span></div>)}
+          <div className="flex items-center justify-between"><div><h2 className="font-display font-black text-xl text-white flex items-center gap-2"><Building2 className="w-5 h-5 text-[#ff2e83]" /> Patrocinadores</h2><p className="text-xs text-slate-400 mt-1">Personas y organizaciones que aportan premios.</p></div><button onClick={addSponsor} className="px-3 py-2 rounded-xl bg-[#ff2e83] text-white text-xs font-bold">＋ AGREGAR</button></div>
+          {sponsors.map((sponsor) => <div key={sponsor.id} className="flex items-center justify-between p-3 rounded-2xl bg-[#151824] border border-[#24293b]"><div><div className="font-bold text-sm text-white">{sponsor.name}</div><div className="text-[11px] text-slate-500">{sponsor.contactEmail}</div></div><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${sponsor.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-500/15 text-slate-500'}`}>{sponsor.active ? 'ACTIVO' : 'INACTIVO'}</span></div>)}
         </section>
 
         <section className="bg-[#10121a] border border-[#1e2230] rounded-3xl p-6 space-y-5">
-          <div><h2 className="font-display font-black text-xl text-white flex items-center gap-2"><Gift className="w-5 h-5 text-[#ff2e83]" /> Premios y cupones</h2><p className="text-xs text-slate-400 mt-1">Inventario demostrativo para premios físicos y digitales.</p></div>
+          <div className="flex items-center justify-between"><div><h2 className="font-display font-black text-xl text-white flex items-center gap-2"><Gift className="w-5 h-5 text-[#ff2e83]" /> Premios y cupones</h2><p className="text-xs text-slate-400 mt-1">Premios disponibles para entregar.</p></div><button onClick={addReward} className="px-3 py-2 rounded-xl bg-[#ff2e83] text-white text-xs font-bold">＋ AGREGAR</button></div>
           <div className="grid sm:grid-cols-3 gap-3">
-            {[{ icon: PackageCheck, label: 'Jersey oficial', type: 'FÍSICO', stock: 3 }, { icon: Ticket, label: 'Código de juego', type: 'DIGITAL', stock: 12 }, { icon: CreditCard, label: 'Gift card $500', type: 'CUPÓN', stock: 8 }].map(({ icon: Icon, label, type, stock }) => <div key={label} className="p-4 rounded-2xl bg-[#151824] border border-[#24293b]"><Icon className="w-5 h-5 text-[#ff2e83]" /><div className="font-bold text-sm text-white mt-3">{label}</div><div className="text-[10px] text-slate-500 mt-1">{type}</div><div className="text-xs text-emerald-400 mt-3">{stock} disponibles</div></div>)}
+            {rewards.map((reward) => <div key={reward.id} className="p-4 rounded-2xl bg-[#151824] border border-[#24293b]"><Gift className="w-5 h-5 text-[#ff2e83]" /><div className="font-bold text-sm text-white mt-3">{reward.name}</div><div className="text-[10px] text-slate-500 mt-1">{reward.rewardType.toUpperCase()}</div><div className="text-xs text-emerald-400 mt-3">{Math.max(0, reward.quantity - Number(reward.assignedQuantity))} disponibles</div></div>)}
+            {!rewards.length && <p className="text-xs text-slate-500">Aún no hay premios registrados.</p>}
           </div>
         </section>
       </div>
+
+      <section className="bg-[#10121a] border border-[#1e2230] rounded-3xl p-6 space-y-4">
+        <div><h2 className="font-display font-black text-xl text-white">Ganadores, pagos y recibos</h2><p className="text-xs text-slate-400 mt-1">Aquí aparecerán los ganadores y sus pagos.</p></div>
+        {!poolDetails?.winners.length && <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">Todavía no se han registrado ganadores. También puedes ingresar su identificador manualmente.</div>}
+        {!!poolDetails?.winners.length && <div className="grid sm:grid-cols-3 gap-3">{poolDetails.winners.map((winner) => <div key={`${winner.position}-${winner.recipientId}`} className="p-3 rounded-xl bg-[#151824] border border-[#24293b] text-xs"><div className="text-[#ff2e83] font-bold">Posición {winner.position}</div><div className="text-white mt-1">{winner.recipientType}</div><div className="text-slate-500 break-all mt-1">{winner.recipientId}</div></div>)}</div>}
+        <div className="space-y-2">{poolDetails?.payouts.map((payout) => <div key={payout.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#151824] border border-[#24293b]"><div className="text-xs"><span className="text-white font-bold">{payout.position}º lugar · ${Number(payout.amount).toFixed(2)} {payout.currency}</span><div className="text-slate-500 mt-1">{payout.receiptCode}</div></div><button onClick={() => void downloadReceipt(payout.receiptCode)} className="px-3 py-2 rounded-lg bg-[#ff2e83] text-white text-xs font-bold flex items-center gap-2"><Download className="w-4 h-4" /> Descargar recibo</button></div>)}</div>
+        {!!poolDetails?.distributionRules.length && poolDetails.payouts.length < poolDetails.distributionRules.length && <button onClick={() => void handleReleaseEscrow('pool')} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">LIBERAR SIGUIENTE PAGO AL GANADOR</button>}
+      </section>
 
       {/* RECEIPT / COUPON MODAL */}
       {selectedReceipt && (
@@ -388,7 +504,7 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
 
               <div className="space-y-2 text-[11px]">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">UUID DE TRANSACCIÓN:</span>
+                  <span className="text-slate-500">FOLIO:</span>
                   <span className="text-[#ff2e83] font-bold text-[9px]">{selectedReceipt.uuid}</span>
                 </div>
                 <div className="flex justify-between">

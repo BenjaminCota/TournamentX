@@ -42,7 +42,22 @@ async function getById(req, res, next) {
        FROM contributions c JOIN sponsors s ON s.id = c.sponsor_id WHERE c.prize_pool_id = $1 ORDER BY c.created_at DESC`,
       [req.validated.params.id],
     );
-    res.json({ data: { ...rows[0], contributions: contributions.rows } });
+    const distributionRules = await db.query(
+      'SELECT position, percentage, amount FROM distribution_rules WHERE prize_pool_id = $1 ORDER BY position',
+      [req.validated.params.id],
+    );
+    const payouts = await db.query(
+      `SELECT id, recipient_id AS "recipientId", position, amount, currency, destination, status,
+       receipt_code AS "receiptCode", released_at AS "releasedAt" FROM payouts WHERE prize_pool_id = $1 ORDER BY position`,
+      [req.validated.params.id],
+    );
+    const winners = await db.query(
+      `SELECT tw.recipient_id AS "recipientId", tw.recipient_type AS "recipientType", tw.position
+       FROM tournament_winners tw JOIN tournament_result_imports tri ON tri.id = tw.result_import_id
+       WHERE tri.prize_pool_id = $1 ORDER BY tw.position`,
+      [req.validated.params.id],
+    );
+    res.json({ data: { ...rows[0], contributions: contributions.rows, distributionRules: distributionRules.rows, payouts: payouts.rows, winners: winners.rows } });
   } catch (error) { next(error); }
 }
 
@@ -66,7 +81,7 @@ async function contribute(req, res, next) {
       if (previous.rows[0]) return res.json({ data: previous.rows[0], reused: true });
     }
 
-    const payment = await paymentGateway.createPayment({ provider, amount, currency: prizePool.currency, reference: poolId });
+    const payment = await paymentGateway.createPayment({ provider, amount, currency: prizePool.currency, reference: poolId, idempotencyKey });
     const contribution = await db.transaction(async (client) => {
       const id = crypto.randomUUID();
       await client.query(
@@ -84,7 +99,7 @@ async function contribute(req, res, next) {
       );
       return rows[0];
     });
-    res.status(201).json({ data: contribution, payment: { checkoutUrl: payment.checkoutUrl, simulated: true } });
+    res.status(201).json({ data: contribution, payment: { checkoutUrl: payment.checkoutUrl, clientSecret: payment.clientSecret, qrContent: payment.qrContent, simulated: payment.metadata.simulated } });
   } catch (error) { next(error); }
 }
 
