@@ -26,7 +26,11 @@ const payout = z.object({
   params: z.object({ id: uuid }), query: z.any(),
 });
 const paymentStatus = z.object({
-  body: z.object({ status: z.enum(['paid', 'failed', 'refunded']), notes: z.string().trim().max(255).optional() }),
+  body: z.object({ status: z.enum(['authorized', 'paid', 'failed', 'cancelled', 'refunded']), notes: z.string().trim().max(255).optional() }),
+  params: z.object({ id: uuid }), query: z.any(),
+});
+const binanceSimulation = z.object({
+  body: z.object({ status: z.enum(['paid', 'failed', 'cancelled']) }),
   params: z.object({ id: uuid }), query: z.any(),
 });
 const sponsorUpdate = z.object({
@@ -62,4 +66,4 @@ const tournamentResults = z.object({
   }), params: z.object({ id: uuid }), query: z.any(),
 });
 
-module.exports = { idParams, sponsor, sponsorUpdate, prizePool, contribution, distribution, payout, paymentStatus, reward, rewardAssignment, rewardAssignmentStatus, tournamentResults };
+module.exports = { idParams, sponsor, sponsorUpdate, prizePool, contribution, distribution, payout, paymentStatus, binanceSimulation, reward, rewardAssignment, rewardAssignmentStatus, tournamentResults };

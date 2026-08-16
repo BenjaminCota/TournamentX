@@ -10,9 +10,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^9.13.0",
     "canvas-confetti": "^1.9.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.546.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "socket.io-client": "^4.8.3"
