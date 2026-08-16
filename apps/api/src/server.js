@@ -11,6 +11,11 @@ function createRealtimeServer() {
 
   app.set('io', io);
   io.on('connection', (socket) => {
+    socket.on('subscribe-notifications', (acknowledge) => {
+      socket.join('notifications');
+      if (typeof acknowledge === 'function') acknowledge({ ok: true });
+    });
+    socket.on('unsubscribe-notifications', () => socket.leave('notifications'));
     socket.on('subscribe-match', (matchId, acknowledge) => {
       if (typeof matchId === 'string' && matchId.trim()) {
         socket.join(`match:${matchId}`);
