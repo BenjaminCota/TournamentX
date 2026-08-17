@@ -421,6 +421,14 @@ export default function App() {
   const openTournamentWizard = () => setShowCreateWizard(true);
   const navigate = (tab: TabId) => setActiveTab(tab === 'live_match' ? 'esports' : tab);
   const enterFromLanding = (tab: TabId = 'dashboard') => navigate(tab);
+  const logout = async () => {
+    if (supabase) await supabase.auth.signOut();
+    localStorage.removeItem('tournamentx_token');
+    localStorage.removeItem('tournamentx_user');
+    setCurrentUser(null);
+    setCurrentUserRole('Espectador');
+    navigate('landing');
+  };
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
@@ -451,6 +459,7 @@ export default function App() {
             currentUserName={currentUser?.name}
             isAuthenticated={Boolean(currentUser)}
             onOpenAuth={() => navigate('login')}
+            onLogout={() => { void logout(); }}
             onOpenCreateWizard={openTournamentWizard}
           />
 
