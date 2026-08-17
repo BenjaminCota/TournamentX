@@ -1,5 +1,6 @@
 const HttpError = require('../../utils/http-error');
 const matchStore = require('./match-store');
+const { publishMatchResult } = require('../geolocation/notifications.service');
 
 async function listMatches(req, res, next) {
   try {
@@ -34,6 +35,7 @@ async function updateMatchScore(req, res, next) {
     const match = await matchStore.updateMatchScore(req.validated.params.id, req.validated.body);
     if (!match) throw new HttpError(404, 'Partido no encontrado');
     req.app.get('io')?.to(`match:${match.id}`).emit('match-update', match);
+    if (match.status === 'completed') publishMatchResult(req.app, match);
     res.json(match);
   } catch (error) {
     next(error);
