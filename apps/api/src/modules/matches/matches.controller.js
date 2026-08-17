@@ -1,6 +1,12 @@
 const HttpError = require('../../utils/http-error');
 const matchStore = require('./match-store');
 const { publishMatchResult } = require('../geolocation/notifications.service');
+const { getActiveTeam } = require('../teams/teams.public');
+
+function assertActiveTeams(teamIds) {
+  const missing = teamIds.find((teamId) => !getActiveTeam(teamId));
+  if (missing) throw new HttpError(404, `El equipo ${missing} no existe o no está activo`);
+}
 
 async function listMatches(req, res, next) {
   try {
@@ -23,6 +29,7 @@ async function getMatch(req, res, next) {
 
 async function createMatch(req, res, next) {
   try {
+    assertActiveTeams([req.validated.body.team1Id, req.validated.body.team2Id]);
     const match = await matchStore.createMatch(req.validated.body);
     res.status(201).json(match);
   } catch (error) {

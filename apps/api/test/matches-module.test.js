@@ -51,9 +51,13 @@ test('Dev 4 valida partidos y devuelve 404 para IDs desconocidos', async () => {
 });
 
 test('Dev 4 genera un calendario todos-contra-todos con sus partidos', async () => {
+  const thirdTeam = await request(app).post('/api/teams').set(managerAuthorization).send({
+    name: `Equipo calendario ${Date.now()}`, abbreviation: `C${Date.now().toString(36).slice(-5)}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
+  });
+  assert.equal(thirdTeam.status, 201);
   const created = await request(app).post('/api/schedules').set(managerAuthorization).send({
     tournamentId: 'tour-3',
-    teamIds: ['team-lnx', 'team-titans', 'team-orbit'],
+    teamIds: ['team-lnx', 'team-titans', thirdTeam.body.id],
     startsAt: '2026-08-22T18:00:00.000Z',
     endsAt: '2026-08-22T21:00:00.000Z',
     slotMinutes: 60,

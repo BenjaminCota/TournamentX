@@ -9,8 +9,8 @@ const managerAuthorization = { Authorization: `Bearer ${jwt.sign({ sub: 'manager
 test('al finalizar un partido se publica una notificación de resultado', async () => {
   const created = await request(app).post('/api/matches').set(managerAuthorization).send({
     tournamentId: 'tour-notification',
-    team1Id: 'team-north',
-    team2Id: 'team-south',
+    team1Id: 'team-lnx',
+    team2Id: 'team-titans',
     scheduledAt: '2026-09-01T18:00:00.000Z',
   });
   assert.equal(created.status, 201);
@@ -22,5 +22,5 @@ test('al finalizar un partido se publica una notificación de resultado', async 
   assert.equal(completed.status, 200);
 
   const notifications = await request(app).get('/api/geolocation/notifications');
-  assert.ok(notifications.body.some((item) => item.type === 'result' && item.message === 'Partido team-north 3 — 1 team-south.'));
+  assert.ok(notifications.body.some((item) => item.type === 'result' && item.message === 'Partido team-lnx 3 — 1 team-titans.'));
 });

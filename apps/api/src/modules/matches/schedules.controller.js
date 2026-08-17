@@ -1,5 +1,6 @@
 const HttpError = require('../../utils/http-error');
 const scheduleStore = require('./schedule-store');
+const { getActiveTeam } = require('../teams/teams.public');
 
 async function listSchedules(req, res, next) {
   try {
@@ -21,6 +22,8 @@ async function getSchedule(req, res, next) {
 
 async function createSchedule(req, res, next) {
   try {
+    const missing = req.validated.body.teamIds.find((teamId) => !getActiveTeam(teamId));
+    if (missing) throw new HttpError(404, `El equipo ${missing} no existe o no está activo`);
     const schedule = await scheduleStore.createSchedule(req.validated.body);
     res.status(201).json(schedule);
   } catch (error) {
