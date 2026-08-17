@@ -2,7 +2,9 @@
 
 Este documento registra el estado real de la persistencia para evitar que una
 configuración active una fuente de datos distinta de la que el producto informa.
-No reemplaza la decisión pendiente de arquitectura para producción.
+La decisión de arquitectura para producción es **Supabase/Postgres como fuente de
+verdad transaccional**. El JSON local se conserva únicamente como modo demo y
+MySQL queda limitado a pruebas de compatibilidad durante la migración.
 
 ## Estado actual
 
@@ -27,18 +29,18 @@ No reemplaza la decisión pendiente de arquitectura para producción.
 - Los proveedores Twitch, YouTube, PandaScore y football-data son enriquecimiento
   de lectura; sus datos demo no son resultados oficiales de un torneo.
 
-## Decisión requerida para producción
+## Plan de migración a Supabase
 
-El integrador y Dev 1 deben seleccionar **una** fuente de verdad transaccional
-para entidades de dominio: Supabase/Postgres o MySQL. Después, cada repositorio
-de la API deberá escribir únicamente en esa fuente y el frontend deberá pasar
-por la API para las mutaciones que hoy llama directo a Supabase.
+La API será la única capa de mutación de dominio. El frontend dejará de combinar
+llamadas directas a Supabase con llamadas locales una vez que cada módulo tenga
+su repositorio Supabase en la API.
 
 Antes de cerrar esta migración se requiere:
 
-1. Un contrato de identificadores y migración de datos para equipos, torneos,
+1. Aplicar las migraciones versionadas y políticas RLS con Dev 1 e integrador.
+2. Un contrato de identificadores y migración de datos para equipos, torneos,
    participantes, partidos y pagos.
-2. Repositorios de API para la fuente elegida y pruebas de reinicio/persistencia.
-3. Un mecanismo de eventos transaccional para marcador, notificación y premio,
+3. Repositorios de API para Supabase y pruebas de reinicio/persistencia.
+4. Un mecanismo de eventos transaccional para marcador, notificación y premio,
    sin duplicar entregas.
-4. Retirar el camino alterno o exponerlo solo como modo demo claramente marcado.
+5. Retirar el camino alterno o exponerlo solo como modo demo claramente marcado.
