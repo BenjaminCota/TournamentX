@@ -16,7 +16,7 @@ import { SplashScreen } from './features/landing/SplashScreen';
 import { AuthUser, Team, Tournament, User, UserRole } from './types';
 import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
-import { isSupabaseConfigured, supabase } from './services/supabaseClient';
+import { supabase } from './services/supabaseClient';
 
 const TEAM_STORAGE_KEY = 'tournamentx-dev3-teams';
 const PLAYER_STORAGE_KEY = 'tournamentx-dev3-players';
@@ -87,7 +87,7 @@ function normalizePlayer(player: Partial<User> | Record<string, unknown>): User 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('landing');
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(isSupabaseConfigured ? 'Espectador' : 'Admin');
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Espectador');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [teams, setTeams] = useState<Team[]>(() => {
@@ -420,6 +420,13 @@ export default function App() {
 
   const openTournamentWizard = () => setShowCreateWizard(true);
   const navigate = (tab: TabId) => setActiveTab(tab === 'live_match' ? 'esports' : tab);
+  const enterFromLanding = (tab: TabId = 'dashboard') => {
+    if (!currentUser) {
+      navigate('login');
+      return;
+    }
+    navigate(tab);
+  };
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
@@ -431,7 +438,11 @@ export default function App() {
   return (
     <div id="tournamentx-app-root" className="min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
       {activeTab === 'landing' ? (
-        <LandingView onEnterApp={navigate} onOpenCreateWizard={openTournamentWizard} onOpenAuth={() => navigate('login')} />
+        <LandingView
+          onEnterApp={enterFromLanding}
+          onOpenCreateWizard={() => currentUser ? openTournamentWizard() : navigate('login')}
+          onOpenAuth={() => navigate('login')}
+        />
       ) : activeTab === 'login' ? (
         <LoginView
           onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); }}
