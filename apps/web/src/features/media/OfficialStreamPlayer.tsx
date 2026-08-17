@@ -119,7 +119,7 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
             player.setMuted(true);
             player.setVolume(volume / 100);
             setReady(true);
-            setMessage(stream.mediaKind === 'live' ? 'Directo oficial de Twitch' : 'Video oficial de Twitch');
+            setMessage(stream.source === 'curated' ? 'Canal oficial enlazado · el estado se confirma con Twitch API' : stream.mediaKind === 'live' ? 'Directo oficial de Twitch' : 'Video oficial de Twitch');
           });
           player.addEventListener(Constructor.PLAY, () => active && setPlaying(true));
           player.addEventListener(Constructor.PAUSE, () => active && setPlaying(false));
@@ -219,7 +219,7 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
           </div>
         )}
         <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2">
-          <span className="rounded-md bg-red-500/90 px-2 py-1 text-[10px] font-black tracking-wider text-white">{stream.live ? 'EN VIVO' : 'VOD'}</span>
+          <span className="rounded-md bg-red-500/90 px-2 py-1 text-[10px] font-black tracking-wider text-white">{stream.platform === 'Twitch' && stream.source === 'curated' ? 'CANAL' : stream.live ? 'EN VIVO' : 'VOD'}</span>
           <span className="rounded-md border border-white/10 bg-black/70 px-2 py-1 text-[10px] font-bold text-white backdrop-blur">{stream.platform}</span>
         </div>
       </div>

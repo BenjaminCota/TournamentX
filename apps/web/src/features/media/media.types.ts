@@ -11,7 +11,7 @@ export interface MediaStream {
   live: boolean;
   thumbnail: string;
   url: string;
-  source: 'twitch' | 'youtube' | 'demo';
+  source: 'twitch' | 'youtube' | 'demo' | 'curated';
 }
 
 export interface LiveEvent {

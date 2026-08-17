@@ -5,11 +5,22 @@ const lobbySeed = [
   { id: 'lobby-valorant-01', name: 'Final LATAM', game: 'Valorant', server: 'LATAM Norte', map: 'Ascent', team1: 'Luminex', team2: 'Titans', status: 'In Game', ping: 32, maxPlayers: 10, players: 10, createdAt: '2026-08-16T00:00:00.000Z' },
   { id: 'lobby-rocket-01', name: 'Copa Comunidad', game: 'Rocket League', server: 'US East', map: 'DFH Stadium', team1: 'Nova', team2: 'Raven', status: 'Waiting', ping: 48, maxPlayers: 6, players: 4, createdAt: '2026-08-16T00:00:00.000Z' },
 ];
-const twitchChannel = String(process.env.TWITCH_CHANNELS || process.env.TWITCH_DEMO_CHANNEL || 'lolesportsla').split(',')[0].trim();
+const twitchChannelCatalog = {
+  lolesportsla: { title: 'LoL Esports Latinoamérica', game: 'League of Legends', region: 'LATAM', eventId: 'event-lol' },
+  cblol: { title: 'CBLOL', game: 'League of Legends', region: 'Brasil', eventId: null },
+  valorant_la: { title: 'VALORANT LATAM', game: 'Valorant', region: 'LATAM', eventId: null },
+  lcs: { title: 'LCS', game: 'League of Legends', region: 'Norteamérica', eventId: null },
+  valorant_americas: { title: 'VALORANT Americas', game: 'Valorant', region: 'Américas', eventId: null },
+  lec: { title: 'LEC', game: 'League of Legends', region: 'Europa', eventId: null },
+  valorant: { title: 'VALORANT', game: 'Valorant', region: 'Global', eventId: null },
+  rocketleague: { title: 'Rocket League Esports', game: 'Rocket League', region: 'Global', eventId: null },
+  eslcs: { title: 'ESL Counter-Strike', game: 'Counter-Strike 2', region: 'Europa/Global', eventId: null },
+};
+const twitchChannels = String(process.env.TWITCH_CHANNELS || process.env.TWITCH_DEMO_CHANNEL || 'lolesportsla,cblol,valorant_la,lcs,valorant_americas,lec,valorant,rocketleague,eslcs').split(',').map((channel) => channel.trim().toLowerCase()).filter(Boolean);
 const youtubeVideoId = String(process.env.YOUTUBE_VIDEO_IDS || process.env.YOUTUBE_DEMO_VIDEO_ID || '6VOfpE_HGpw').split(',')[0].trim();
 const streamSeed = [
-  { id: 'stream-twitch-demo', eventId: 'event-lol', platform: 'Twitch', title: 'LoL Esports Latinoamérica — señal oficial', channel: twitchChannel, embedId: twitchChannel, mediaKind: 'live', game: 'League of Legends', viewers: 18420, live: true, thumbnail: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1000&auto=format&fit=crop&q=80', url: `https://www.twitch.tv/${twitchChannel}`, source: 'demo' },
-  { id: 'stream-youtube-demo', eventId: 'event-lol', platform: 'YouTube', title: 'LYON vs SEN | LCS x LOL ESPORTS LATAM | Bo3', channel: 'LoL Esports Latinoamérica', embedId: youtubeVideoId, mediaKind: 'live', game: 'League of Legends', viewers: 26830, live: true, thumbnail: `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`, url: `https://www.youtube.com/watch?v=${youtubeVideoId}`, source: 'demo' },
+  ...twitchChannels.map((channel) => { const metadata = twitchChannelCatalog[channel] || { title: channel, game: 'Esports', region: 'Internacional', eventId: null }; return { id: `stream-twitch-${channel}`, eventId: metadata.eventId, platform: 'Twitch', title: `${metadata.title} — canal oficial`, channel, embedId: channel, mediaKind: 'live', game: metadata.game, region: metadata.region, viewers: 0, live: false, thumbnail: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1000&auto=format&fit=crop&q=80', url: `https://www.twitch.tv/${channel}`, source: 'curated' }; }),
+  { id: 'stream-youtube-demo', eventId: 'event-lol', platform: 'YouTube', title: 'LYON vs SEN | LCS x LOL ESPORTS LATAM | Bo3', channel: 'LoL Esports Latinoamérica', embedId: youtubeVideoId, mediaKind: 'live', game: 'League of Legends', region: 'LATAM', viewers: 26830, live: true, thumbnail: `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`, url: `https://www.youtube.com/watch?v=${youtubeVideoId}`, source: 'curated' },
 ];
 
 const eventSeed = [
@@ -29,7 +40,7 @@ function updateLobby(id, updates) { const list = lobbies(); const lobby = list.f
 function removeLobby(id) { const list = lobbies(); const index = list.findIndex((item) => item.id === id); if (index < 0) return false; list.splice(index, 1); localStore.saveCollection('mediaLobbies', list); return true; }
 function listStreams() {
   const defaults = new Map(streamSeed.map((stream) => [stream.id, stream]));
-  const saved = streams().map((stream) => ({ ...stream, ...defaults.get(stream.id) }));
+  const saved = streams().filter((stream) => defaults.has(stream.id)).map((stream) => ({ ...stream, ...defaults.get(stream.id) }));
   return [...saved, ...streamSeed.filter((seed) => !saved.some((stream) => stream.id === seed.id))];
 }
 function listEvents() { return structuredClone(eventSeed); }

@@ -3,7 +3,7 @@ module.exports = {
   info: {
     title: 'TournamentX API',
     version: '2.0.0',
-    description: 'API local de los ocho módulos: identidad, torneos, equipos, partidos, analítica, media, geolocalización y premios.',
+    description: 'API local de los ocho módulos y su feed competitivo normalizado: identidad, torneos, equipos, partidos, analítica, media, geolocalización y premios.',
   },
   servers: [{ url: 'http://localhost:3000', description: 'Servidor local' }],
   components: {
@@ -42,6 +42,7 @@ module.exports = {
     '/api/media/streams': { get: { security: [], summary: 'Lista streams de Twitch/YouTube o el modo local', responses: { 200: { description: 'Streams obtenidos' } } } },
     '/api/media/lobbies': { get: { security: [], summary: 'Lista lobbies persistentes', responses: { 200: { description: 'Lobbies obtenidos' } } }, post: { summary: 'Crea un lobby', responses: { 201: { description: 'Lobby creado' } } } },
     '/api/media/metrics': { get: { security: [], summary: 'Calcula jugadores, salas y audiencia por videojuego', responses: { 200: { description: 'Métricas obtenidas' } } } },
+    '/api/competitive/overview': { get: { security: [], summary: 'Normaliza partidos, clasificaciones, forma, equipos y plantillas de PandaScore y football-data.org con fallback regional', responses: { 200: { description: 'Feed competitivo obtenido' } } } },
     '/api/geolocation/venues': { get: { security: [], summary: 'Lista sedes disponibles', responses: { 200: { description: 'Sedes obtenidas' } } } },
     '/api/geolocation/nearby': { get: { security: [], summary: 'Busca sedes dentro de un radio mediante Haversine', responses: { 200: { description: 'Sedes cercanas ordenadas' }, 400: { description: 'Coordenadas no válidas' } } } },
     '/api/teams': { get: { security: [], summary: 'Lista equipos y plantillas', responses: { 200: { description: 'Equipos obtenidos' } } }, post: { security: [], summary: 'Registra un equipo validado', responses: { 201: { description: 'Equipo creado' }, 400: { description: 'Datos no válidos' } } } },

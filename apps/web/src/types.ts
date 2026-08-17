@@ -34,6 +34,57 @@ export interface AnalyticsOverview {
   recentMatches: TournamentMatch[];
 }
 
+export interface CompetitiveEvent {
+  id: string;
+  category: 'esports' | 'sports';
+  sport: string;
+  competition: string;
+  region: string;
+  status: MatchStatus;
+  startsAt: string;
+  teamA: { id: string; name: string; shortName: string; score: number };
+  teamB: { id: string; name: string; shortName: string; score: number };
+  round: string;
+  venue: string;
+  source: string;
+  dataMode: 'api' | 'simulated';
+}
+
+export interface CompetitiveStanding {
+  id: string;
+  competition: string;
+  category: 'esports' | 'sports';
+  sport: string;
+  region: string;
+  source: string;
+  dataMode: 'api' | 'simulated';
+  table: Array<{ position: number; teamId: string; team: string; played: number; wins: number; draws: number; losses: number; points: number; form: string[] }>;
+}
+
+export interface CompetitiveTeam {
+  id: string;
+  name: string;
+  shortName: string;
+  category: 'esports' | 'sports';
+  sport: string;
+  region: string;
+  country: string;
+  logo: string;
+  rank: number;
+  form: string[];
+  players: Array<{ id: string; name: string; nickname: string; role: string; nationality: string; image: string }>;
+  source: string;
+  dataMode: 'api' | 'simulated';
+}
+
+export interface CompetitiveOverview {
+  generatedAt: string;
+  integration: { esports: string; football: string };
+  events: CompetitiveEvent[];
+  standings: CompetitiveStanding[];
+  teams: CompetitiveTeam[];
+}
+
 export interface PlayerProfile {
   id: string;
   name: string;

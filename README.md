@@ -9,6 +9,7 @@ TournamentX es una plataforma para administrar torneos de deportes tradicionales
 - Persistencia local automática en JSON y esquema MySQL 8 opcional.
 - Tiempo real: Socket.IO para marcadores, alertas y lobbies.
 - Streaming: reproductores oficiales de Twitch y YouTube con fuentes reales opcionales y demo local.
+- Datos competitivos: feed normalizado para partidos, clasificaciones, forma, equipos y plantillas; adaptadores opcionales de PandaScore y football-data.org.
 - Pagos: flujo local completo y adaptadores opcionales de Stripe/Binance Pay.
 
 No existe una integración de inteligencia artificial ni se cargan recursos de fuentes externas para la tipografía.

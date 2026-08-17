@@ -12,7 +12,7 @@ async function twitchStreams() {
   const tokenResponse = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${encodeURIComponent(process.env.TWITCH_CLIENT_ID)}&client_secret=${encodeURIComponent(process.env.TWITCH_CLIENT_SECRET)}&grant_type=client_credentials`, { method: 'POST' });
   if (!tokenResponse.ok) throw new Error(`Twitch OAuth respondió ${tokenResponse.status}`);
   const token = await tokenResponse.json();
-  const channels = configuredList('TWITCH_CHANNELS', 'lolesportsla').slice(0, 100);
+  const channels = configuredList('TWITCH_CHANNELS', 'lolesportsla,cblol,valorant_la,lcs,valorant_americas,lec,valorant,rocketleague,eslcs').slice(0, 100);
   const url = new URL('https://api.twitch.tv/helix/streams');
   url.searchParams.set('first', String(Math.max(1, channels.length)));
   channels.forEach((channel) => url.searchParams.append('user_login', channel));
@@ -78,9 +78,8 @@ async function externalStreams(fallback) {
   const twitch = results[0].status === 'fulfilled' ? results[0].value : { status: 'error', data: [] };
   const youtube = results[1].status === 'fulfilled' ? results[1].value : { status: 'error', data: [] };
   const live = [...twitch.data, ...youtube.data];
-  for (const platform of ['Twitch', 'YouTube']) {
-    if (!live.some((stream) => stream.platform === platform)) live.push(...fallback.filter((stream) => stream.platform === platform));
-  }
+  const knownSources = new Set(live.map((stream) => `${stream.platform}:${stream.embedId}`.toLowerCase()));
+  for (const stream of fallback) if (!knownSources.has(`${stream.platform}:${stream.embedId}`.toLowerCase())) live.push(stream);
   cache = { expiresAt: Date.now() + 60000, streams: live.length ? live : fallback, integration: { twitch: twitch.status, youtube: youtube.status } };
   return cache;
 }

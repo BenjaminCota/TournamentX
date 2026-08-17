@@ -30,6 +30,17 @@ test('Dev 5 calcula métricas y rankings desde los módulos del sistema', async 
   assert.ok(response.body.metrics.tournaments >= 1);
 });
 
+test('Partidos, estadísticas y equipos comparten el feed competitivo regional', async () => {
+  const response = await request(app).get('/api/competitive/overview');
+  assert.equal(response.status, 200);
+  assert.ok(response.body.events.some((event) => event.category === 'esports'));
+  assert.ok(response.body.events.some((event) => event.category === 'sports'));
+  assert.ok(response.body.events.some((event) => event.region === 'LATAM'));
+  assert.ok(response.body.events.some((event) => event.region === 'Europa'));
+  assert.ok(response.body.standings.every((standing) => Array.isArray(standing.table)));
+  assert.ok(response.body.teams.every((team) => Array.isArray(team.players) && Array.isArray(team.form)));
+});
+
 test('Dev 6 gestiona lobbies, métricas y fuentes de stream', async () => {
   const token = await adminSession();
   const streams = await request(app).get('/api/media/streams');

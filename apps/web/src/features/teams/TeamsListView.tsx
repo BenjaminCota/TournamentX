@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Trophy, Globe, Users } from 'lucide-react';
-import { Team } from '../../types';
+import { CompetitiveTeam, Team } from '../../types';
+import { tournamentXApi } from '../../services/apiClient';
 
 interface TeamsListViewProps {
   teams: Team[];
@@ -23,6 +24,10 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   const [formLogo, setFormLogo] = useState('https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&auto=format&fit=crop&q=80');
   const [formRegion, setFormRegion] = useState('LATAM');
   const [formDescription, setFormDescription] = useState('');
+  const [feedTeams, setFeedTeams] = useState<CompetitiveTeam[]>([]);
+  const [feedIntegration, setFeedIntegration] = useState({ esports: 'demo', football: 'demo' });
+
+  useEffect(() => { let active = true; tournamentXApi.competitiveOverview().then((result) => { if (active) { setFeedTeams(result.teams); setFeedIntegration(result.integration); } }).catch(() => undefined); return () => { active = false; }; }, []);
 
   const canCreate = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
   
@@ -47,6 +52,11 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
       return matchesSearch && matchesRegion;
     });
   }, [teams, searchQuery, selectedRegion]);
+  const filteredFeedTeams = useMemo(() => feedTeams.filter((team) => {
+    const term = searchQuery.toLowerCase();
+    const matchesSearch = `${team.name} ${team.shortName} ${team.region} ${team.sport}`.toLowerCase().includes(term);
+    return matchesSearch && (selectedRegion === 'Todos' || team.region === selectedRegion);
+  }), [feedTeams, searchQuery, selectedRegion]);
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,6 +263,11 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
         </div>
       )}
       </div>
+
+      <section className="px-6 lg:px-8 pb-12 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-t border-white/[.07] pt-8"><div><span className="text-[10px] font-bold uppercase tracking-[.18em] text-[#d6b15e]">Directorio sincronizado</span><h2 className="mt-1 text-2xl font-black text-white">Equipos internacionales</h2><p className="mt-1 text-xs text-slate-500">Esports de LATAM, Norteamérica y Europa, junto con clubes de deportes tradicionales.</p></div><p className="text-[10px] text-slate-600">Esports: {feedIntegration.esports === 'configured' ? 'PandaScore' : 'demo'} · Fútbol: {feedIntegration.football === 'configured' ? 'football-data.org' : 'demo'}</p></div>
+        <div className="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{filteredFeedTeams.map((team) => <article key={team.id} className="rounded-2xl border border-white/[.07] bg-[#10121a] p-4 hover:border-[#d6b15e]/40 transition-colors"><div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[.04] text-[10px] font-black">{team.logo ? <img src={team.logo} alt="" className="h-full w-full object-contain"/> : team.shortName}</div><div className="min-w-0"><h3 className="truncate text-sm font-bold text-white">{team.name}</h3><p className="mt-0.5 text-[10px] text-slate-500">{team.sport} · {team.region}</p></div></div><div className="mt-4 flex items-center justify-between"><div className="flex gap-1">{team.form.slice(-5).map((result, index) => <span key={`${result}-${index}`} className={`grid h-5 w-5 place-items-center rounded text-[8px] font-bold ${result === 'W' ? 'bg-emerald-500/15 text-emerald-300' : result === 'L' ? 'bg-red-500/15 text-red-300' : 'bg-slate-500/15 text-slate-300'}`}>{result}</span>)}</div><span className={`rounded px-1.5 py-1 text-[8px] font-bold ${team.dataMode === 'api' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{team.dataMode === 'api' ? 'API' : 'DEMO'}</span></div><div className="mt-4 border-t border-white/[.06] pt-3"><p className="text-[9px] uppercase tracking-wider text-slate-600">Plantilla</p>{team.players.length ? <div className="mt-2 space-y-1">{team.players.slice(0, 4).map((player) => <div key={player.id} className="flex justify-between text-[10px]"><span className="truncate text-slate-300">{player.nickname || player.name}</span><span className="text-slate-600">{player.role}</span></div>)}</div> : <p className="mt-2 text-[10px] leading-4 text-slate-500">Conecta el proveedor para obtener integrantes oficiales.</p>}</div></article>)}</div>
+      </section>
 
       {/* CREATE TEAM MODAL */}
       {showCreateModal && (

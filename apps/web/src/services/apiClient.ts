@@ -1,4 +1,4 @@
-import type { AnalyticsOverview, AuthUser, Team, Tournament, TournamentMatch, User } from '../types';
+import type { AnalyticsOverview, AuthUser, CompetitiveOverview, Team, Tournament, TournamentMatch, User } from '../types';
 import type { LiveEvent, MediaStream } from '../features/media/media.types';
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
@@ -33,6 +33,7 @@ export const tournamentXApi = {
   users: () => request<{ data: AuthUser[] }>('/auth/users'),
   updateUser: (id: string, data: Partial<AuthUser> & { password?: string }) => request<{ user: AuthUser }>(`/auth/users/${id}`, { method: 'PATCH', body: data }),
   analytics: () => request<AnalyticsOverview>('/analytics/overview'),
+  competitiveOverview: () => request<CompetitiveOverview>('/competitive/overview'),
   sponsors: () => request<{ data: unknown[] }>('/sponsors'),
   prizePools: () => request<{ data: unknown[] }>('/prize-pools'),
   rewards: () => request<{ data: unknown[] }>('/rewards'),

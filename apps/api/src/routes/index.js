@@ -13,6 +13,7 @@ const geolocationRoutes = require('../modules/geolocation/geolocation.routes');
 const authRoutes = require('../modules/auth/auth.routes');
 const analyticsRoutes = require('../modules/analytics/analytics.routes');
 const mediaRoutes = require('../modules/media/media.routes');
+const competitiveDataRoutes = require('../modules/competitive-data/competitive-data.routes');
 const env = require('../config/env');
 const localRewardsRoutes = require('../modules/rewards/local-rewards.routes');
 
@@ -34,5 +35,6 @@ router.use('/geolocation', geolocationRoutes);
 router.use('/auth', authRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/media', mediaRoutes);
+router.use('/competitive', competitiveDataRoutes);
 
 module.exports = router;

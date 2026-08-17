@@ -47,9 +47,12 @@ JWT_SECRET=una-clave-local-larga-y-unica
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
 YOUTUBE_API_KEY=
-TWITCH_CHANNELS=lolesportsla
+TWITCH_CHANNELS=lolesportsla,cblol,valorant_la,lcs,valorant_americas,lec,valorant,rocketleague,eslcs
 YOUTUBE_VIDEO_IDS=6VOfpE_HGpw
 YOUTUBE_SEARCH_QUERY=esports tournament gaming
+PANDASCORE_API_TOKEN=
+FOOTBALL_DATA_API_KEY=
+FOOTBALL_COMPETITIONS=PL,CL,BSA,MLS
 STRIPE_MODE=simulated
 BINANCE_PAY_MODE=simulated
 ```
@@ -69,6 +72,17 @@ En **Más → Transmisiones** se cargan los reproductores oficiales de Twitch y 
 - Los marcadores de LoL Worlds, Valorant Champions, The International, Champions League, NBA y UFC están etiquetados como simulación dinámica; no se presentan como resultados oficiales en tiempo real.
 
 La API local expone `GET /api/media/streams`, `GET /api/media/events`, `GET /api/media/lobbies` y `GET /api/media/metrics`.
+
+### Datos para Partidos, Equipos y Estadísticas
+
+`GET /api/competitive/overview` reúne un contrato único con eventos, clasificaciones, forma reciente, equipos y plantillas. Las pantallas **Partidos**, **Equipos** y **Estadísticas** consumen este endpoint; **Transmisiones** se limita a administrar las señales oficiales y mostrar contexto del directo.
+
+- `PANDASCORE_API_TOKEN` activa partidos, torneos, equipos y jugadores de League of Legends, Valorant, Dota 2 y otros esports.
+- `FOOTBALL_DATA_API_KEY` activa calendarios, resultados, tablas, forma y plantillas de fútbol.
+- `FOOTBALL_COMPETITIONS` recibe códigos separados por comas; el ejemplo incluye Premier League, Champions League, Brasileirão y MLS.
+- Sin credenciales se muestran datos regionales de demostración para LATAM, Estados Unidos y Europa, siempre marcados como `DEMO`.
+
+Nunca coloques estas llaves en `apps/web/.env`: deben permanecer exclusivamente en `apps/api/.env`.
 
 ## Validación
 

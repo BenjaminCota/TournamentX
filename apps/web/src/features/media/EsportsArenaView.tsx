@@ -99,7 +99,7 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
                 <div><p className="text-xs font-semibold text-white">Cambiar señal</p><p className="mt-0.5 text-[11px] text-slate-500">El reproductor cambia sin recargar la página.</p></div>
                 <span className="text-[11px] tabular-nums text-slate-500">{compactNumber(totalAudience)} audiencia</span>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid max-h-80 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
                 {streams.map((stream) => {
                   const active = stream.id === selectedStream?.id;
                   return <button type="button" key={stream.id} onClick={() => selectStream(stream)} className={`group flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-all ${active ? 'border-[#d6b15e]/50 bg-[#d6b15e]/[.08]' : 'border-white/[.07] bg-black/20 hover:border-white/20 hover:bg-white/[.04]'}`}>
