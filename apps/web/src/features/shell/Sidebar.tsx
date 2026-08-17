@@ -20,6 +20,8 @@ interface SidebarProps {
   setCurrentTab: (tab: TabId) => void;
   currentUserRole: UserRole;
   currentUserName?: string;
+  isAuthenticated: boolean;
+  onOpenAuth: () => void;
   onOpenCreateWizard: () => void;
 }
 
@@ -33,7 +35,7 @@ const mainItems = [
   { id: 'rewards' as const, label: 'Premios', icon: Gift, tabs: ['rewards'] as TabId[] },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, onOpenCreateWizard }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, isAuthenticated, onOpenAuth, onOpenCreateWizard }) => {
   const visibleItems = currentUserRole === 'Admin'
     ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }]
     : mainItems;
@@ -75,15 +77,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => setCurrentTab('login')}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
-          aria-label={currentUserName ? `Cuenta de ${currentUserName}` : 'Iniciar sesión'}
-          title={currentUserName || 'Iniciar sesión'}
-        >
-          {(currentUserName || currentUserRole).charAt(0)}
-        </button>
+        {isAuthenticated ? (
+          <button
+            type="button"
+            onClick={() => setCurrentTab('login')}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
+            aria-label={currentUserName ? `Cuenta de ${currentUserName}` : 'Cuenta de usuario'}
+            title={currentUserName || 'Cuenta'}
+          >
+            {(currentUserName || currentUserRole).charAt(0)}
+          </button>
+        ) : (
+          <button type="button" onClick={onOpenAuth} className="h-10 shrink-0 rounded-xl bg-[#ff2e83] px-4 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778]">
+            Iniciar sesión
+          </button>
+        )}
       </div>
     </header>
   );

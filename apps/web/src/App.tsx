@@ -420,13 +420,7 @@ export default function App() {
 
   const openTournamentWizard = () => setShowCreateWizard(true);
   const navigate = (tab: TabId) => setActiveTab(tab === 'live_match' ? 'esports' : tab);
-  const enterFromLanding = (tab: TabId = 'dashboard') => {
-    if (!currentUser) {
-      navigate('login');
-      return;
-    }
-    navigate(tab);
-  };
+  const enterFromLanding = (tab: TabId = 'dashboard') => navigate(tab);
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
@@ -455,6 +449,8 @@ export default function App() {
             setCurrentTab={navigate}
             currentUserRole={currentUserRole}
             currentUserName={currentUser?.name}
+            isAuthenticated={Boolean(currentUser)}
+            onOpenAuth={() => navigate('login')}
             onOpenCreateWizard={openTournamentWizard}
           />
 
