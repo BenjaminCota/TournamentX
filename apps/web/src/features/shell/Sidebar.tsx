@@ -46,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
     <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
       <div className="mx-auto flex min-h-16 max-w-[1540px] items-center gap-3 px-4 lg:gap-5 lg:px-7">
         <div className="shrink-0 border-r border-white/[.08] pr-4">
-          <TournamentXLogo size="sm" onClick={() => setCurrentTab('landing')} />
+          <TournamentXLogo size="sm" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
         </div>
 
         <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2" aria-label="Navegación principal">
