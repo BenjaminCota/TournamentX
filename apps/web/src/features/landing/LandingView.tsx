@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, BarChart3, CalendarDays, Gamepad2, Gift, LayoutDashboard, MapPin, Trophy, Users, UsersRound } from 'lucide-react';
+import { ArrowRight, CalendarDays, Gamepad2, Gift, MapPin, Trophy, Users, UsersRound } from 'lucide-react';
 import { TournamentXLogo } from '../../shared/components/TournamentXLogo';
 import { TabId } from '../shell/Sidebar';
 
@@ -16,11 +16,9 @@ const tournaments = [
 ];
 
 const visitorNavigation: Array<{ id: TabId; label: string; icon: React.ElementType }> = [
-  { id: 'dashboard', label: 'Panel', icon: LayoutDashboard },
   { id: 'tournaments', label: 'Torneos', icon: Trophy },
   { id: 'calendar', label: 'Partidos', icon: CalendarDays },
   { id: 'teams', label: 'Equipos', icon: UsersRound },
-  { id: 'analytics', label: 'Estadísticas', icon: BarChart3 },
   { id: 'venues', label: 'Sedes', icon: MapPin },
   { id: 'rewards', label: 'Premios', icon: Gift },
 ];

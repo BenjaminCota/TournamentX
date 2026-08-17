@@ -37,9 +37,10 @@ const mainItems = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, isAuthenticated, onOpenAuth, onRequestLogout, onOpenCreateWizard }) => {
-  const visibleItems = currentUserRole === 'Admin'
-    ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }]
-    : mainItems;
+  const visitorItems = mainItems.filter((item) => item.id !== 'dashboard' && item.id !== 'analytics');
+  const visibleItems = isAuthenticated
+    ? (currentUserRole === 'Admin' ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }] : mainItems)
+    : visitorItems;
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
