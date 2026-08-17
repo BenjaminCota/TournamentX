@@ -15,6 +15,7 @@ import { EscrowTransaction, UserRole } from '../../types';
 import confetti from 'canvas-confetti';
 import { QRCodeSVG } from 'qrcode.react';
 import { loadStripe, Stripe, StripeCardElement } from '@stripe/stripe-js';
+import { notify } from '../../shared/feedback';
 
 interface RecompensasViewProps {
   currentUserRole: UserRole;
@@ -169,8 +170,11 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
         spread: 60,
         origin: { y: 0.6 }
       });
+      notify('success', `Aportación de $${Number(amountInput).toLocaleString()} confirmada.`);
     } catch (error) {
-      setConnectionMessage(error instanceof Error ? error.message : 'No fue posible procesar el pago');
+      const message = error instanceof Error ? error.message : 'No fue posible procesar el pago';
+      setConnectionMessage(message);
+      notify('error', message);
     } finally { setIsProcessing(false); }
   };
 
@@ -189,23 +193,24 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
     try {
       await apiRequest(`/prize-pools/${demoSession.prizePool.id}/payouts`, { method: 'POST', body: JSON.stringify({ recipientId, position: pendingRule.position, destination: `simulated:winner:${recipientId}` }) });
       await loadData(demoSession); setConnectionMessage(`Payout de la posición ${pendingRule.position} liberado`);
-    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible entregar el pago'); }
+      notify('success', `Pago de la posición ${pendingRule.position} liberado.`);
+    } catch (error) { const message = error instanceof Error ? error.message : 'No fue posible entregar el pago'; setConnectionMessage(message); notify('error', message); }
   };
 
   const addSponsor = async () => {
     if (!demoSession) return;
     const name = window.prompt('Nombre del patrocinador'); const contactEmail = window.prompt('Correo del patrocinador');
     if (!name || !contactEmail) return;
-    try { await apiRequest('/sponsors', { method: 'POST', body: JSON.stringify({ name, contactEmail }) }); await loadData(demoSession); }
-    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el patrocinador'); }
+    try { await apiRequest('/sponsors', { method: 'POST', body: JSON.stringify({ name, contactEmail }) }); await loadData(demoSession); notify('success', 'Patrocinador agregado correctamente.'); }
+    catch (error) { const message = error instanceof Error ? error.message : 'No fue posible crear el patrocinador'; setConnectionMessage(message); notify('error', message); }
   };
 
   const addReward = async () => {
     if (!demoSession) return;
     const name = window.prompt('Nombre del premio o cupón'); if (!name) return;
     const quantity = Number(window.prompt('Cantidad disponible', '1') || 1);
-    try { await apiRequest('/rewards', { method: 'POST', body: JSON.stringify({ prizePoolId: demoSession.prizePool.id, rewardType: 'coupon', name, quantity }) }); await loadData(demoSession); }
-    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el premio'); }
+    try { await apiRequest('/rewards', { method: 'POST', body: JSON.stringify({ prizePoolId: demoSession.prizePool.id, rewardType: 'coupon', name, quantity }) }); await loadData(demoSession); notify('success', 'Premio agregado correctamente.'); }
+    catch (error) { const message = error instanceof Error ? error.message : 'No fue posible crear el premio'; setConnectionMessage(message); notify('error', message); }
   };
 
   const configureDistribution = async () => {
@@ -213,8 +218,8 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
     if (!poolDetails || Number(poolDetails.fundedAmount) <= 0) { setConnectionMessage('Registra al menos una aportación pagada antes de distribuir'); return; }
     try {
       await apiRequest(`/prize-pools/${demoSession.prizePool.id}/distribution`, { method: 'PUT', body: JSON.stringify({ rules: [{ position: 1, percentage: 60 }, { position: 2, percentage: 25 }, { position: 3, percentage: 15 }] }) });
-      await loadData(demoSession); setConnectionMessage('Distribución guardada correctamente');
-    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible configurar la distribución'); }
+      await loadData(demoSession); setConnectionMessage('Distribución guardada correctamente'); notify('success', 'Distribución de premios guardada.');
+    } catch (error) { const message = error instanceof Error ? error.message : 'No fue posible configurar la distribución'; setConnectionMessage(message); notify('error', message); }
   };
 
   const downloadReceipt = async (receiptCode: string) => {
@@ -222,7 +227,8 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
       const body = await apiRequest(`/receipts/${receiptCode}`, {}, null);
       const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${receiptCode}.json`; link.click(); URL.revokeObjectURL(url);
-    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible descargar el recibo'); }
+      notify('success', 'Comprobante descargado.');
+    } catch (error) { const message = error instanceof Error ? error.message : 'No fue posible descargar el recibo'; setConnectionMessage(message); notify('error', message); }
   };
 
   return (

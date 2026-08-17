@@ -17,6 +17,8 @@ import { AuthUser, Team, Tournament, User, UserRole } from './types';
 import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
 import { supabase } from './services/supabaseClient';
+import { FeedbackToaster } from './shared/components/FeedbackToaster';
+import { notify } from './shared/feedback';
 
 const TEAM_STORAGE_KEY = 'tournamentx-dev3-teams';
 const PLAYER_STORAGE_KEY = 'tournamentx-dev3-players';
@@ -428,6 +430,7 @@ export default function App() {
     setCurrentUser(null);
     setCurrentUserRole('Espectador');
     navigate('landing');
+    notify('success', 'Sesión cerrada. Ahora estás explorando como visitante.');
   };
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
@@ -447,7 +450,7 @@ export default function App() {
         />
       ) : activeTab === 'login' ? (
         <LoginView
-          onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); }}
+          onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); notify('success', `Bienvenido, ${user.name}.`); }}
           onBackToHome={() => navigate('landing')}
         />
       ) : (
@@ -529,6 +532,7 @@ export default function App() {
           }}
         />
       )}
+      <FeedbackToaster />
     </div>
   );
 }

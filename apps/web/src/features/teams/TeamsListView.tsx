@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Trophy, Globe, Users } from 'lucide-react';
 import { CompetitiveTeam, Team } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { notify } from '../../shared/feedback';
 
 interface TeamsListViewProps {
   teams: Team[];
@@ -82,6 +83,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
       setFormLogo('https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&auto=format&fit=crop&q=80');
       setFormRegion('LATAM');
       setFormDescription('');
+      notify('success', `Equipo "${created.name}" creado correctamente.`);
     }
   };
 
