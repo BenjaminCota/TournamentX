@@ -16,7 +16,9 @@ import { SplashScreen } from './features/landing/SplashScreen';
 import { AuthUser, Team, Tournament, User, UserRole } from './types';
 import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
-import { isSupabaseConfigured, supabase } from './services/supabaseClient';
+import { supabase } from './services/supabaseClient';
+import { FeedbackToaster } from './shared/components/FeedbackToaster';
+import { notify } from './shared/feedback';
 
 const TEAM_STORAGE_KEY = 'tournamentx-dev3-teams';
 const PLAYER_STORAGE_KEY = 'tournamentx-dev3-players';
@@ -87,9 +89,10 @@ function normalizePlayer(player: Partial<User> | Record<string, unknown>): User 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('landing');
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(isSupabaseConfigured ? 'Espectador' : 'Admin');
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Espectador');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [teams, setTeams] = useState<Team[]>(() => {
     const initial = typeof window !== 'undefined' ? localStorage.getItem(TEAM_STORAGE_KEY) : null;
     return initial ? JSON.parse(initial).map(normalizeTeam) : MOCK_TEAMS;
@@ -420,6 +423,17 @@ export default function App() {
 
   const openTournamentWizard = () => setShowCreateWizard(true);
   const navigate = (tab: TabId) => setActiveTab(tab === 'live_match' ? 'esports' : tab);
+  const enterFromLanding = (tab: TabId = 'dashboard') => navigate(tab);
+  const logout = async () => {
+    if (supabase) await supabase.auth.signOut();
+    localStorage.removeItem('tournamentx_token');
+    localStorage.removeItem('tournamentx_user');
+    setCurrentUser(null);
+    setCurrentUserRole('Espectador');
+    navigate('landing');
+    setShowLogoutConfirmation(false);
+    notify('success', 'Sesión cerrada. Ahora estás explorando como visitante.');
+  };
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
@@ -431,9 +445,16 @@ export default function App() {
   return (
     <div id="tournamentx-app-root" className="min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
       {activeTab === 'landing' ? (
-        <LandingView onEnterApp={navigate} onOpenCreateWizard={openTournamentWizard} onOpenAuth={() => navigate('login')} />
+        <LandingView
+          onEnterApp={enterFromLanding}
+          onOpenCreateWizard={() => currentUser ? openTournamentWizard() : navigate('login')}
+          onOpenAuth={() => navigate('login')}
+        />
       ) : activeTab === 'login' ? (
-        <LoginView onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); }} />
+        <LoginView
+          onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); notify('success', `Bienvenido, ${user.name}.`); }}
+          onBackToHome={() => navigate('landing')}
+        />
       ) : (
         <>
           <Sidebar
@@ -441,6 +462,9 @@ export default function App() {
             setCurrentTab={navigate}
             currentUserRole={currentUserRole}
             currentUserName={currentUser?.name}
+            isAuthenticated={Boolean(currentUser)}
+            onOpenAuth={() => navigate('login')}
+            onRequestLogout={() => setShowLogoutConfirmation(true)}
             onOpenCreateWizard={openTournamentWizard}
           />
 
@@ -510,6 +534,19 @@ export default function App() {
           }}
         />
       )}
+      {showLogoutConfirmation && (
+        <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="logout-confirmation-title">
+          <section className="w-full max-w-md rounded-2xl border border-white/10 bg-[#11131d] p-6 shadow-2xl">
+            <h2 id="logout-confirmation-title" className="text-xl font-bold text-white">¿Cerrar sesión?</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Dejarás de administrar la plataforma y volverás a la vista de visitante.</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setShowLogoutConfirmation(false)} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/[.06] hover:text-white">Cancelar</button>
+              <button type="button" onClick={() => { void logout(); }} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#ff2e83]/20 hover:bg-[#ef2778]">Cerrar sesión</button>
+            </div>
+          </section>
+        </div>
+      )}
+      <FeedbackToaster />
     </div>
   );
 }

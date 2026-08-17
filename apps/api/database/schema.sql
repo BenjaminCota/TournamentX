@@ -45,10 +45,12 @@ CREATE TABLE IF NOT EXISTS team_roster (
   player_id CHAR(36) NOT NULL,
   role_name VARCHAR(80) NOT NULL,
   status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  active_member TINYINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN status = 'active' THEN 1 ELSE NULL END) STORED,
   joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   left_at TIMESTAMP NULL,
   CONSTRAINT fk_roster_team FOREIGN KEY (team_id) REFERENCES teams(id),
   CONSTRAINT fk_roster_player FOREIGN KEY (player_id) REFERENCES players(id),
+  UNIQUE KEY uq_team_roster_active_member (team_id, player_id, active_member),
   INDEX idx_roster_current (team_id, status),
   INDEX idx_roster_history (player_id, joined_at)
 ) ENGINE=InnoDB;

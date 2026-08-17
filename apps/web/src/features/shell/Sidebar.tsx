@@ -20,6 +20,9 @@ interface SidebarProps {
   setCurrentTab: (tab: TabId) => void;
   currentUserRole: UserRole;
   currentUserName?: string;
+  isAuthenticated: boolean;
+  onOpenAuth: () => void;
+  onRequestLogout: () => void;
   onOpenCreateWizard: () => void;
 }
 
@@ -33,16 +36,17 @@ const mainItems = [
   { id: 'rewards' as const, label: 'Premios', icon: Gift, tabs: ['rewards'] as TabId[] },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, onOpenCreateWizard }) => {
-  const visibleItems = currentUserRole === 'Admin'
-    ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }]
-    : mainItems;
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, isAuthenticated, onOpenAuth, onRequestLogout, onOpenCreateWizard }) => {
+  const visitorItems = mainItems.filter((item) => item.id !== 'dashboard' && item.id !== 'analytics');
+  const visibleItems = isAuthenticated
+    ? (currentUserRole === 'Admin' ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }] : mainItems)
+    : visitorItems;
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
       <div className="mx-auto flex min-h-16 max-w-[1540px] items-center gap-3 px-4 lg:gap-5 lg:px-7">
         <div className="shrink-0 border-r border-white/[.08] pr-4">
-          <TournamentXLogo size="sm" onClick={() => setCurrentTab('landing')} />
+          <TournamentXLogo size="sm" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
         </div>
 
         <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2" aria-label="Navegación principal">
@@ -75,15 +79,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => setCurrentTab('login')}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
-          aria-label={currentUserName ? `Cuenta de ${currentUserName}` : 'Iniciar sesión'}
-          title={currentUserName || 'Iniciar sesión'}
-        >
-          {(currentUserName || currentUserRole).charAt(0)}
-        </button>
+        {isAuthenticated ? (
+          <button
+            type="button"
+            onClick={onRequestLogout}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
+            aria-label="Cerrar sesión"
+            title={currentUserName ? `Cerrar sesión de ${currentUserName}` : 'Cerrar sesión'}
+          >
+            {(currentUserName || currentUserRole).charAt(0)}
+          </button>
+        ) : (
+          <button type="button" onClick={onOpenAuth} className="h-10 shrink-0 rounded-xl bg-[#ff2e83] px-4 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778]">
+            Iniciar sesión
+          </button>
+        )}
       </div>
     </header>
   );

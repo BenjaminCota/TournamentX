@@ -104,6 +104,20 @@ npm run build
 
 `npm run check` ejecuta TypeScript y las pruebas de API. Las pruebas marcadas como omitidas corresponden únicamente a servicios externos opcionales (MySQL y Stripe Test real).
 
+### Validación MySQL de integración
+
+Cuando el integrador proporcione una `DATABASE_URL` de **pruebas** (nunca de
+producción), ejecuta desde la raíz:
+
+```powershell
+$env:DATABASE_URL = 'mysql://usuario:contrasena@host:3306/tournamentx_test'
+npm run test:db --workspace @tournamentx/api
+```
+
+El comando aplica el esquema idempotente y ejecuta por separado los flujos de
+persistencia y de premios/pagos. Las pruebas crean datos temporales y los limpian
+al finalizar. No configura ni muestra credenciales.
+
 ## Seguridad local
 
 - Las contraseñas se derivan con `scrypt`; nunca se devuelve su hash en la API.

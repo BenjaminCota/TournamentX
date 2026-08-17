@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Tournament, TournamentFormat } from '../../types';
 import confetti from 'canvas-confetti';
+import { notify } from '../../shared/feedback';
 
 interface WizardProps {
   onClose: () => void;
@@ -78,8 +79,10 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
       });
 
       onTournamentCreated(created);
+      notify('success', `Torneo "${created.name}" creado correctamente.`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'No se pudo crear el torneo. Intenta de nuevo.');
+      notify('error', error instanceof Error ? error.message : 'No se pudo crear el torneo.');
     } finally {
       setIsSubmitting(false);
     }

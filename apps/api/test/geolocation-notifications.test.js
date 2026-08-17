@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const { io: createClient } = require('socket.io-client');
 const app = require('../src/app');
 const { createRealtimeServer } = require('../src/server');
@@ -33,8 +34,11 @@ test('Dev 7 emite notificaciones en tiempo real a los suscriptores', async () =>
   try {
     await waitFor(client, 'connect');
     await new Promise((resolve) => client.emit('subscribe-notifications', resolve));
+    const token = jwt.sign({ sub: 'organizer-notifications', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
+    const denied = await request(app).post('/api/geolocation/notifications').send({ title: 'Cambio de sede', message: 'La final se movio a Arena CDMX.', type: 'schedule' });
+    assert.equal(denied.status, 401);
     const event = waitFor(client, 'notification:new');
-    const response = await request(app).post('/api/geolocation/notifications').send({
+    const response = await request(app).post('/api/geolocation/notifications').set('Authorization', `Bearer ${token}`).send({
       title: 'Cambio de sede', message: 'La final se movió a Arena CDMX.', type: 'schedule',
     });
     assert.equal(response.status, 201);

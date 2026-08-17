@@ -91,6 +91,10 @@ PAYMENTS_MODE=simulated
 
 No se deben subir archivos `.env`, contraseñas ni llaves privadas.
 
+Consulta la [matriz de variables de entorno](docs/ENVIRONMENT.md) para saber qué
+valores requiere cada entorno, qué proveedores usan fallback de demostración y
+cuáles nunca deben exponerse en el frontend.
+
 ## Persistencia local y MySQL opcional
 
 Sin `DATABASE_URL`, TournamentX guarda la información en `apps/api/data/tournamentx.local.json`.

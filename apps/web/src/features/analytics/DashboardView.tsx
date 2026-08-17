@@ -67,6 +67,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      <section aria-label="Indicadores operativos" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { label: 'Torneos activos', value: tournaments.filter((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status)).length, detail: `${tournaments.length} en total`, icon: Trophy, tone: 'text-[#ff69a8]' },
+          { label: 'Partidos en vivo', value: matches.filter((match) => match.status === 'live').length, detail: `${matches.length} registrados`, icon: Radio, tone: 'text-red-400' },
+          { label: 'Avance de jornada', value: `${completionRate}%`, detail: `${completedMatches} finalizados`, icon: Activity, tone: 'text-emerald-400' },
+        ].map(({ label, value, detail, icon: Icon, tone }) => <article key={label} className="surface rounded-2xl p-4 flex items-center gap-4">
+          <span className={`grid h-10 w-10 place-items-center rounded-xl bg-white/[.04] ${tone}`}><Icon className="w-5 h-5" /></span>
+          <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p><strong className="block mt-0.5 text-2xl text-white">{value}</strong><small className="text-[11px] text-slate-500">{detail}</small></div>
+        </article>)}
+      </section>
+
       {/* HERO MATCH STATUS CARD (Image 5) */}
       <div 
         id="hero-live-match-card"

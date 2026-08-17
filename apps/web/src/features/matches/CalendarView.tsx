@@ -58,6 +58,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
     const type = event.category === 'esports' ? 'ESPORTS' : 'PRESENCIAL';
     return searchText.includes(query.toLowerCase()) && (filter === 'TODOS' || type === filter);
   }), [feedEvents, filter, query]);
+  const summary = useMemo(() => ({
+    total: matches.length,
+    live: matches.filter((match) => match.status === 'live').length,
+    upcoming: matches.filter((match) => match.status === 'scheduled').length,
+    finished: matches.filter((match) => match.status === 'completed').length,
+  }), [matches]);
 
   return (
     <div id="calendar-view" className="p-6 lg:p-8 max-w-7xl mx-auto space-y-7">
@@ -71,6 +77,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
       </div>
 
       <div className="flex gap-2">{(['TODOS', 'ESPORTS', 'PRESENCIAL'] as const).map((item) => <button key={item} onClick={() => setFilter(item)} className={`px-4 py-2 rounded-xl text-xs font-bold ${filter === item ? 'bg-[#ff2e83] text-white' : 'bg-[#141724] text-slate-400 border border-[#252a3d]'}`}>{item}</button>)}</div>
+
+      <section aria-label="Resumen del calendario" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          ['PARTIDOS', summary.total, 'text-white', CalendarDays],
+          ['EN VIVO', summary.live, 'text-red-400', Radio],
+          ['PRÓXIMOS', summary.upcoming, 'text-[#d6b15e]', Clock3],
+          ['FINALIZADOS', summary.finished, 'text-emerald-400', CalendarDays],
+        ].map(([label, value, color, Icon]) => {
+          const MetricIcon = Icon as typeof CalendarDays;
+          return <div key={label as string} className="rounded-2xl border border-[#252a3d] bg-[#11131c] p-4">
+            <MetricIcon className={`w-4 h-4 ${color as string}`} />
+            <strong className={`mt-3 block text-2xl font-black ${color as string}`}>{value as number}</strong>
+            <span className="text-[10px] font-bold tracking-wider text-slate-500">{label as string}</span>
+          </div>;
+        })}
+      </section>
 
       {isLoading && <p className="rounded-xl border border-[#252a3d] bg-[#11131c] p-5 text-sm text-slate-400">Cargando calendario…</p>}
       {error && <p className="rounded-xl border border-red-500/40 bg-red-500/10 p-5 text-sm text-red-300">{error}</p>}
