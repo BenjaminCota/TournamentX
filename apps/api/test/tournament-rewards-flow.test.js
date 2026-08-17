@@ -9,8 +9,8 @@ const authorization = { Authorization: `Bearer ${jwt.sign({ sub: 'organizer-resu
 test('la final oficial de un torneo libera el premio del campeón local', async () => {
   const suffix = Date.now();
   const tournament = await request(app).post('/api/tournaments').set(authorization).send({ name: `Copa con premio ${suffix}`, game: 'Valorant', format: 'SINGLE_ELIMINATION', maxTeams: 2 });
-  await request(app).post(`/api/tournaments/${tournament.body.id}/participants`).set(authorization).send({ teamId: `team-gold-${suffix}`, teamName: 'Equipo Oro', seed: 1 });
-  await request(app).post(`/api/tournaments/${tournament.body.id}/participants`).set(authorization).send({ teamId: `team-silver-${suffix}`, teamName: 'Equipo Plata', seed: 2 });
+  await request(app).post(`/api/tournaments/${tournament.body.id}/participants`).set(authorization).send({ teamId: 'team-lnx', teamName: 'Equipo Oro', seed: 1 });
+  await request(app).post(`/api/tournaments/${tournament.body.id}/participants`).set(authorization).send({ teamId: 'team-titans', teamName: 'Equipo Plata', seed: 2 });
   const bracket = await request(app).post(`/api/tournaments/${tournament.body.id}/bracket/generate`).set(authorization);
   await request(app).put(`/api/tournaments/${tournament.body.id}/bracket-matches/${bracket.body[0].matches[0].id}/result`).set(authorization).send({ score1: 2, score2: 0 });
 
@@ -24,7 +24,7 @@ test('la final oficial de un torneo libera el premio del campeón local', async 
 
   const imported = await request(app).post(`/api/prize-pools/${pool.body.data.id}/results`).set(authorization);
   assert.equal(imported.status, 201);
-  assert.equal(imported.body.data.payout.recipientId, `team-gold-${suffix}`);
+  assert.equal(imported.body.data.payout.recipientId, 'team-lnx');
   assert.equal(imported.body.data.payout.amount, 100);
   const receipt = await request(app).get(`/api/receipts/${imported.body.data.payout.receiptCode}`);
   assert.equal(receipt.status, 200);

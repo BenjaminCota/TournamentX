@@ -4,6 +4,7 @@ const { generateGroups, generateRoundRobinMatches } = require('./group-generator
 const { generateSingleEliminationBracket } = require('./bracket-generator');
 const { computeGroupStandings } = require('./standings');
 const localStore = require('../../config/local-store');
+const { getActiveTeam } = require('../teams/teams.public');
 
 const tournaments = localStore.collection('tournaments', []);
 function persist() { localStore.saveCollection('tournaments', tournaments); }
@@ -159,19 +160,21 @@ function listParticipants(tournamentId) {
 
 function registerParticipant(tournamentId, { teamId, teamName, seed }) {
   const tournament = findTournament(tournamentId);
-  if (!teamName) throw new HttpError(400, 'El nombre del equipo/jugador es obligatorio');
+  if (!teamId) throw new HttpError(400, 'El equipo es obligatorio');
+  const team = getActiveTeam(teamId);
+  if (!team) throw new HttpError(404, 'El equipo no existe o no está activo');
   if (tournament.maxTeams && tournament.participants.length >= tournament.maxTeams) {
     throw new HttpError(409, 'El torneo alcanzó el cupo máximo de participantes');
   }
 
-  const id = teamId || crypto.randomUUID();
+  const id = teamId;
   if (tournament.participants.some((participant) => participant.id === id)) {
     throw new HttpError(409, 'Este equipo ya está inscrito en el torneo');
   }
 
   const participant = {
     id,
-    name: teamName,
+    name: team.name,
     seed: Number.isInteger(seed) ? seed : tournament.participants.length + 1,
   };
   tournament.participants.push(participant);
@@ -420,8 +423,6 @@ function seed() {
   [
     { teamId: 'team-lnx', teamName: 'LUMINEX ESPORTS', seed: 1 },
     { teamId: 'team-titans', teamName: 'Titans', seed: 2 },
-    { teamId: 'team-nova', teamName: 'Team Nova', seed: 3 },
-    { teamId: 'team-raven', teamName: 'Team Raven', seed: 4 },
   ].forEach((participant) => registerParticipant(community.id, participant));
   generateBracket(community.id);
 

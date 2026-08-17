@@ -6,12 +6,26 @@ const app = require('../src/app');
 
 const authorization = { Authorization: `Bearer ${jwt.sign({ sub: 'manager-tournaments', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
 
+async function activeTeamIds(count) {
+  const ids = ['team-lnx', 'team-titans'];
+  const marker = Date.now().toString(36).slice(-5);
+  for (let index = ids.length; index < count; index += 1) {
+    const created = await request(app).post('/api/teams').set(authorization).send({
+      name: `Equipo torneo ${marker}-${index}`, abbreviation: `T${marker}${index}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
+    });
+    assert.equal(created.status, 201);
+    ids.push(created.body.id);
+  }
+  return ids.slice(0, count);
+}
+
 async function createTournamentWithParticipants(format, count, extra = {}) {
   const created = await request(app).post('/api/tournaments').set(authorization).send({ name: `Torneo de prueba ${Date.now()}`, game: 'Valorant', format, maxTeams: count, ...extra });
   assert.equal(created.status, 201);
   const tournamentId = created.body.id;
+  const teamIds = await activeTeamIds(count);
   for (let i = 1; i <= count; i += 1) {
-    await request(app).post(`/api/tournaments/${tournamentId}/participants`).set(authorization).send({ teamId: `team-${i}`, teamName: `Equipo ${i}`, seed: i });
+    await request(app).post(`/api/tournaments/${tournamentId}/participants`).set(authorization).send({ teamId: teamIds[i - 1], teamName: `Equipo ${i}`, seed: i });
   }
   return tournamentId;
 }
@@ -24,6 +38,8 @@ test('Dev 2 protege la creación de torneos y expone el estado de la API', async
   const created = await request(app).post('/api/tournaments').set(authorization).send({ name: 'Copa Demo', game: 'Rocket League' });
   assert.equal(created.status, 201);
   assert.equal(created.body.status, 'OPEN');
+  const missingTeam = await request(app).post(`/api/tournaments/${created.body.id}/participants`).set(authorization).send({ teamId: 'team-missing', teamName: 'No existe', seed: 1 });
+  assert.equal(missingTeam.status, 404);
 });
 
 test('genera y resuelve un bracket de eliminación directa con avance de rondas', async () => {
