@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { z } = require('zod');
 const { venues, notifications, nearbyVenues } = require('./geolocation.store');
 const { publishNotification } = require('./notifications.service');
+const { authenticate, authorize } = require('../../middleware/auth');
 
 const nearbyQuery = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -24,7 +25,7 @@ router.get('/nearby', (req, res, next) => {
 });
 
 router.get('/notifications', (_req, res) => res.json([...notifications].reverse()));
-router.post('/notifications', (req, res, next) => {
+router.post('/notifications', authenticate, authorize('admin', 'organizer'), (req, res, next) => {
   const parsed = notificationBody.safeParse(req.body);
   if (!parsed.success) return next(Object.assign(new Error('Notificación no válida'), { status: 400, details: parsed.error.flatten() }));
   const notification = publishNotification(req.app, parsed.data);
