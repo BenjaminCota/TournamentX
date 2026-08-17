@@ -4,8 +4,10 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 
+const managerAuthorization = { Authorization: `Bearer ${jwt.sign({ sub: 'manager-notifications', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
+
 test('al finalizar un partido se publica una notificación de resultado', async () => {
-  const created = await request(app).post('/api/matches').send({
+  const created = await request(app).post('/api/matches').set(managerAuthorization).send({
     tournamentId: 'tour-notification',
     team1Id: 'team-north',
     team2Id: 'team-south',

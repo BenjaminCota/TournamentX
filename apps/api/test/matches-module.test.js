@@ -4,6 +4,8 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 
+const managerAuthorization = { Authorization: `Bearer ${jwt.sign({ sub: 'manager-matches', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
+
 test('Dev 4 expone y filtra partidos programados', async () => {
   const response = await request(app).get('/api/matches?tournamentId=tour-1&status=scheduled');
 
@@ -13,7 +15,7 @@ test('Dev 4 expone y filtra partidos programados', async () => {
 });
 
 test('Dev 4 crea un partido y permite consultarlo', async () => {
-  const created = await request(app).post('/api/matches').send({
+  const created = await request(app).post('/api/matches').set(managerAuthorization).send({
     tournamentId: 'tour-2',
     scheduleId: 'schedule-02',
     roundId: 'round-1',
@@ -34,7 +36,7 @@ test('Dev 4 crea un partido y permite consultarlo', async () => {
 });
 
 test('Dev 4 valida partidos y devuelve 404 para IDs desconocidos', async () => {
-  const invalid = await request(app).post('/api/matches').send({
+  const invalid = await request(app).post('/api/matches').set(managerAuthorization).send({
     tournamentId: 'tour-1',
     team1Id: 'team-lnx',
     team2Id: 'team-lnx',
@@ -49,7 +51,7 @@ test('Dev 4 valida partidos y devuelve 404 para IDs desconocidos', async () => {
 });
 
 test('Dev 4 genera un calendario todos-contra-todos con sus partidos', async () => {
-  const created = await request(app).post('/api/schedules').send({
+  const created = await request(app).post('/api/schedules').set(managerAuthorization).send({
     tournamentId: 'tour-3',
     teamIds: ['team-lnx', 'team-titans', 'team-orbit'],
     startsAt: '2026-08-22T18:00:00.000Z',
@@ -75,7 +77,7 @@ test('Dev 4 genera un calendario todos-contra-todos con sus partidos', async () 
 });
 
 test('Dev 4 rechaza una eliminación directa sin equipos potencia de dos', async () => {
-  const invalid = await request(app).post('/api/schedules').send({
+  const invalid = await request(app).post('/api/schedules').set(managerAuthorization).send({
     tournamentId: 'tour-4',
     teamIds: ['team-lnx', 'team-titans', 'team-orbit'],
     startsAt: '2026-08-22T18:00:00.000Z',
@@ -87,7 +89,7 @@ test('Dev 4 rechaza una eliminación directa sin equipos potencia de dos', async
 });
 
 test('Dev 4 protege y actualiza el marcador con transiciones válidas', async () => {
-  const created = await request(app).post('/api/matches').send({
+  const created = await request(app).post('/api/matches').set(managerAuthorization).send({
     tournamentId: 'tour-live',
     team1Id: 'team-lnx',
     team2Id: 'team-titans',

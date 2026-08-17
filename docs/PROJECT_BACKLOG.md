@@ -13,6 +13,9 @@ aceptación y queda verificado en una rama o entorno compartido.
 - La API y el frontend funcionan sin servicios externos usando almacenamiento y
   proveedores de demostración. Esto es útil para desarrollo, pero no equivale a
   una validación de producción.
+- Avance 2026-08-17: las escrituras de equipos, jugadores, torneos, brackets,
+  calendarios y creación de partidos requieren rol `admin` u `organizer`.
+  Los árbitros conservan acceso exclusivo a la actualización de marcadores.
 
 ## Prioridad transversal
 
