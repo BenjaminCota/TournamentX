@@ -16,7 +16,8 @@ function authenticate(req, _res, next) {
 
 function authorize(...roles) {
   return (req, _res, next) => {
-    if (!roles.includes(req.user?.role)) return next(new HttpError(403, 'No tienes permiso para esta operación'));
+    const normalized = String(req.user?.role || '').toLowerCase();
+    if (!roles.map((role) => String(role).toLowerCase()).includes(normalized)) return next(new HttpError(403, 'No tienes permiso para esta operación'));
     return next();
   };
 }

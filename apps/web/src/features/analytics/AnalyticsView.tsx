@@ -1,32 +1,30 @@
-import React, { useState } from 'react';
-import { Activity, BarChart3, Medal, Target, TrendingUp, Trophy } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Activity, BarChart3, CircleDollarSign, RefreshCw, Radio, ShieldCheck, Trophy, Users } from 'lucide-react';
+import { AnalyticsOverview } from '../../types';
+import { tournamentXApi } from '../../services/apiClient';
 
-const RANKING = [
-  { team: 'Luminex Esports', played: 32, wins: 25, points: 78, rate: 78 },
-  { team: 'Team Nova', played: 30, wins: 22, points: 69, rate: 73 },
-  { team: 'Crimson Wolves', played: 29, wins: 19, points: 61, rate: 66 },
-  { team: 'Velocity Gaming', played: 31, wins: 18, points: 58, rate: 58 },
-];
+const empty: AnalyticsOverview = { generatedAt: '', metrics: { tournaments: 0, activeTournaments: 0, teams: 0, matches: 0, completedMatches: 0, liveMatches: 0, completionRate: 0, totalPrizeUSD: 0 }, ranking: [], recentMatches: [] };
 
 export const AnalyticsView: React.FC = () => {
-  const [scope, setScope] = useState<'GLOBAL' | 'REGIONAL'>('GLOBAL');
-  const cards = [
-    { label: 'Partidos registrados', value: '1,284', change: '+12.5%', icon: Activity },
-    { label: 'Equipos activos', value: '368', change: '+8.2%', icon: Trophy },
-    { label: 'Win rate líder', value: '78%', change: 'Luminex', icon: Target },
-    { label: 'Participación', value: '92%', change: '+4.1%', icon: TrendingUp },
+  const [data, setData] = useState<AnalyticsOverview>(empty);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const load = async () => { setLoading(true); setError(''); try { setData(await tournamentXApi.analytics()); } catch (caught) { setError(caught instanceof Error ? caught.message : 'No se pudieron cargar las estadísticas'); } finally { setLoading(false); } };
+  useEffect(() => { void load(); }, []);
+  const maxPoints = useMemo(() => Math.max(1, ...data.ranking.map((row) => row.points)), [data.ranking]);
+  const metrics = [
+    { label: 'Torneos activos', value: data.metrics.activeTournaments, helper: `${data.metrics.tournaments} totales`, icon: Trophy },
+    { label: 'Equipos', value: data.metrics.teams, helper: `${data.ranking.length} clasificados`, icon: Users },
+    { label: 'Partidos en vivo', value: data.metrics.liveMatches, helper: `${data.metrics.matches} programados`, icon: Radio },
+    { label: 'Premios publicados', value: `$${data.metrics.totalPrizeUSD.toLocaleString()}`, helper: 'USD acumulados', icon: CircleDollarSign },
   ];
-  return (
-    <div id="analytics-view" className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div><h1 className="font-brand font-black text-4xl text-white uppercase italic flex items-center gap-3"><BarChart3 className="w-8 h-8 text-[#ff2e83]" /> Estadísticas</h1><p className="text-sm text-slate-400 mt-2">Rendimiento consolidado de torneos, equipos y jugadores.</p></div>
-        <div className="flex bg-[#141724] border border-[#252a3d] rounded-xl p-1">{(['GLOBAL', 'REGIONAL'] as const).map((item) => <button key={item} onClick={() => setScope(item)} className={`px-4 py-2 rounded-lg text-xs font-bold ${scope === item ? 'bg-[#ff2e83] text-white' : 'text-slate-400'}`}>{item}</button>)}</div>
-      </div>
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">{cards.map(({ label, value, change, icon: Icon }) => <div key={label} className="bg-[#11131c] border border-[#222638] rounded-2xl p-5"><Icon className="w-5 h-5 text-[#ff2e83]" /><div className="text-3xl font-black text-white mt-4">{value}</div><div className="text-sm text-slate-400 mt-1">{label}</div><div className="text-xs text-emerald-400 mt-3">{change}</div></div>)}</div>
-      <section className="bg-[#11131c] border border-[#222638] rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-[#222638] flex items-center gap-2"><Medal className="w-5 h-5 text-amber-400" /><h2 className="font-bold text-white">Ranking {scope.toLowerCase()}</h2></div>
-        <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-xs uppercase text-slate-500 bg-[#0d0f16]"><tr><th className="text-left p-4">Posición</th><th className="text-left p-4">Equipo</th><th className="text-right p-4">Partidos</th><th className="text-right p-4">Victorias</th><th className="text-right p-4">Win rate</th><th className="text-right p-4">Puntos</th></tr></thead><tbody>{RANKING.map((row, index) => <tr key={row.team} className="border-t border-[#1e2230]"><td className="p-4 font-black text-[#ff2e83]">#{index + 1}</td><td className="p-4 font-bold text-white">{row.team}</td><td className="p-4 text-right text-slate-300">{row.played}</td><td className="p-4 text-right text-slate-300">{row.wins}</td><td className="p-4 text-right"><span className="inline-block w-20 h-1.5 bg-[#252a3d] rounded-full mr-2"><span className="block h-full bg-[#ff2e83] rounded-full" style={{ width: `${row.rate}%` }} /></span>{row.rate}%</td><td className="p-4 text-right font-black text-white">{row.points}</td></tr>)}</tbody></table></div>
-      </section>
+  return <div className="p-5 lg:p-8 space-y-7 max-w-7xl mx-auto">
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"><div><span className="text-[11px] font-bold tracking-[.22em] text-[#ff5ba0]">INTELIGENCIA COMPETITIVA</span><h1 className="mt-2 font-brand font-black text-4xl sm:text-5xl uppercase italic">Estadísticas <span className="text-[#ff2e83]">en vivo</span></h1><p className="text-sm text-slate-400 mt-2">Datos calculados desde torneos, equipos y resultados registrados.</p></div><button onClick={() => void load()} disabled={loading} className="self-start inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-4 py-2.5 text-sm font-bold hover:border-[#ff2e83]/50"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Actualizar</button></div>
+    {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>}
+    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">{metrics.map(({ label, value, helper, icon: Icon }) => <article key={label} className="surface rounded-2xl p-5 relative overflow-hidden"><div className="absolute -right-6 -top-8 w-24 h-24 rounded-full bg-[#ff2e83]/10 blur-2xl"/><div className="flex items-start justify-between"><div><p className="text-xs text-slate-500">{label}</p><p className="text-3xl font-black text-white mt-2">{value}</p><p className="text-[11px] text-slate-500 mt-2">{helper}</p></div><span className="w-10 h-10 rounded-xl bg-[#ff2e83]/10 border border-[#ff2e83]/20 grid place-items-center"><Icon className="w-5 h-5 text-[#ff2e83]" /></span></div></article>)}</div>
+    <div className="grid xl:grid-cols-[1.55fr_.75fr] gap-6">
+      <section className="surface rounded-3xl overflow-hidden"><div className="p-5 border-b border-white/10 flex items-center justify-between"><div><h2 className="font-black text-lg flex items-center gap-2"><Trophy className="w-5 h-5 text-[#ff2e83]"/> Ranking calculado</h2><p className="text-xs text-slate-500 mt-1">3 puntos por victoria, 1 por empate.</p></div><span className="text-[10px] text-emerald-400 flex gap-1"><ShieldCheck className="w-3.5 h-3.5" />DATOS VERIFICADOS</span></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-[10px] uppercase tracking-wider text-slate-500 bg-white/[.02]"><tr><th className="text-left p-4"># Equipo</th><th className="text-right p-4">PJ</th><th className="text-right p-4">V-E-D</th><th className="text-right p-4">Rendimiento</th><th className="text-right p-4">Pts</th></tr></thead><tbody>{data.ranking.map((row, index) => <tr key={row.id} className="border-t border-white/[.06] hover:bg-white/[.025]"><td className="p-4"><span className="inline-grid place-items-center w-7 h-7 rounded-lg bg-[#ff2e83]/10 text-[#ff2e83] font-black mr-3">{index + 1}</span><strong className="text-white">{row.team}</strong><span className="block ml-10 text-[10px] text-slate-600">{row.region || 'Sin región'}</span></td><td className="text-right p-4 text-slate-300">{row.played}</td><td className="text-right p-4 text-slate-400">{row.wins}-{row.draws}-{row.losses}</td><td className="text-right p-4"><div className="ml-auto w-28 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-[#ff2e83] to-[#ff75b1]" style={{ width: `${Math.max(3, row.rate)}%` }}/></div><span className="text-[10px] text-slate-500">{row.rate}%</span></td><td className="text-right p-4 font-black text-white"><span style={{ opacity: .45 + .55 * row.points / maxPoints }}>{row.points}</span></td></tr>)}</tbody></table>{!loading && data.ranking.length === 0 && <div className="p-10 text-center text-sm text-slate-500">Registra equipos y resultados para generar la clasificación.</div>}</div></section>
+      <section className="surface rounded-3xl p-6"><h2 className="font-black flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#ff2e83]"/> Avance del calendario</h2><div className="mt-8 flex justify-center"><div className="relative w-44 h-44 rounded-full grid place-items-center" style={{ background: `conic-gradient(#ff2e83 ${data.metrics.completionRate * 3.6}deg, #222532 0deg)` }}><div className="w-32 h-32 rounded-full bg-[#11131b] grid place-items-center text-center"><div><div className="text-4xl font-black">{data.metrics.completionRate}%</div><div className="text-[10px] text-slate-500 uppercase">completado</div></div></div></div></div><div className="mt-8 grid grid-cols-2 gap-3"><div className="rounded-xl bg-white/[.03] p-4"><Activity className="w-4 h-4 text-emerald-400"/><strong className="block text-2xl mt-2">{data.metrics.completedMatches}</strong><span className="text-[10px] text-slate-500">Finalizados</span></div><div className="rounded-xl bg-white/[.03] p-4"><Radio className="w-4 h-4 text-red-400"/><strong className="block text-2xl mt-2">{data.metrics.liveMatches}</strong><span className="text-[10px] text-slate-500">En vivo</span></div></div><p className="text-[10px] text-slate-600 mt-5 text-center">Actualizado {data.generatedAt ? new Date(data.generatedAt).toLocaleTimeString() : '—'}</p></section>
     </div>
-  );
+  </div>;
 };

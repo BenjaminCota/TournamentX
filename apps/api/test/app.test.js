@@ -6,7 +6,8 @@ const app = require('../src/app');
 test('expone el estado de la API', async () => {
   const response = await request(app).get('/api/health');
   assert.equal(response.status, 200);
-  assert.equal(response.body.module, 'rewards-payments');
+  assert.equal(response.body.app, 'TournamentX');
+  assert.equal(response.body.modules, 8);
 });
 
 test('protege las rutas administrativas', async () => {

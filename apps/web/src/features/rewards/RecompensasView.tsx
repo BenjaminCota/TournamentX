@@ -9,9 +9,7 @@ import {
   ArrowRight, 
   Download,
   Building2,
-  Gift,
-  Ticket,
-  PackageCheck
+  Gift
 } from 'lucide-react';
 import { EscrowTransaction, UserRole } from '../../types';
 import confetti from 'canvas-confetti';
@@ -94,12 +92,19 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
   useEffect(() => { void (async () => {
     try {
       const definitiveToken = localStorage.getItem('tournamentx_token');
+      if (!definitiveToken) throw new Error('Inicia sesión para administrar premios y pagos');
       const definitivePoolId = localStorage.getItem('tournamentx_prize_pool_id');
       const definitivePoolName = localStorage.getItem('tournamentx_prize_pool_name');
       const definitiveSponsorId = localStorage.getItem('tournamentx_sponsor_id');
-      const active = definitiveToken && definitivePoolId && definitiveSponsorId
-        ? { token: definitiveToken, stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null, sponsor: { id: definitiveSponsorId, name: 'Patrocinador' }, prizePool: { id: definitivePoolId, name: definitivePoolName || 'Bolsa de premios' } }
-        : await apiRequest('/dev8-demo/session', { method: 'POST' }, null);
+      let poolId = definitivePoolId; let poolName = definitivePoolName; let sponsorId = definitiveSponsorId; let sponsorName = 'Patrocinador';
+      if (!poolId || !sponsorId) {
+        const [poolBody, sponsorBody] = await Promise.all([apiRequest('/prize-pools', {}, definitiveToken), apiRequest('/sponsors', {}, definitiveToken)]);
+        const firstPool = poolBody.data?.[0]; const firstSponsor = sponsorBody.data?.[0];
+        if (!firstPool || !firstSponsor) throw new Error('Crea una bolsa de premios y un patrocinador para continuar');
+        poolId = firstPool.id; poolName = firstPool.name; sponsorId = firstSponsor.id; sponsorName = firstSponsor.name;
+        localStorage.setItem('tournamentx_prize_pool_id', poolId); localStorage.setItem('tournamentx_prize_pool_name', poolName); localStorage.setItem('tournamentx_sponsor_id', sponsorId);
+      }
+      const active = { token: definitiveToken, stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null, sponsor: { id: sponsorId, name: sponsorName }, prizePool: { id: poolId, name: poolName || 'Bolsa de premios' } };
       setDemoSession(active);
       setSelectedSponsorId(active.sponsor.id);
       await loadData(active);
@@ -136,14 +141,17 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
       });
       if (provider === 'stripe') {
         setConnectionMessage('Validando la tarjeta...');
-        if (!stripeRef.current || !cardElementRef.current || !created.payment.clientSecret) throw new Error('El formulario de tarjeta todavía no está listo; espera un momento');
-        const confirmation = await stripeRef.current.confirmCardPayment(created.payment.clientSecret, { payment_method: { card: cardElementRef.current } });
-        if (confirmation.error) throw new Error(confirmation.error.message || 'Stripe rechazó los datos de prueba');
-        for (let attempt = 0; attempt < 24; attempt += 1) {
-          const listed = await apiRequest('/contributions');
-          const current = (listed.data as ApiContribution[]).find((item) => item.id === created.data.id);
-          if (current?.status === 'authorized') break;
-          await new Promise((resolve) => setTimeout(resolve, 250));
+        if (created.payment.clientSecret && stripeRef.current && cardElementRef.current) {
+          const confirmation = await stripeRef.current.confirmCardPayment(created.payment.clientSecret, { payment_method: { card: cardElementRef.current } });
+          if (confirmation.error) throw new Error(confirmation.error.message || 'Stripe rechazó los datos de prueba');
+          for (let attempt = 0; attempt < 24; attempt += 1) {
+            const listed = await apiRequest('/contributions');
+            const current = (listed.data as ApiContribution[]).find((item) => item.id === created.data.id);
+            if (current?.status === 'authorized') break;
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+        } else {
+          await apiRequest(`/contributions/${created.data.id}/stripe/test-authorize`, { method: 'POST' });
         }
         await apiRequest(`/contributions/${created.data.id}/stripe/capture`, { method: 'POST' });
         setConnectionMessage('Aportación con tarjeta registrada');
@@ -320,8 +328,7 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
                   <span className="font-mono-code">Tarjeta de prueba</span>
                   <span className="text-emerald-400 font-bold">Sin dinero real</span>
                 </div>
-                <div id="stripe-card-element" className="w-full min-h-10 bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-3" />
-                <p className="text-[10px] text-slate-500">Prueba: 4242 4242 4242 4242 · vencimiento futuro · CVC de 3 dígitos · cualquier C.P.</p>
+                {demoSession?.stripePublishableKey ? <><div id="stripe-card-element" className="w-full min-h-10 bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-3" /><p className="text-[10px] text-slate-500">Prueba: 4242 4242 4242 4242 · vencimiento futuro · CVC de 3 dígitos · cualquier C.P.</p></> : <div className="w-full rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">Simulación local lista: se autorizará y capturará sin mover dinero real.</div>}
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-[#141724] border border-[#F0B90B]/30 flex items-center gap-4">
@@ -339,7 +346,7 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
 
             <button
               type="submit"
-              disabled={isProcessing || !demoSession || poolDetails?.status !== 'funding' || (activeGateway === 'STRIPE' && !stripeReady)}
+              disabled={isProcessing || !demoSession || poolDetails?.status !== 'funding' || (activeGateway === 'STRIPE' && Boolean(demoSession?.stripePublishableKey) && !stripeReady)}
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {isProcessing ? (

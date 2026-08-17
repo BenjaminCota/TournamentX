@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
+const localStore = require('../../config/local-store');
 
-const teams = [
+const teamsSeed = [
   {
     id: 'team-lnx',
     name: 'LUMINEX ESPORTS',
@@ -29,7 +30,9 @@ const teams = [
   },
 ];
 
-const players = [
+const teams = localStore.collection('teams', teamsSeed);
+
+const playersSeed = [
   {
     id: 'player-1',
     name: 'Alex',
@@ -84,7 +87,9 @@ const players = [
   },
 ];
 
-const roster = [
+const players = localStore.collection('players', playersSeed);
+
+const rosterSeed = [
   {
     id: 'membership-1',
     teamId: 'team-lnx',
@@ -122,6 +127,13 @@ const roster = [
     leftAt: null,
   },
 ];
+
+const roster = localStore.collection('teamRoster', rosterSeed);
+function persist() {
+  localStore.saveCollection('teams', teams);
+  localStore.saveCollection('players', players);
+  localStore.saveCollection('teamRoster', roster);
+}
 
 function serializeTeam(team) {
   const teamRoster = roster
@@ -207,6 +219,7 @@ function createTeam({ name, abbreviation, logo, sport, region, competitionType, 
     updatedAt: now,
   };
   teams.push(team);
+  persist();
   return serializeTeam(team);
 }
 
@@ -214,6 +227,7 @@ function updateTeam(teamId, updates) {
   const team = teams.find((entry) => entry.id === teamId);
   if (!team) return null;
   Object.assign(team, updates, { updatedAt: new Date().toISOString() });
+  persist();
   return serializeTeam(team);
 }
 
@@ -242,6 +256,7 @@ function createPlayer({ name, lastname, nickname, avatar, sport, position, natio
     updatedAt: now,
   };
   players.push(player);
+  persist();
   return serializePlayer(player.id);
 }
 
@@ -249,6 +264,7 @@ function updatePlayer(playerId, updates) {
   const player = players.find((entry) => entry.id === playerId);
   if (!player) return null;
   Object.assign(player, updates, { updatedAt: new Date().toISOString() });
+  persist();
   return serializePlayer(player.id);
 }
 
@@ -273,6 +289,7 @@ function addMemberToRoster(teamId, { playerId, role, status }) {
   };
 
   roster.push(membership);
+  persist();
   return {
     id: membership.id,
     teamId: membership.teamId,
@@ -289,6 +306,7 @@ function removeMemberFromRoster(teamId, playerId) {
   if (!membership) return null;
   membership.status = 'inactive';
   membership.leftAt = new Date().toISOString();
+  persist();
   return {
     id: membership.id,
     teamId: membership.teamId,

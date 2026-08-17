@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { z } = require('zod');
-const { venues, notifications, nearbyVenues } = require('./geolocation.store');
+const { venues, notifications, nearbyVenues, saveNotifications } = require('./geolocation.store');
 
 const nearbyQuery = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -28,6 +28,7 @@ router.post('/notifications', (req, res, next) => {
   if (!parsed.success) return next(Object.assign(new Error('Notificación no válida'), { status: 400, details: parsed.error.flatten() }));
   const notification = { id: `notif-${Date.now()}`, ...parsed.data, createdAt: new Date().toISOString() };
   notifications.push(notification);
+  saveNotifications();
   req.app.get('io')?.to('notifications').emit('notification:new', notification);
   return res.status(201).json(notification);
 });

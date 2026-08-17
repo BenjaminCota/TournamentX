@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import L from 'leaflet';
 import { MOCK_TOURNAMENTS, MOCK_VENUES } from '../../data/mockData';
 import { Tournament, Venue } from '../../types';
+import { tournamentXApi } from '../../services/apiClient';
 
 type Coordinates = { lat: number; lng: number };
 type LocationState = 'idle' | 'loading' | 'ready' | 'denied' | 'unsupported';
@@ -25,6 +26,8 @@ function distanceKm(origin: Coordinates, destination: [number, number]) {
 }
 
 export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
+  const [venues, setVenues] = useState<Venue[]>(MOCK_VENUES);
+  const [tournaments, setTournaments] = useState<Tournament[]>(MOCK_TOURNAMENTS);
   const [selectedVenue, setSelectedVenue] = useState<Venue>(MOCK_VENUES[0]);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [locationState, setLocationState] = useState<LocationState>('idle');
@@ -39,19 +42,35 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
   const userMarkerRef = useRef<L.Marker | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  const venuesWithDistance = useMemo(() => MOCK_VENUES.map((venue) => ({
+  const venuesWithDistance = useMemo(() => venues.map((venue) => ({
     venue,
     distance: userLocation ? distanceKm(userLocation, venue.coordinates) : null,
   })).filter(({ venue, distance }) => {
     const text = `${venue.name} ${venue.city} ${venue.country}`.toLowerCase();
     return text.includes(query.trim().toLowerCase()) && (distance === null || distance <= radiusKm);
-  }).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)), [query, radiusKm, userLocation]);
+  }).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)), [query, radiusKm, userLocation, venues]);
 
-  const venueTournaments = useMemo(() => MOCK_TOURNAMENTS.filter((tournament: Tournament) => {
+  const venueTournaments = useMemo(() => tournaments.filter((tournament: Tournament) => {
     if (tournament.venue?.toLowerCase().includes(selectedVenue.city.toLowerCase())) return true;
     if (!tournament.location) return false;
     return distanceKm({ lat: tournament.location.lat, lng: tournament.location.lng }, selectedVenue.coordinates) < 25;
-  }), [selectedVenue]);
+  }), [selectedVenue, tournaments]);
+
+  useEffect(() => {
+    void Promise.all([
+      fetch(`${API_URL}/geolocation/venues`).then((response) => response.ok ? response.json() : Promise.reject(new Error('Sedes no disponibles'))),
+      tournamentXApi.tournaments(),
+    ]).then(([venueRows, tournamentRows]) => {
+      const normalized = (venueRows as Array<Record<string, unknown>>).map((venue, index) => ({
+        id: String(venue.id), name: String(venue.name), city: String(venue.city), country: String(venue.country), address: String(venue.address),
+        coordinates: [Number(venue.latitude), Number(venue.longitude)] as [number, number], capacity: Number(venue.capacity || 5000),
+        image: String(venue.image || MOCK_VENUES[index % MOCK_VENUES.length].image), activeEventsCount: Number(venue.activeEventsCount || 0),
+        features: Array.isArray(venue.features) ? venue.features.map(String) : ['Streaming', 'Zona de jugadores', 'Accesibilidad'],
+      }));
+      if (normalized.length) { setVenues(normalized); setSelectedVenue((current) => normalized.find((item) => item.id === current.id) || normalized[0]); }
+      setTournaments(tournamentRows);
+    }).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;

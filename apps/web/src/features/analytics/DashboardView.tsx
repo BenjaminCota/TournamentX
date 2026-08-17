@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   Flame, 
   Trophy, 
@@ -10,48 +10,33 @@ import {
   Activity,
   Calendar
 } from 'lucide-react';
-import { MOCK_TEAMS } from '../../data/mockData';
 import { TabId } from '../shell/Sidebar';
+import { Team, Tournament, TournamentMatch } from '../../types';
+import { tournamentXApi } from '../../services/apiClient';
 
 interface DashboardViewProps {
   onNavigate: (tab: TabId, targetId?: string) => void;
   onOpenCreateWizard: () => void;
+  teams: Team[];
+  tournaments: Tournament[];
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
-  onOpenCreateWizard
+  onOpenCreateWizard, teams, tournaments
 }) => {
   const [rankingFilter, setRankingFilter] = useState<'REGIONAL' | 'GLOBAL'>('REGIONAL');
 
-  const topTeams = MOCK_TEAMS.slice(0, 5);
+  const [matches, setMatches] = useState<TournamentMatch[]>([]);
+  useEffect(() => { tournamentXApi.matches().then(setMatches).catch(() => setMatches([])); }, []);
+  const topTeams = useMemo(() => [...teams].sort((a, b) => b.points - a.points).slice(0, 5), [teams]);
+  const featuredMatch = matches.find((match) => match.status === 'live') || matches[0];
+  const completedMatches = matches.filter((match) => match.status === 'completed').length;
+  const completionRate = matches.length ? Math.round(completedMatches / matches.length * 100) : 0;
+  const teamName = (id?: string) => teams.find((team) => team.id === id)?.name || id || 'Por definir';
+  const teamTag = (id?: string) => teams.find((team) => team.id === id)?.tag || teamName(id).slice(0, 3).toUpperCase();
 
-  const upcomingMatches = [
-    {
-      id: 'up-1',
-      group: 'Grupo A • BO3',
-      team1: 'Kraken Esports',
-      team2: 'Team Nova',
-      time: 'HOY 18:00 EST',
-      game: 'Valorant'
-    },
-    {
-      id: 'up-2',
-      group: 'Grupo B • BO3',
-      team1: 'Void Gaming',
-      team2: 'ApeX Legion',
-      time: 'HOY 20:30 EST',
-      game: 'Valorant'
-    },
-    {
-      id: 'up-3',
-      group: 'Eliminatoria • BO5',
-      team1: 'Synergy Clan',
-      team2: 'Echo Squad',
-      time: 'MAÑANA 15:00 EST',
-      game: 'Rocket League'
-    }
-  ];
+  const upcomingMatches = matches.filter((match) => ['scheduled', 'postponed'].includes(match.status)).slice(0, 4).map((match) => ({ id: match.id, group: `${match.roundId || 'Ronda'} • ${match.mode.replaceAll('_', ' ').toUpperCase()}`, team1: teamName(match.team1Id), team2: teamName(match.team2Id), time: new Date(match.scheduledAt).toLocaleString(), game: tournaments.find((item) => item.id === match.tournamentId)?.game || 'Competencia' }));
 
   return (
     <div id="dashboard-view-main" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
@@ -94,7 +79,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center gap-3">
               <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono-code font-bold text-xs flex items-center gap-1.5 animate-pulse">
                 <Radio className="w-3.5 h-3.5" />
-                EN VIVO - MAPA 3
+                {featuredMatch?.status === 'live' ? 'EN VIVO' : featuredMatch?.status === 'completed' ? 'FINALIZADO' : 'PRÓXIMO PARTIDO'}
               </span>
               <span className="text-xs text-slate-400 font-mono-code">
                 TIEMPO: <strong className="text-white">67:32</strong>
@@ -109,33 +94,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {/* Team 1 */}
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-[#202438] border border-[#2e344e] flex items-center justify-center font-brand font-black text-3xl text-white shadow-inner">
-                  TTN
+                  {teamTag(featuredMatch?.team1Id)}
                 </div>
                 <div>
                   <div className="text-[11px] font-tech text-[#ff2e83] font-bold">#1 SEED</div>
-                  <h3 className="font-brand font-black text-3xl sm:text-4xl text-white uppercase tracking-tight">
-                    TITANS
+                  <h3 className="font-brand font-black text-2xl xl:text-3xl text-white uppercase tracking-tight max-w-56 leading-none">
+                    {teamName(featuredMatch?.team1Id)}
                   </h3>
                 </div>
               </div>
 
               {/* Score Display */}
               <div className="flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-[#0b0c12] border border-[#23273b] shadow-inner">
-                <span className="font-brand font-black text-4xl sm:text-5xl text-white">2</span>
+                <span className="font-brand font-black text-4xl sm:text-5xl text-white">{featuredMatch?.score.team1 ?? 0}</span>
                 <span className="text-slate-600 font-bold text-2xl">:</span>
-                <span className="font-brand font-black text-4xl sm:text-5xl text-[#ff2e83]">1</span>
+                <span className="font-brand font-black text-4xl sm:text-5xl text-[#ff2e83]">{featuredMatch?.score.team2 ?? 0}</span>
               </div>
 
               {/* Team 2 */}
               <div className="flex items-center gap-4">
                 <div>
                   <div className="text-[11px] font-tech text-slate-400 font-bold text-right">#4 SEED</div>
-                  <h3 className="font-brand font-black text-3xl sm:text-4xl text-white uppercase tracking-tight">
-                    PHOENIX
+                  <h3 className="font-brand font-black text-2xl xl:text-3xl text-white uppercase tracking-tight max-w-56 text-right leading-none">
+                    {teamName(featuredMatch?.team2Id)}
                   </h3>
                 </div>
                 <div className="w-14 h-14 rounded-2xl bg-[#202438] border border-[#2e344e] flex items-center justify-center font-brand font-black text-3xl text-white shadow-inner">
-                  PHX
+                  {teamTag(featuredMatch?.team2Id)}
                 </div>
               </div>
             </div>
@@ -180,62 +165,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Card 1: Global Series (Image 5) */}
-              <div 
-                onClick={() => onNavigate('tournaments')}
-                className="p-5 rounded-2xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83]/60 transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono-code font-bold text-[10px] uppercase">
-                      PRO CIRCUIT
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
-                      OPEN
-                    </span>
-                  </div>
-                  <h3 className="font-display font-bold text-lg text-white group-hover:text-[#ff2e83] transition-colors">
-                    Global Series: Latam Qualifiers
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    64 Equipos inscritos • Eliminación directa
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-mono-code">Prize Pool:</span>
-                  <span className="font-mono-code font-bold text-emerald-400">$50,000 USD</span>
-                </div>
-              </div>
-
-              {/* Card 2: Night City Brawl (Image 5) */}
-              <div 
-                onClick={() => onNavigate('tournaments')}
-                className="p-5 rounded-2xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83]/60 transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-mono-code font-bold text-[10px] uppercase">
-                      CHALLENGER
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[10px] flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping"></span>
-                      IN-PROGRESS
-                    </span>
-                  </div>
-                  <h3 className="font-display font-bold text-lg text-white group-hover:text-[#ff2e83] transition-colors">
-                    Night City Brawl - Season 4
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    256 Jugadores • Doble eliminación
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-mono-code">Recompensa:</span>
-                  <span className="font-mono-code font-bold text-[#ff2e83]">1,500 Pts + $10k</span>
-                </div>
-              </div>
+              {tournaments.filter((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status)).slice(0, 2).map((tournament) => <div key={tournament.id} onClick={() => onNavigate('tournaments')} className="p-5 rounded-2xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83]/60 transition-all cursor-pointer group flex flex-col justify-between"><div className="space-y-2"><div className="flex items-center justify-between"><span className="px-2 py-0.5 rounded bg-[#ff2e83]/15 text-[#ff69a8] font-bold text-[10px]">{tournament.tier}</span><span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold text-[10px]">{tournament.status}</span></div><h3 className="font-display font-bold text-lg text-white group-hover:text-[#ff2e83]">{tournament.name}</h3><p className="text-xs text-slate-400">{tournament.registeredTeams}/{tournament.maxTeams} inscritos · {tournament.format.replaceAll('_', ' ')}</p></div><div className="mt-4 pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs"><span className="text-slate-400">Premio:</span><span className="font-bold text-emerald-400">{tournament.prizePool || `$${tournament.prizeAmountUSD.toLocaleString()} USD`}</span></div></div>)}
+              {tournaments.length === 0 && <div className="sm:col-span-2 p-8 rounded-2xl border border-dashed border-white/10 text-center text-sm text-slate-500">Crea tu primer torneo para verlo aquí.</div>}
             </div>
           </div>
 
@@ -369,10 +300,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-400 font-medium">Inscripciones Activas</span>
-                <span className="text-xs text-emerald-400 font-bold">+12% esta semana</span>
+                <span className="text-xs text-emerald-400 font-bold">Datos actuales</span>
               </div>
               <div className="font-display font-black text-3xl text-white">
-                1,248
+                {tournaments.reduce((sum, item) => sum + item.registeredTeams, 0)}
               </div>
 
               {/* Sparkline Weekly Bars */}
@@ -402,13 +333,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="text-xs text-slate-400 font-mono-code">Temp. Actual</span>
               </div>
               <div className="font-display font-black text-3xl text-white">
-                8,402
+                {completedMatches}
               </div>
               <div className="w-full bg-[#1e2230] rounded-full h-2 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 to-[#ff2e83] h-full rounded-full w-4/5"></div>
+                <div className="bg-gradient-to-r from-blue-500 to-[#ff2e83] h-full rounded-full" style={{ width: `${completionRate}%` }}></div>
               </div>
               <div className="text-[10px] text-slate-500 font-mono-code text-right">
-                80% del calendario completado
+                {completionRate}% del calendario completado
               </div>
             </div>
           </div>

@@ -1,238 +1,29 @@
-import React, { useState } from 'react';
-import { Gamepad2, Radio, Server, Globe } from 'lucide-react';
-import { MOCK_SERVER_LOBBIES } from '../../data/mockData';
-import { ServerLobby } from '../../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Activity, ExternalLink, Gamepad2, Plus, Radio, Server, Signal, Users, X } from 'lucide-react';
+import { UserRole } from '../../types';
+import { tournamentXApi } from '../../services/apiClient';
 
-interface EsportsArenaViewProps {
-  onWatchLiveMatch: () => void;
-}
+interface EsportsArenaViewProps { onWatchLiveMatch: () => void; currentUserRole: UserRole }
+type Stream = Awaited<ReturnType<typeof tournamentXApi.streams>>['data'][number];
+type Lobby = Awaited<ReturnType<typeof tournamentXApi.lobbies>>['data'][number];
+type Metric = Awaited<ReturnType<typeof tournamentXApi.mediaMetrics>>['data'][number];
 
-export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({
-  onWatchLiveMatch
-}) => {
-  const [lobbies] = useState<ServerLobby[]>(MOCK_SERVER_LOBBIES);
-  const [activeGameFilter, setActiveGameFilter] = useState('ALL');
-
-  const games = [
-    { name: 'Valorant', category: 'FPS', activeCount: 12, icon: '🎯' },
-    { name: 'League of Legends', category: 'MOBA', activeCount: 8, icon: '⚔️' },
-    { name: 'Rocket League', category: 'SPORTS', activeCount: 5, icon: '🚗' },
-    { name: 'Counter-Strike 2', category: 'FPS', activeCount: 10, icon: '💣' },
-    { name: 'Street Fighter 6', category: 'FIGHTING', activeCount: 6, icon: '🥊' }
-  ];
-
-  const filteredLobbies = activeGameFilter === 'ALL'
-    ? lobbies
-    : lobbies.filter(l => l.game === activeGameFilter);
-
-  return (
-    <div id="esports-arena-view" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
-      {/* HEADER (Image 19) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-brand font-black text-4xl text-white uppercase tracking-tight italic flex items-center gap-3">
-            <Gamepad2 className="w-8 h-8 text-[#ff2e83]" />
-            ARENA DE TRANSMISIÓN & SERVIDORES LAN
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 font-tech">
-            Monitoreo en tiempo real de lobbies dedicados, servidores LAN y streams multicanal
-          </p>
-        </div>
-
-        <button
-          onClick={onWatchLiveMatch}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-[#ff2e83] text-white font-black text-xs tracking-wider uppercase shadow-lg shadow-red-600/30 hover:scale-105 transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto font-tech"
-        >
-          <Radio className="w-4 h-4 animate-pulse" />
-          <span>TRANSMISIÓN PRINCIPAL EN VIVO</span>
-        </button>
-      </div>
-
-      {/* SUPPORTED TITLES CARDS (Image 19) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <button
-          onClick={() => setActiveGameFilter('ALL')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
-            activeGameFilter === 'ALL'
-              ? 'bg-[#ff2e83]/15 border-[#ff2e83] text-white shadow-lg'
-              : 'bg-[#10121a] border-[#1e2230] text-slate-400 hover:text-white'
-          }`}
-        >
-          <div className="text-xl mb-1">🎮</div>
-          <div className="font-bold text-sm text-white">Todos los Títulos</div>
-          <div className="text-[10px] font-mono-code text-slate-400 mt-0.5">41 Lobbies Activos</div>
-        </button>
-
-        {games.map((g) => (
-          <button
-            key={g.name}
-            onClick={() => setActiveGameFilter(g.name)}
-            className={`p-4 rounded-2xl border text-left transition-all ${
-              activeGameFilter === g.name
-                ? 'bg-[#ff2e83]/15 border-[#ff2e83] text-white shadow-lg'
-                : 'bg-[#10121a] border-[#1e2230] text-slate-400 hover:text-white'
-            }`}
-          >
-            <div className="text-xl mb-1">{g.icon}</div>
-            <div className="font-bold text-sm text-white truncate">{g.name}</div>
-            <div className="text-[10px] font-mono-code text-[#ff2e83] mt-0.5">
-              {g.activeCount} Lobbies • {g.category}
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* 2-COLUMN: LOBBIES TABLE & LIVE BROADCASTS (Image 19) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: Server Lobbies Table (Image 19) */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display font-bold text-xl uppercase tracking-wider text-white flex items-center gap-2">
-              <Server className="w-5 h-5 text-blue-400" />
-              SALAS DE JUEGO Y LOBBIES OFICIALES
-            </h2>
-            <span className="text-xs font-mono-code text-slate-400">
-              Sincronizado vía Socket.IO
-            </span>
-          </div>
-
-          <div className="rounded-3xl bg-[#10121a] border border-[#1e2230] overflow-hidden shadow-2xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#1e2230] bg-[#141724] text-slate-400 font-mono-code">
-                    <th className="py-4 px-4">LOBBY ID</th>
-                    <th className="py-4 px-4">JUEGO / SERVIDOR</th>
-                    <th className="py-4 px-4">MAPA</th>
-                    <th className="py-4 px-4">ENFRENTAMIENTO</th>
-                    <th className="py-4 px-4">ESTADO</th>
-                    <th className="py-4 px-4 text-right">ACCIÓN</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1e2230]">
-                  {filteredLobbies.map((lobby) => (
-                    <tr key={lobby.id} className="hover:bg-[#141724]/80 transition-colors">
-                      {/* Lobby ID */}
-                      <td className="py-4 px-4 font-mono-code font-bold text-slate-200">
-                        {lobby.id}
-                      </td>
-
-                      {/* Game & Server */}
-                      <td className="py-4 px-4">
-                        <div className="font-bold text-white">{lobby.game}</div>
-                        <div className="text-[10px] font-mono-code text-slate-500 flex items-center gap-1">
-                          <Globe className="w-3 h-3 text-slate-500" />
-                          {lobby.server}
-                        </div>
-                      </td>
-
-                      {/* Map */}
-                      <td className="py-4 px-4 text-slate-300 font-mono-code">
-                        {lobby.map}
-                      </td>
-
-                      {/* Teams */}
-                      <td className="py-4 px-4 font-bold text-slate-200">
-                        {lobby.teams}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-4 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 w-fit ${
-                          lobby.status === 'In Game'
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                            : lobby.status === 'Waiting'
-                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                            : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            lobby.status === 'In Game' ? 'bg-emerald-400 animate-pulse' : lobby.status === 'Waiting' ? 'bg-amber-400' : 'bg-blue-400'
-                          }`}></span>
-                          {lobby.status}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="py-4 px-4 text-right">
-                        <button
-                          onClick={onWatchLiveMatch}
-                          className="px-3 py-1.5 rounded-lg bg-[#181b28] hover:bg-[#ff2e83] text-slate-300 hover:text-white font-semibold text-xs transition-colors cursor-pointer"
-                        >
-                          Espectar ({lobby.ping}ms)
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Col: Live Media Broadcast Feeds (Image 19) */}
-        <div className="space-y-4">
-          <h2 className="font-display font-bold text-xl uppercase tracking-wider text-white flex items-center gap-2">
-            <Radio className="w-5 h-5 text-[#ff2e83]" />
-            TRANSMISIONES DESTACADAS
-          </h2>
-
-          <div className="space-y-4">
-            {/* Stream Card 1: Twitch */}
-            <div 
-              onClick={onWatchLiveMatch}
-              className="p-4 rounded-3xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83] transition-all cursor-pointer group space-y-3"
-            >
-              <div className="relative rounded-2xl overflow-hidden aspect-video">
-                <img
-                  src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop&q=80"
-                  alt="VCT Stream"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded bg-[#9146FF] text-white text-[10px] font-bold font-mono-code flex items-center gap-1">
-                  TWITCH STREAM
-                </div>
-                <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-red-400 text-[10px] font-bold font-mono-code">
-                  ● 124.5K VIENDO
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-display font-bold text-base text-white group-hover:text-[#ff2e83] transition-colors">
-                  VCT 2024: Masters Madrid - Grand Final
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Canal Oficial: /Valorant_Esports_LATAM</p>
-              </div>
-            </div>
-
-            {/* Stream Card 2: YouTube */}
-            <div 
-              onClick={onWatchLiveMatch}
-              className="p-4 rounded-3xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83] transition-all cursor-pointer group space-y-3"
-            >
-              <div className="relative rounded-2xl overflow-hidden aspect-video">
-                <img
-                  src="https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&auto=format&fit=crop&q=80"
-                  alt="LEC Stream"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded bg-[#FF0000] text-white text-[10px] font-bold font-mono-code flex items-center gap-1">
-                  YOUTUBE GAMING
-                </div>
-                <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-red-400 text-[10px] font-bold font-mono-code">
-                  ● 89.2K VIENDO
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-display font-bold text-base text-white group-hover:text-[#ff2e83] transition-colors">
-                  LEC Spring Split 2024 - Week 3
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Canal Oficial: Riot Games Esports</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ onWatchLiveMatch, currentUserRole }) => {
+  const [streams, setStreams] = useState<Stream[]>([]); const [lobbies, setLobbies] = useState<Lobby[]>([]); const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [integration, setIntegration] = useState({ twitch: 'demo', youtube: 'demo' }); const [filter, setFilter] = useState('Todos'); const [showCreate, setShowCreate] = useState(false); const [error, setError] = useState('');
+  const [form, setForm] = useState({ name: 'Sala competitiva', game: 'Valorant', server: 'LATAM Norte', map: 'Ascent', team1: 'Luminex', team2: 'Titans', status: 'Waiting' as const, ping: 30, maxPlayers: 10 });
+  const canManage = ['Admin', 'Organizador', 'Capitán'].includes(currentUserRole);
+  const load = async () => { try { const [streamBody, lobbyBody, metricBody] = await Promise.all([tournamentXApi.streams(), tournamentXApi.lobbies(), tournamentXApi.mediaMetrics()]); setStreams(streamBody.data); setIntegration(streamBody.integration); setLobbies(lobbyBody.data); setMetrics(metricBody.data); setError(''); } catch (caught) { setError(caught instanceof Error ? caught.message : 'No se pudo conectar con media'); } };
+  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 20000); return () => window.clearInterval(timer); }, []);
+  const games = useMemo(() => ['Todos', ...new Set([...streams.map((item) => item.game), ...lobbies.map((item) => item.game)])], [streams, lobbies]);
+  const shownStreams = streams.filter((item) => filter === 'Todos' || item.game === filter); const shownLobbies = lobbies.filter((item) => filter === 'Todos' || item.game === filter);
+  const create = async (event: React.FormEvent) => { event.preventDefault(); try { await tournamentXApi.createLobby(form); setShowCreate(false); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : 'No se pudo crear el lobby'); } };
+  return <div className="p-5 lg:p-8 space-y-7 max-w-7xl mx-auto">
+    <header className="relative overflow-hidden surface rounded-3xl p-7 lg:p-10"><div className="absolute inset-0 bg-cyber-grid opacity-60"/><div className="absolute -right-20 -top-32 w-[28rem] h-[28rem] rounded-full bg-[#ff2e83]/15 blur-[100px]"/><div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-6"><div><span className="text-[11px] tracking-[.25em] font-black text-[#ff63a5]">ESPORTS COMMAND CENTER</span><h1 className="font-brand text-5xl lg:text-6xl font-black uppercase italic mt-2">Arena <span className="text-[#ff2e83]">en vivo</span></h1><p className="mt-3 text-sm text-slate-400 max-w-xl">Transmisiones, salas competitivas y audiencia por videojuego en una sola consola.</p><div className="flex gap-2 mt-5"><span className={`status-chip ${integration.twitch === 'configured' ? 'text-emerald-300' : 'text-amber-300'}`}>Twitch: {integration.twitch === 'configured' ? 'conectado' : 'modo local'}</span><span className={`status-chip ${integration.youtube === 'configured' ? 'text-emerald-300' : 'text-amber-300'}`}>YouTube: {integration.youtube === 'configured' ? 'conectado' : 'modo local'}</span></div></div>{canManage && <button onClick={() => setShowCreate(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff2e83] px-5 py-3 text-sm font-black shadow-lg shadow-[#ff2e83]/20 hover:-translate-y-0.5"><Plus className="w-4 h-4"/> CREAR LOBBY</button>}</div></header>
+    {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>}
+    <div className="flex gap-2 overflow-x-auto pb-1">{games.map((game) => <button key={game} onClick={() => setFilter(game)} className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold border ${filter === game ? 'bg-[#ff2e83] border-[#ff2e83] text-white' : 'bg-white/[.03] border-white/10 text-slate-400 hover:text-white'}`}>{game}</button>)}</div>
+    <section><div className="flex items-center justify-between mb-4"><h2 className="font-black text-xl flex items-center gap-2"><Radio className="w-5 h-5 text-red-400"/> Transmisiones destacadas</h2><span className="text-xs text-slate-500">{shownStreams.reduce((sum, item) => sum + item.viewers, 0).toLocaleString()} espectadores</span></div><div className="grid md:grid-cols-2 gap-5">{shownStreams.map((stream) => <article key={stream.id} className="surface rounded-3xl overflow-hidden group"><div className="aspect-[16/8] relative overflow-hidden"><img src={stream.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/><div className="absolute inset-0 bg-gradient-to-t from-[#0c0d13] via-transparent to-transparent"/><span className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-red-500 text-white text-[10px] font-black flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"/> EN VIVO</span><span className="absolute top-4 right-4 px-2.5 py-1 rounded-md bg-black/70 text-white text-[10px] font-bold">{stream.platform}</span></div><div className="p-5"><p className="text-[10px] text-[#ff5ba0] font-bold uppercase">{stream.game}</p><h3 className="font-black text-lg mt-1">{stream.title}</h3><div className="flex items-center justify-between mt-4"><span className="text-xs text-slate-500">{stream.channel} · {stream.viewers.toLocaleString()} viendo</span><a href={stream.url} target="_blank" rel="noreferrer" onClick={onWatchLiveMatch} className="w-9 h-9 grid place-items-center rounded-lg bg-[#ff2e83] hover:bg-[#e92578]" aria-label={`Ver ${stream.title}`}><ExternalLink className="w-4 h-4"/></a></div></div></article>)}</div></section>
+    <section className="grid xl:grid-cols-[1.55fr_.75fr] gap-6"><div className="surface rounded-3xl overflow-hidden"><div className="p-5 border-b border-white/10"><h2 className="font-black text-xl flex items-center gap-2"><Server className="w-5 h-5 text-[#ff2e83]"/> Lobbies y salas</h2><p className="text-xs text-slate-500 mt-1">Estado persistente y actualizable por API.</p></div><div className="divide-y divide-white/[.06]">{shownLobbies.map((lobby) => <div key={lobby.id} className="p-5 grid sm:grid-cols-[1fr_auto_auto] gap-4 items-center hover:bg-white/[.02]"><div><div className="flex items-center gap-2"><strong>{lobby.name}</strong><span className={`text-[9px] px-2 py-0.5 rounded-full ${lobby.status === 'In Game' ? 'bg-red-500/15 text-red-300' : lobby.status === 'Paused' ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300'}`}>{lobby.status}</span></div><p className="text-xs text-slate-500 mt-1">{lobby.team1} vs {lobby.team2} · {lobby.map}</p></div><div className="text-xs text-slate-400"><Users className="inline w-3.5 h-3.5 mr-1"/>{lobby.players}/{lobby.maxPlayers}</div><div className="text-xs text-slate-400"><Signal className="inline w-3.5 h-3.5 mr-1 text-emerald-400"/>{lobby.ping} ms</div></div>)}</div></div><aside className="surface rounded-3xl p-6"><h2 className="font-black flex items-center gap-2"><Activity className="w-5 h-5 text-[#ff2e83]"/> Métricas por juego</h2><div className="space-y-4 mt-6">{metrics.map((metric) => <div key={metric.game} className="rounded-xl bg-white/[.03] border border-white/[.06] p-4"><div className="flex items-center justify-between"><strong className="text-sm">{metric.game}</strong><Gamepad2 className="w-4 h-4 text-[#ff2e83]"/></div><div className="grid grid-cols-3 gap-2 mt-4 text-center"><div><b className="block">{metric.lobbies}</b><span className="text-[9px] text-slate-500">SALAS</span></div><div><b className="block">{metric.activePlayers}</b><span className="text-[9px] text-slate-500">PLAYERS</span></div><div><b className="block">{metric.viewers.toLocaleString()}</b><span className="text-[9px] text-slate-500">VIEWS</span></div></div></div>)}</div></aside></section>
+    {showCreate && <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm grid place-items-center p-4"><form onSubmit={create} className="surface rounded-3xl p-6 w-full max-w-xl"><div className="flex justify-between"><div><h2 className="font-black text-2xl">Crear lobby</h2><p className="text-xs text-slate-500">La sala quedará guardada localmente.</p></div><button type="button" onClick={() => setShowCreate(false)} aria-label="Cerrar"><X className="w-5 h-5"/></button></div><div className="grid sm:grid-cols-2 gap-4 mt-6">{([['name','Nombre'],['game','Videojuego'],['server','Servidor'],['map','Mapa'],['team1','Equipo 1'],['team2','Equipo 2']] as const).map(([key,label]) => <label key={key} className="text-xs text-slate-400">{label}<input required value={form[key]} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} className="field px-3 mt-1"/></label>)}</div><div className="flex justify-end gap-3 mt-6"><button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-slate-400">Cancelar</button><button className="rounded-xl bg-[#ff2e83] px-5 py-2.5 text-sm font-bold">Guardar sala</button></div></form></div>}
+  </div>;
 };

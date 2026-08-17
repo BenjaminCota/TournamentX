@@ -111,39 +111,47 @@ export const MOCK_TEAMS: Team[] = [
     roster: [
       {
         id: 'p-1',
+        playerId: 'p-1',
         name: 'Alex Chen',
         nickname: 'Alex "Viper" Chen',
         role: 'CAPITÁN / IGL',
         ovr: 94,
         avatar: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150&auto=format&fit=crop&q=80',
-        kda: '1.42 K/D'
+        kda: '1.42 K/D',
+        status: 'active'
       },
       {
         id: 'p-2',
+        playerId: 'p-2',
         name: 'Sarah Jenkins',
         nickname: 'Sarah "Nova" K.',
         role: 'ENTRY FRAGGER',
         ovr: 91,
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        kda: '1.28 K/D'
+        kda: '1.28 K/D',
+        status: 'active'
       },
       {
         id: 'p-3',
+        playerId: 'p-3',
         name: 'Lucas Ferreira',
         nickname: 'Lucas "Phantom" F.',
         role: 'SNIPER / CONTROLLER',
         ovr: 89,
         avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
-        kda: '1.15 K/D'
+        kda: '1.15 K/D',
+        status: 'active'
       },
       {
         id: 'p-4',
+        playerId: 'p-4',
         name: 'Gabriel Rios',
         nickname: 'Gabriel "Striker" R.',
         role: 'RECON / SUPPORT',
         ovr: 88,
         avatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80',
-        kda: '1.09 K/D'
+        kda: '1.09 K/D',
+        status: 'active'
       }
     ]
   },

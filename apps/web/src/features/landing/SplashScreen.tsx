@@ -1,0 +1,4 @@
+import React from 'react';
+import { TournamentXLogo } from '../../shared/components/TournamentXLogo';
+
+export const SplashScreen: React.FC = () => <div className="fixed inset-0 z-[100] bg-[#050609] grid place-items-center overflow-hidden" role="status" aria-label="Cargando TournamentX"><div className="absolute inset-0 bg-cyber-grid opacity-50"/><div className="absolute w-[30rem] h-[30rem] rounded-full bg-[#ff2e83]/20 blur-[110px] splash-orb"/><div className="relative text-center splash-content"><TournamentXLogo size="lg"/><p className="mt-6 text-[10px] tracking-[.45em] uppercase font-black text-slate-500">Competition operating system</p><div className="mt-8 mx-auto w-52 h-0.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-[#ff2e83] splash-progress"/></div></div></div>;

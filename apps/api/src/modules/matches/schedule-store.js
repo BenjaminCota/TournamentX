@@ -2,10 +2,12 @@ const crypto = require('node:crypto');
 const HttpError = require('../../utils/http-error');
 const database = require('../../config/database');
 const matchStore = require('./match-store');
+const localStore = require('../../config/local-store');
 
-const schedules = [
+const schedulesSeed = [
   { id: 'schedule-01', tournamentId: 'tour-1', startsAt: '2026-08-20T18:00:00.000Z', endsAt: '2026-08-20T19:30:00.000Z', status: 'published', format: 'single_elimination', createdAt: '2026-08-15T18:00:00.000Z', updatedAt: '2026-08-15T18:00:00.000Z' },
 ];
+const schedules = localStore.collection('schedules', schedulesSeed);
 
 const selectSchedule = `SELECT id, tournament_id AS "tournamentId", starts_at AS "startsAt", ends_at AS "endsAt", status, format,
   created_at AS "createdAt", updated_at AS "updatedAt" FROM schedules`;
@@ -66,6 +68,7 @@ async function createSchedule({ tournamentId, teamIds, startsAt, endsAt, slotMin
 
   if (!matchStore.databaseEnabled()) {
     schedules.push(schedule);
+    localStore.saveCollection('schedules', schedules);
     await createMatches();
     return getSchedule(schedule.id);
   }

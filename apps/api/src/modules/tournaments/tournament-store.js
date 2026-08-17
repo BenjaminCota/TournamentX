@@ -3,8 +3,10 @@ const HttpError = require('../../utils/http-error');
 const { generateGroups, generateRoundRobinMatches } = require('./group-generator');
 const { generateSingleEliminationBracket } = require('./bracket-generator');
 const { computeGroupStandings } = require('./standings');
+const localStore = require('../../config/local-store');
 
-const tournaments = [];
+const tournaments = localStore.collection('tournaments', []);
+function persist() { localStore.saveCollection('tournaments', tournaments); }
 
 function findTournament(tournamentId) {
   const tournament = tournaments.find((entry) => entry.id === tournamentId);
@@ -144,6 +146,7 @@ function createTournament(input) {
     championId: null,
   };
   tournaments.push(tournament);
+  persist();
   return serializeTournament(tournament);
 }
 
@@ -171,6 +174,7 @@ function registerParticipant(tournamentId, { teamId, teamName, seed }) {
   };
   tournament.participants.push(participant);
   tournament.updatedAt = new Date().toISOString();
+  persist();
   return { ...participant };
 }
 
@@ -209,6 +213,7 @@ function generateGroupsForTournament(tournamentId, groupCount) {
 
   tournament.status = 'IN_PROGRESS';
   tournament.updatedAt = new Date().toISOString();
+  persist();
   return getGroups(tournamentId);
 }
 
@@ -250,6 +255,7 @@ function reportGroupMatchResult(tournamentId, matchId, { score1, score2 }) {
   else match.winnerParticipantId = null;
 
   tournament.updatedAt = new Date().toISOString();
+  persist();
   const byId = participantsById(tournament);
   return serializeGroupMatch(match, byId);
 }
@@ -325,6 +331,7 @@ function generateBracket(tournamentId) {
   tournament.matches.push(...knockoutMatchList);
   tournament.status = 'IN_PROGRESS';
   tournament.updatedAt = new Date().toISOString();
+  persist();
   return serializeRounds(tournament);
 }
 
@@ -349,6 +356,7 @@ function reportBracketMatchResult(tournamentId, matchId, { score1, score2 }) {
   match.status = 'completed';
   match.winnerParticipantId = score1 > score2 ? match.participant1Id : match.participant2Id;
   tournament.updatedAt = new Date().toISOString();
+  persist();
 
   if (match.nextMatchId) {
     const next = tournament.matches.find((entry) => entry.id === match.nextMatchId);
@@ -433,7 +441,7 @@ function seed() {
   });
 }
 
-seed();
+if (tournaments.length === 0) seed();
 
 module.exports = {
   listTournaments,

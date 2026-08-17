@@ -28,3 +28,7 @@ Thumbs.db
 
 # Notas personales (no se comparten en el repo)
 MIS_TAREAS.md
+
+# Base local de desarrollo (se genera al ejecutar la API)
+apps/api/data/*.json
+apps/api/data/*.tmp

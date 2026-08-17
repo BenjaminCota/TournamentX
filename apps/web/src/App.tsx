@@ -14,7 +14,9 @@ import { EsportsArenaView } from './features/media/EsportsArenaView';
 import { SedesMapView } from './features/geolocation/SedesMapView';
 import { RecompensasView } from './features/rewards/RecompensasView';
 import { LoginView } from './features/auth/LoginView';
-import { Team, Tournament, User, UserRole } from './types';
+import { UsersView } from './features/auth/UsersView';
+import { SplashScreen } from './features/landing/SplashScreen';
+import { AuthUser, Team, Tournament, User, UserRole } from './types';
 import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
 
@@ -64,11 +66,14 @@ function normalizeTeam(team: Team | Record<string, unknown>): Team {
 function normalizePlayer(player: Partial<User> | Record<string, unknown>): User {
   const name = String((player as Partial<User>).name || 'Jugador');
   const lastName = String((player as Partial<User>).lastname || '');
+  const nickname = String((player as Partial<User>).nickname || (player as Partial<User>).username || name);
   return {
     ...(player as User),
     id: String((player as Partial<User>).id || `usr-${Date.now()}`),
-    name,
-    username: String((player as Partial<User>).username || `@${(player as Partial<User>).nickname || name.toLowerCase().replace(/\s+/g, '_')}`),
+    name: `${name} ${lastName}`.trim(),
+    lastname: lastName,
+    nickname,
+    username: String((player as Partial<User>).username || `@${nickname.toLowerCase().replace(/\s+/g, '_')}`),
     email: String((player as Partial<User>).email || `${name.toLowerCase().replace(/\s+/g, '.')}@tournamentx.gg`),
     role: (player as Partial<User>).role ?? 'Jugador',
     avatar: String((player as Partial<User>).avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'),
@@ -82,8 +87,10 @@ function normalizePlayer(player: Partial<User> | Record<string, unknown>): User 
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('landing');
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Admin');
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [teams, setTeams] = useState<Team[]>(() => {
     const initial = typeof window !== 'undefined' ? localStorage.getItem(TEAM_STORAGE_KEY) : null;
@@ -99,6 +106,13 @@ export default function App() {
   });
   const [selectedTeamId, setSelectedTeamId] = useState<string>('team-lnx');
   const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>();
+
+  useEffect(() => { const timer = window.setTimeout(() => setShowSplash(false), 3000); return () => window.clearTimeout(timer); }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem('tournamentx_token')) return;
+    tournamentXApi.me().then(({ user }) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); }).catch(() => localStorage.removeItem('tournamentx_token'));
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -189,7 +203,7 @@ export default function App() {
     const payload = normalizePlayer({
       ...data,
       id: `usr-${Date.now()}`,
-      username: data.username || `@${(data as Partial<User>).nickname || data.name || 'player'}`,
+      username: data.username || `@${data.nickname || data.name || 'player'}`,
       role: data.role || 'Jugador',
       status: data.status || 'ACTIVE',
       lastActivity: 'Just now',
@@ -380,7 +394,7 @@ export default function App() {
   };
 
   const openTournamentWizard = () => setShowCreateWizard(true);
-  const navigate = (tab: TabId) => setActiveTab(tab);
+  const navigate = (tab: TabId) => { setActiveTab(tab); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
@@ -390,23 +404,26 @@ export default function App() {
     setActiveTab('live_match');
   };
 
+  if (showSplash) return <SplashScreen />;
+
   return (
     <div id="tournamentx-app-root" className="min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
       {activeTab === 'landing' ? (
         <LandingView onEnterApp={navigate} onOpenCreateWizard={openTournamentWizard} onOpenAuth={() => navigate('login')} />
       ) : activeTab === 'login' ? (
-        <LoginView currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} onLoginSuccess={() => navigate('dashboard')} />
+        <LoginView onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); }} />
       ) : (
         <>
           <Sidebar
             currentTab={activeTab}
             setCurrentTab={navigate}
             currentUserRole={currentUserRole}
+            currentUserName={currentUser?.name}
             onOpenCreateWizard={openTournamentWizard}
           />
 
           <main className="flex-1 bg-[#0a0b0e] pb-16">
-            {activeTab === 'dashboard' && <DashboardView onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} />}
+            {activeTab === 'dashboard' && <DashboardView teams={teams} tournaments={tournaments} onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} />}
             {activeTab === 'tournaments' && (
               <TournamentsView
                 onNavigate={navigate}
@@ -451,8 +468,9 @@ export default function App() {
             )}
             {activeTab === 'calendar' && <CalendarView onOpenMatch={navigateToMatch} />}
             {activeTab === 'analytics' && <AnalyticsView />}
-            {activeTab === 'esports' && <EsportsArenaView onWatchLiveMatch={() => navigate('live_match')} />}
+            {activeTab === 'esports' && <EsportsArenaView currentUserRole={currentUserRole} onWatchLiveMatch={() => navigate('live_match')} />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
+            {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} />}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} />}
           </main>
         </>

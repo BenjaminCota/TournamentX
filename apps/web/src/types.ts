@@ -13,6 +13,25 @@ export interface User {
   lastActivity: string;
   ratingOVR?: number;
   position?: string;
+  lastname?: string;
+  nickname?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'organizer' | 'referee' | 'captain' | 'player' | 'spectator';
+  roleLabel: UserRole;
+  status: 'ACTIVE' | 'OFFLINE' | 'SUSPENDED';
+}
+
+export interface AnalyticsOverview {
+  generatedAt: string;
+  metrics: { tournaments: number; activeTournaments: number; teams: number; matches: number; completedMatches: number; liveMatches: number; completionRate: number; totalPrizeUSD: number };
+  ranking: Array<{ id: string; team: string; region: string; played: number; wins: number; losses: number; draws: number; rate: number; points: number }>;
+  recentMatches: TournamentMatch[];
 }
 
 export interface PlayerProfile {
@@ -193,6 +212,11 @@ export interface ServerLobby {
   status: 'In Game' | 'Waiting' | 'Paused';
   ping: number;
   playersCount: string;
+  name?: string;
+  team1?: string;
+  team2?: string;
+  players?: number;
+  maxPlayers?: number;
 }
 
 export interface Venue {
