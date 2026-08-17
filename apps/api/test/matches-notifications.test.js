@@ -7,8 +7,18 @@ const app = require('../src/app');
 const managerAuthorization = { Authorization: `Bearer ${jwt.sign({ sub: 'manager-notifications', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
 
 test('al finalizar un partido se publica una notificación de resultado', async () => {
+  const tournament = await request(app).post('/api/tournaments').set(managerAuthorization).send({
+    name: `Torneo de notificaciones ${Date.now()}`,
+    game: 'Valorant',
+    maxTeams: 2,
+  });
+  assert.equal(tournament.status, 201);
+  for (const [index, teamId] of ['team-lnx', 'team-titans'].entries()) {
+    const participant = await request(app).post(`/api/tournaments/${tournament.body.id}/participants`).set(managerAuthorization).send({ teamId, seed: index + 1 });
+    assert.equal(participant.status, 201);
+  }
   const created = await request(app).post('/api/matches').set(managerAuthorization).send({
-    tournamentId: 'tour-notification',
+    tournamentId: tournament.body.id,
     team1Id: 'team-lnx',
     team2Id: 'team-titans',
     scheduledAt: '2026-09-01T18:00:00.000Z',

@@ -26,8 +26,20 @@ test('Dev 4 emite match-update solo para la sala del partido', async () => {
 
   try {
     await waitFor(client, 'connect');
+    const tournament = await request(app).post('/api/tournaments').set({ Authorization: `Bearer ${managerToken}` }).send({
+      name: `Torneo en tiempo real ${Date.now()}`,
+      game: 'Valorant',
+      maxTeams: 2,
+    });
+    assert.equal(tournament.status, 201);
+    for (const [index, teamId] of ['team-lnx', 'team-titans'].entries()) {
+      const participant = await request(app).post(`/api/tournaments/${tournament.body.id}/participants`)
+        .set({ Authorization: `Bearer ${managerToken}` })
+        .send({ teamId, seed: index + 1 });
+      assert.equal(participant.status, 201);
+    }
     const created = await request(app).post('/api/matches').set({ Authorization: `Bearer ${managerToken}` }).send({
-      tournamentId: 'tour-realtime', team1Id: 'team-lnx', team2Id: 'team-titans', scheduledAt: '2026-08-25T18:00:00.000Z',
+      tournamentId: tournament.body.id, team1Id: 'team-lnx', team2Id: 'team-titans', scheduledAt: '2026-08-25T18:00:00.000Z',
     });
     assert.equal(created.status, 201);
 

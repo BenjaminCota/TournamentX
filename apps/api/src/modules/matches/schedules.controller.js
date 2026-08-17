@@ -1,6 +1,7 @@
 const HttpError = require('../../utils/http-error');
 const scheduleStore = require('./schedule-store');
 const { getActiveTeam } = require('../teams/teams.public');
+const { getRegisteredTeamIds } = require('../tournaments/tournaments.public');
 
 async function listSchedules(req, res, next) {
   try {
@@ -24,6 +25,10 @@ async function createSchedule(req, res, next) {
   try {
     const missing = req.validated.body.teamIds.find((teamId) => !getActiveTeam(teamId));
     if (missing) throw new HttpError(404, `El equipo ${missing} no existe o no está activo`);
+    const registered = getRegisteredTeamIds(req.validated.body.tournamentId);
+    if (!registered) throw new HttpError(404, `El torneo ${req.validated.body.tournamentId} no existe`);
+    const unregistered = req.validated.body.teamIds.find((teamId) => !registered.has(teamId));
+    if (unregistered) throw new HttpError(409, `El equipo ${unregistered} no está inscrito en el torneo`);
     const schedule = await scheduleStore.createSchedule(req.validated.body);
     res.status(201).json(schedule);
   } catch (error) {
