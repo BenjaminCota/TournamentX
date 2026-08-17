@@ -92,6 +92,7 @@ export default function App() {
   const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Espectador');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [teams, setTeams] = useState<Team[]>(() => {
     const initial = typeof window !== 'undefined' ? localStorage.getItem(TEAM_STORAGE_KEY) : null;
     return initial ? JSON.parse(initial).map(normalizeTeam) : MOCK_TEAMS;
@@ -430,6 +431,7 @@ export default function App() {
     setCurrentUser(null);
     setCurrentUserRole('Espectador');
     navigate('landing');
+    setShowLogoutConfirmation(false);
     notify('success', 'Sesión cerrada. Ahora estás explorando como visitante.');
   };
   const navigateToTeam = (teamId: string) => {
@@ -462,7 +464,7 @@ export default function App() {
             currentUserName={currentUser?.name}
             isAuthenticated={Boolean(currentUser)}
             onOpenAuth={() => navigate('login')}
-            onLogout={() => { void logout(); }}
+            onRequestLogout={() => setShowLogoutConfirmation(true)}
             onOpenCreateWizard={openTournamentWizard}
           />
 
@@ -531,6 +533,18 @@ export default function App() {
             navigate('tournaments');
           }}
         />
+      )}
+      {showLogoutConfirmation && (
+        <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="logout-confirmation-title">
+          <section className="w-full max-w-md rounded-2xl border border-white/10 bg-[#11131d] p-6 shadow-2xl">
+            <h2 id="logout-confirmation-title" className="text-xl font-bold text-white">¿Cerrar sesión?</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Dejarás de administrar la plataforma y volverás a la vista de visitante.</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setShowLogoutConfirmation(false)} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/[.06] hover:text-white">Cancelar</button>
+              <button type="button" onClick={() => { void logout(); }} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#ff2e83]/20 hover:bg-[#ef2778]">Cerrar sesión</button>
+            </div>
+          </section>
+        </div>
       )}
       <FeedbackToaster />
     </div>

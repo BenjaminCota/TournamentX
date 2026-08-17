@@ -22,7 +22,7 @@ interface SidebarProps {
   currentUserName?: string;
   isAuthenticated: boolean;
   onOpenAuth: () => void;
-  onLogout: () => void;
+  onRequestLogout: () => void;
   onOpenCreateWizard: () => void;
 }
 
@@ -36,7 +36,7 @@ const mainItems = [
   { id: 'rewards' as const, label: 'Premios', icon: Gift, tabs: ['rewards'] as TabId[] },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, isAuthenticated, onOpenAuth, onLogout, onOpenCreateWizard }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, isAuthenticated, onOpenAuth, onRequestLogout, onOpenCreateWizard }) => {
   const visibleItems = currentUserRole === 'Admin'
     ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }]
     : mainItems;
@@ -81,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
         {isAuthenticated ? (
           <button
             type="button"
-            onClick={onLogout}
+            onClick={onRequestLogout}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
             aria-label="Cerrar sesión"
             title={currentUserName ? `Cerrar sesión de ${currentUserName}` : 'Cerrar sesión'}
