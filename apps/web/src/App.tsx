@@ -433,7 +433,10 @@ export default function App() {
       {activeTab === 'landing' ? (
         <LandingView onEnterApp={navigate} onOpenCreateWizard={openTournamentWizard} onOpenAuth={() => navigate('login')} />
       ) : activeTab === 'login' ? (
-        <LoginView onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); }} />
+        <LoginView
+          onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); }}
+          onBackToHome={() => navigate('landing')}
+        />
       ) : (
         <>
           <Sidebar

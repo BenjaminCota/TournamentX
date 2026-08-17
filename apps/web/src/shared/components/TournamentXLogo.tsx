@@ -17,6 +17,9 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
   onClick,
   withGlow = true
 }) => {
+  const interactiveProps = onClick
+    ? { role: 'button', tabIndex: 0, onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick(); } }, 'aria-label': 'Ir al inicio de TournamentX' }
+    : {};
   // Dimension mappings
   const dimensions = {
     xs: { icon: 'w-6 h-6', fullWidth: 'w-24', height: 28, text: 'text-sm', sub: 'text-[8px]' },
@@ -170,6 +173,7 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
       <div
         id="tournamentx-logo-full"
         onClick={onClick}
+        {...interactiveProps}
         className={`flex flex-col items-center justify-center text-center cursor-pointer select-none group transition-transform duration-300 hover:scale-[1.02] ${className}`}
       >
         <div className={`${dimensions.fullWidth} relative aspect-[300/210]`}>
@@ -191,6 +195,7 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
       <div
         id="tournamentx-logo-icon"
         onClick={onClick}
+        {...interactiveProps}
         className={`relative ${dimensions.icon} flex items-center justify-center cursor-pointer select-none group transition-transform duration-300 hover:scale-105 ${className}`}
       >
         <TXEmblem />
@@ -204,6 +209,7 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
       <div
         id="tournamentx-logo-wordmark"
         onClick={onClick}
+        {...interactiveProps}
         className={`flex items-center cursor-pointer select-none group ${className}`}
       >
         <span className={`font-brand font-black tracking-tight uppercase ${dimensions.text} text-white group-hover:text-pink-50 transition-colors`}>
@@ -218,6 +224,7 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
     <div
       id="tournamentx-logo-horizontal"
       onClick={onClick}
+      {...interactiveProps}
       className={`flex items-center gap-3 cursor-pointer select-none group ${className}`}
     >
       <div className={`relative ${dimensions.icon} flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-105`}>
