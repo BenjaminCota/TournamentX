@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { z } = require('zod');
 const { authenticate, authorize } = require('../../middleware/auth');
 const store = require('./local-rewards.store');
+const tournamentStore = require('../tournaments/tournament-store');
 
 const manager = [authenticate, authorize('admin', 'organizer')];
 function invalid(next, details) { return next(Object.assign(new Error('Datos no válidos'), { status: 400, details })); }
@@ -46,6 +47,24 @@ router.put('/prize-pools/:id/distribution', ...manager, (req, res, next) => {
   const rules = parsed.data.rules.map((rule) => ({ id: store.id(), prizePoolId: pool.id, ...rule, amount: Number((Number(pool.fundedAmount) * rule.percentage / 100).toFixed(2)) }));
   store.save('distributionRules', [...keep, ...rules]); store.update('prizePools', pool.id, { status: 'locked', updatedAt: new Date().toISOString() });
   return res.json({ data: rules });
+});
+router.post('/prize-pools/:id/results', ...manager, (req, res, next) => {
+  const pool = store.find('prizePools', req.params.id); if (!requireFound(pool, next, 'Bolsa de premios no encontrada')) return;
+  if (pool.status !== 'locked') return next(Object.assign(new Error('La bolsa debe estar bloqueada antes de importar ganadores'), { status: 409 }));
+  if (store.list('payouts').some((item) => item.prizePoolId === pool.id)) return next(Object.assign(new Error('La bolsa ya tiene pagos registrados'), { status: 409 }));
+
+  let status;
+  try { status = tournamentStore.getStatus(pool.tournamentId); } catch (error) { return next(error); }
+  if (status.status !== 'COMPLETED' || !status.championId) return next(Object.assign(new Error('El torneo debe finalizar antes de importar al campeón'), { status: 409 }));
+
+  const rules = store.list('distributionRules').filter((item) => item.prizePoolId === pool.id).sort((left, right) => left.position - right.position);
+  if (rules.length !== 1 || rules[0].position !== 1) return next(Object.assign(new Error('La importación automática local requiere una única regla para la posición 1'), { status: 409 }));
+
+  const champion = tournamentStore.listParticipants(pool.tournamentId).find((participant) => participant.id === status.championId);
+  const winner = store.add('winners', { id: store.id(), prizePoolId: pool.id, tournamentId: pool.tournamentId, recipientId: status.championId, recipientType: 'team', position: 1, source: 'bracket', importedBy: req.user.sub, importedAt: new Date().toISOString() });
+  const payout = store.add('payouts', { id: store.id(), prizePoolId: pool.id, recipientId: winner.recipientId, position: 1, amount: rules[0].amount, currency: pool.currency, destination: `local:team:${winner.recipientId}`, status: 'released', receiptCode: `TX-${Date.now().toString(36).toUpperCase()}-1`, releasedBy: req.user.sub, releasedAt: new Date().toISOString() });
+  store.update('prizePools', pool.id, { status: 'distributed', updatedAt: new Date().toISOString() });
+  return res.status(201).json({ data: { tournamentId: pool.tournamentId, champion: champion?.name || winner.recipientId, payout, source: 'bracket' } });
 });
 router.post('/prize-pools/:id/payouts', ...manager, (req, res, next) => {
   const parsed = z.object({ recipientId: z.string().min(1), position: z.coerce.number().int().positive(), destination: z.string().min(3).max(255) }).safeParse(req.body);
