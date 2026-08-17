@@ -27,7 +27,7 @@ aceptación y queda verificado en una rama o entorno compartido.
 | En curso | P1 | Definir un flujo E2E mínimo: registro, equipo, torneo, bracket/calendario, resultado, notificación y recompensa. | Integración con Dev 1-8 | Contratos estables y datos de prueba | El cierre de partido ya publica la notificación de resultado; falta cubrir la cadena completa hasta recompensa. |
 | Pendiente | P1 | Consolidar la fuente de verdad de entidades compartidas entre API local, Supabase y MySQL. | Dev 1 + integrador | Decisión de arquitectura | Cada entidad declara almacenamiento, sincronización y fallback; no hay divergencia silenciosa. |
 | Hecho | P1 | Añadir pruebas de autorización por rol para mutaciones de cada API. | Dueño de cada módulo | Usuarios/roles de prueba | Las rutas de escritura aceptan solo los roles permitidos y devuelven 401/403 correctamente. |
-| Pendiente | P1 | Publicar una matriz de variables de entorno y verificación sin exponer secretos. | Integración | Acceso a configuraciones de despliegue | Desarrollo, pruebas y producción tienen variables requeridas y modo de fallback explícito. |
+| Hecho | P1 | Publicar una matriz de variables de entorno y verificación sin exponer secretos. | Integración | Acceso a configuraciones de despliegue | Desarrollo, pruebas y producción tienen variables requeridas y modo de fallback explícito. |
 | Pendiente | P2 | Configurar observabilidad de errores y salud para API, sockets y proveedores. | Integración | Plataforma de despliegue | Errores relevantes tienen trazabilidad y existe una alerta o procedimiento de revisión. |
 
 ## Pendientes por módulo
