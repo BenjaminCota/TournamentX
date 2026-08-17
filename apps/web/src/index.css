@@ -17,7 +17,12 @@
   .field:focus { border-color: #ff2e83; box-shadow: 0 0 0 3px rgba(255,46,131,.12); }
   .surface { border: 1px solid rgba(255,255,255,.08); background: linear-gradient(145deg, rgba(20,22,31,.96), rgba(12,13,19,.96)); box-shadow: 0 18px 60px rgba(0,0,0,.22); }
   .status-chip { display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); border-radius: 999px; padding: .35rem .65rem; font-size: .65rem; font-weight: 700; }
+  .media-status { display: inline-flex; align-items: center; gap: .45rem; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.035); border-radius: .75rem; padding: .65rem .75rem; font-size: .65rem; font-weight: 700; }
 }
+
+.stream-volume { accent-color: #d6b15e; }
+.stream-volume::-webkit-slider-runnable-track { height: 3px; border-radius: 999px; background: rgba(255,255,255,.16); }
+.stream-volume::-webkit-slider-thumb { margin-top: -5px; }
 
 .font-brand {
   font-family: 'Arial Narrow', Impact, sans-serif;

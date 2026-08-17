@@ -33,7 +33,14 @@ test('Dev 5 calcula métricas y rankings desde los módulos del sistema', async 
 test('Dev 6 gestiona lobbies, métricas y fuentes de stream', async () => {
   const token = await adminSession();
   const streams = await request(app).get('/api/media/streams');
-  assert.equal(streams.status, 200); assert.ok(streams.body.data.length >= 1);
+  assert.equal(streams.status, 200); assert.ok(streams.body.data.length >= 2);
+  assert.ok(streams.body.data.every((stream) => stream.embedId));
+  assert.ok(streams.body.data.some((stream) => stream.platform === 'Twitch'));
+  assert.ok(streams.body.data.some((stream) => stream.platform === 'YouTube'));
+  const events = await request(app).get('/api/media/events');
+  assert.equal(events.status, 200); assert.ok(events.body.data.length >= 6);
+  assert.ok(events.body.data.some((event) => event.category === 'esports'));
+  assert.ok(events.body.data.some((event) => event.category === 'sports'));
   const invalid = await request(app).post('/api/media/lobbies').set('Authorization', `Bearer ${token}`).send({ name: 'x' });
   assert.equal(invalid.status, 400);
   const created = await request(app).post('/api/media/lobbies').set('Authorization', `Bearer ${token}`).send({ name: 'Lobby de prueba', game: 'Valorant', server: 'LATAM', map: 'Haven', team1: 'Alpha', team2: 'Beta', status: 'Waiting', ping: 22, maxPlayers: 10 });

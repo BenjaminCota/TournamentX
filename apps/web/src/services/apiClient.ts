@@ -1,4 +1,5 @@
 import type { AnalyticsOverview, AuthUser, Team, Tournament, TournamentMatch, User } from '../types';
+import type { LiveEvent, MediaStream } from '../features/media/media.types';
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
 
@@ -75,7 +76,8 @@ export const tournamentXApi = {
   reportBracketMatchResult: (tournamentId: string, matchId: string, score1: number, score2: number) =>
     request(`/tournaments/${tournamentId}/bracket-matches/${matchId}/result`, { method: 'PUT', body: { score1, score2 } }),
   tournamentStatus: (tournamentId: string) => request(`/tournaments/${tournamentId}/status`),
-  streams: () => request<{ data: Array<{ id: string; platform: 'Twitch' | 'YouTube'; title: string; channel: string; game: string; viewers: number; live: boolean; thumbnail: string; url: string; source: string }>; integration: { twitch: string; youtube: string } }>('/media/streams'),
+  streams: () => request<{ data: MediaStream[]; integration: { twitch: string; youtube: string } }>('/media/streams'),
+  mediaEvents: () => request<{ data: LiveEvent[]; generatedAt: string }>('/media/events'),
   lobbies: () => request<{ data: Array<{ id: string; name: string; game: string; server: string; map: string; team1: string; team2: string; status: 'In Game' | 'Waiting' | 'Paused'; ping: number; players: number; maxPlayers: number }> }>('/media/lobbies'),
   mediaMetrics: () => request<{ data: Array<{ game: string; lobbies: number; activePlayers: number; viewers: number }> }>('/media/metrics'),
   createLobby: (data: unknown) => request('/media/lobbies', { method: 'POST', body: data }),

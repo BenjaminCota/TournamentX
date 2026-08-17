@@ -47,11 +47,24 @@ JWT_SECRET=una-clave-local-larga-y-unica
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
 YOUTUBE_API_KEY=
+TWITCH_DEMO_CHANNEL=valorant
+YOUTUBE_DEMO_VIDEO_ID=M7lc1UVf-VE
 STRIPE_MODE=simulated
 BINANCE_PAY_MODE=simulated
 ```
 
 Sin claves, Twitch, YouTube, Stripe y Binance Pay continúan funcionando en modo local simulado. El modo de producción de Binance permanece bloqueado salvo configuración explícita.
+
+### Centro de transmisión
+
+En **Más → Transmisiones** se cargan los reproductores oficiales de Twitch y YouTube. Los controles propios permiten reproducir, pausar, cambiar volumen, silenciar, buscar ±10 segundos y entrar a pantalla completa. Twitch no admite búsqueda temporal en señales en vivo; sí la admite en VOD.
+
+- `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET` activan la consulta de directos mediante Twitch Helix.
+- `YOUTUBE_API_KEY` activa la búsqueda de directos y el conteo concurrente mediante YouTube Data API v3.
+- Sin credenciales, `TWITCH_DEMO_CHANNEL` y `YOUTUBE_DEMO_VIDEO_ID` eligen las fuentes embebidas de demostración.
+- Los marcadores de LoL Worlds, Valorant Champions, The International, Champions League, NBA y UFC están etiquetados como simulación dinámica; no se presentan como resultados oficiales en tiempo real.
+
+La API local expone `GET /api/media/streams`, `GET /api/media/events`, `GET /api/media/lobbies` y `GET /api/media/metrics`.
 
 ## Validación
 

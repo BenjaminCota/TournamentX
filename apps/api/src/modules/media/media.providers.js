@@ -8,7 +8,7 @@ async function twitchStreams() {
   const response = await fetch('https://api.twitch.tv/helix/streams?first=12', { headers: { 'Client-ID': process.env.TWITCH_CLIENT_ID, Authorization: `Bearer ${token.access_token}` } });
   if (!response.ok) throw new Error(`Twitch respondió ${response.status}`);
   const body = await response.json();
-  return { status: 'configured', data: body.data.map((item) => ({ id: `twitch-${item.id}`, platform: 'Twitch', title: item.title, channel: item.user_name, game: item.game_name || 'Esports', viewers: Number(item.viewer_count || 0), live: item.type === 'live', thumbnail: item.thumbnail_url.replace('{width}', '1000').replace('{height}', '560'), url: `https://www.twitch.tv/${item.user_login}`, source: 'twitch' })) };
+  return { status: 'configured', data: body.data.map((item) => ({ id: `twitch-${item.id}`, eventId: null, platform: 'Twitch', title: item.title, channel: item.user_name, embedId: item.user_login, mediaKind: 'live', game: item.game_name || 'Esports', viewers: Number(item.viewer_count || 0), live: item.type === 'live', thumbnail: item.thumbnail_url.replace('{width}', '1000').replace('{height}', '560'), url: `https://www.twitch.tv/${item.user_login}`, source: 'twitch' })) };
 }
 
 async function youtubeStreams() {
@@ -18,7 +18,18 @@ async function youtubeStreams() {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`YouTube respondió ${response.status}`);
   const body = await response.json();
-  return { status: 'configured', data: (body.items || []).map((item) => ({ id: `youtube-${item.id.videoId}`, platform: 'YouTube', title: item.snippet.title, channel: item.snippet.channelTitle, game: 'Esports', viewers: 0, live: true, thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url || '', url: `https://www.youtube.com/watch?v=${item.id.videoId}`, source: 'youtube' })) };
+  const ids = (body.items || []).map((item) => item.id.videoId).filter(Boolean);
+  const details = new Map();
+  if (ids.length) {
+    const detailUrl = new URL('https://www.googleapis.com/youtube/v3/videos');
+    Object.entries({ part: 'liveStreamingDetails', id: ids.join(','), key: process.env.YOUTUBE_API_KEY }).forEach(([key, value]) => detailUrl.searchParams.set(key, value));
+    const detailResponse = await fetch(detailUrl);
+    if (detailResponse.ok) {
+      const detailBody = await detailResponse.json();
+      for (const item of detailBody.items || []) details.set(item.id, Number(item.liveStreamingDetails?.concurrentViewers || 0));
+    }
+  }
+  return { status: 'configured', data: (body.items || []).map((item) => ({ id: `youtube-${item.id.videoId}`, eventId: null, platform: 'YouTube', title: item.snippet.title, channel: item.snippet.channelTitle, embedId: item.id.videoId, mediaKind: 'live', game: 'Esports', viewers: details.get(item.id.videoId) || 0, live: true, thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url || '', url: `https://www.youtube.com/watch?v=${item.id.videoId}`, source: 'youtube' })) };
 }
 
 async function externalStreams(fallback) {
@@ -27,6 +38,11 @@ async function externalStreams(fallback) {
   const twitch = results[0].status === 'fulfilled' ? results[0].value : { status: 'error', data: [] };
   const youtube = results[1].status === 'fulfilled' ? results[1].value : { status: 'error', data: [] };
   const live = [...twitch.data, ...youtube.data];
+  for (const platform of ['Twitch', 'YouTube']) {
+    if (!live.some((stream) => stream.platform === platform)) {
+      live.push(...fallback.filter((stream) => stream.platform === platform));
+    }
+  }
   cache = { expiresAt: Date.now() + 60000, streams: live.length ? live : fallback, integration: { twitch: twitch.status, youtube: youtube.status } };
   return cache;
 }

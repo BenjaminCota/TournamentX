@@ -34,8 +34,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
           return <button key={item.id} onClick={() => setCurrentTab(item.id)} className={`whitespace-nowrap px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white'}`}>{item.label}</button>;
         })}
         <div className="relative group">
-          <button className="flex items-center gap-1 px-3 py-2 text-sm text-slate-400 hover:text-white">Más <ChevronDown className="w-3.5 h-3.5" /></button>
-          <div className="hidden group-hover:block absolute top-full right-0 pt-2 w-48">
+          <button aria-haspopup="menu" className="flex items-center gap-1 px-3 py-2 text-sm text-slate-400 hover:text-white">Más <ChevronDown className="w-3.5 h-3.5" /></button>
+          <div className="hidden group-hover:block group-focus-within:block absolute top-full right-0 pt-2 w-48">
             <div className="rounded-xl border border-white/10 bg-[#12141b] p-1 shadow-xl">
               <button onClick={() => setCurrentTab('players')} className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-white/10">Jugadores</button>
               {currentUserRole === 'Admin' && <button onClick={() => setCurrentTab('users')} className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-white/10">Usuarios y roles</button>}

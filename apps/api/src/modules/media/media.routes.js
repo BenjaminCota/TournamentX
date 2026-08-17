@@ -9,6 +9,7 @@ const lobbyUpdate = lobbySchema.partial().extend({ players: z.coerce.number().in
 function validated(schema, req, next) { const result = schema.safeParse(req.body); if (!result.success) { next(Object.assign(new Error('Datos del lobby no válidos'), { status: 400, details: result.error.flatten() })); return null; } return result.data; }
 
 router.get('/streams', async (_req, res, next) => { try { const result = await externalStreams(store.listStreams()); res.json({ data: result.streams, integration: result.integration }); } catch (error) { next(error); } });
+router.get('/events', (_req, res) => res.json({ data: store.listEvents(), generatedAt: new Date().toISOString() }));
 router.get('/lobbies', (req, res) => res.json({ data: store.listLobbies(req.query) }));
 router.get('/metrics', (_req, res) => res.json({ data: store.metrics(), generatedAt: new Date().toISOString() }));
 router.post('/lobbies', authenticate, authorize('admin', 'organizer', 'captain'), (req, res, next) => { const input = validated(lobbySchema, req, next); if (!input) return; const lobby = store.createLobby(input); req.app.get('io')?.emit('lobby:created', lobby); res.status(201).json({ data: lobby }); });

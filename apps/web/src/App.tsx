@@ -468,7 +468,7 @@ export default function App() {
             )}
             {activeTab === 'calendar' && <CalendarView onOpenMatch={navigateToMatch} />}
             {activeTab === 'analytics' && <AnalyticsView />}
-            {activeTab === 'esports' && <EsportsArenaView currentUserRole={currentUserRole} onWatchLiveMatch={() => navigate('live_match')} />}
+            {activeTab === 'esports' && <EsportsArenaView currentUserRole={currentUserRole} />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
             {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} />}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} />}
