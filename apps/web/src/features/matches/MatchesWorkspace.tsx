@@ -1,0 +1,47 @@
+import React from 'react';
+import { CalendarDays, Radio, Tv2 } from 'lucide-react';
+import { UserRole } from '../../types';
+import { TabId } from '../shell/Sidebar';
+import { EsportsArenaView } from '../media/EsportsArenaView';
+import { CalendarView } from './CalendarView';
+
+interface MatchesWorkspaceProps {
+  section: 'calendar' | 'esports';
+  currentUserRole: UserRole;
+  onNavigate: (tab: TabId) => void;
+  onOpenMatch: (matchId: string) => void;
+}
+
+const sections = [
+  { id: 'calendar' as const, label: 'Agenda', helper: 'Calendario y resultados', icon: CalendarDays },
+  { id: 'esports' as const, label: 'Transmisiones', helper: 'Directos, marcador y salas', icon: Tv2 },
+];
+
+export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, currentUserRole, onNavigate, onOpenMatch }) => (
+  <div className="min-h-screen bg-[#0a0b0e]">
+    <section className="border-b border-white/[.07] bg-[radial-gradient(circle_at_76%_0%,rgba(255,46,131,.11),transparent_32%),#0d0e13] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-[1480px] flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-[#ff69a8]"><Radio className="h-3.5 w-3.5" /> Centro de competencia</div>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Partidos y transmisiones</h1>
+          <p className="mt-1 text-xs leading-5 text-slate-400">Consulta la agenda, sigue el marcador y cambia a la señal oficial sin salir del partido.</p>
+        </div>
+        <div className="grid gap-1.5 rounded-2xl border border-white/[.08] bg-black/25 p-1.5 sm:grid-cols-2" role="tablist" aria-label="Secciones de partidos">
+          {sections.map((item) => {
+            const Icon = item.icon;
+            const active = section === item.id;
+            return (
+              <button type="button" role="tab" aria-selected={active} key={item.id} onClick={() => onNavigate(item.id)} className={`flex min-w-44 items-center gap-3 rounded-xl px-4 py-2.5 text-left ${active ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>
+                <Icon className={`h-4 w-4 ${active ? 'text-[#ff4b94]' : ''}`} />
+                <span><b className="block text-xs">{item.label}</b><small className="block text-[10px] font-normal text-slate-500">{item.helper}</small></span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+
+    {section === 'calendar' && <CalendarView onOpenMatch={onOpenMatch} />}
+    {section === 'esports' && <EsportsArenaView currentUserRole={currentUserRole} />}
+  </div>
+);

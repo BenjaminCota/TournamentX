@@ -5,6 +5,7 @@ import L from 'leaflet';
 import { MOCK_TOURNAMENTS, MOCK_VENUES } from '../../data/mockData';
 import { Tournament, Venue } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { supabase } from '../../services/supabaseClient';
 
 type Coordinates = { lat: number; lng: number };
 type LocationState = 'idle' | 'loading' | 'ready' | 'denied' | 'unsupported';
@@ -12,7 +13,6 @@ type Notification = { id: string; title: string; message: string; type: string; 
 
 interface SedesMapViewProps { onSelectVenueTournament?: (venueName: string) => void }
 
-const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000';
 
 function distanceKm(origin: Coordinates, destination: [number, number]) {
@@ -58,14 +58,13 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
 
   useEffect(() => {
     void Promise.all([
-      fetch(`${API_URL}/geolocation/venues`).then((response) => response.ok ? response.json() : Promise.reject(new Error('Sedes no disponibles'))),
+      tournamentXApi.venues(),
       tournamentXApi.tournaments(),
     ]).then(([venueRows, tournamentRows]) => {
-      const normalized = (venueRows as Array<Record<string, unknown>>).map((venue, index) => ({
-        id: String(venue.id), name: String(venue.name), city: String(venue.city), country: String(venue.country), address: String(venue.address),
-        coordinates: [Number(venue.latitude), Number(venue.longitude)] as [number, number], capacity: Number(venue.capacity || 5000),
-        image: String(venue.image || MOCK_VENUES[index % MOCK_VENUES.length].image), activeEventsCount: Number(venue.activeEventsCount || 0),
-        features: Array.isArray(venue.features) ? venue.features.map(String) : ['Streaming', 'Zona de jugadores', 'Accesibilidad'],
+      const normalized = venueRows.map((venue, index) => ({
+        ...venue,
+        image: venue.image || MOCK_VENUES[index % MOCK_VENUES.length].image,
+        features: venue.features.length ? venue.features : ['Streaming', 'Zona de jugadores', 'Accesibilidad'],
       }));
       if (normalized.length) { setVenues(normalized); setSelectedVenue((current) => normalized.find((item) => item.id === current.id) || normalized[0]); }
       setTournaments(tournamentRows);
@@ -97,13 +96,23 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
   }, [selectedVenue, venuesWithDistance]);
 
   useEffect(() => {
-    fetch(`${API_URL}/geolocation/notifications`).then((response) => response.ok ? response.json() : []).then(setNotifications).catch(() => undefined);
+    tournamentXApi.notifications().then(setNotifications).catch(() => undefined);
     const socket = io(SOCKET_URL, { reconnectionAttempts: 4 });
     socketRef.current = socket;
     socket.on('connect', () => { setSocketConnected(true); socket.emit('subscribe-notifications'); });
     socket.on('disconnect', () => setSocketConnected(false));
     socket.on('notification:new', (notification: Notification) => setNotifications((current) => [notification, ...current].slice(0, 20)));
-    return () => { socket.emit('unsubscribe-notifications'); socket.disconnect(); };
+    const channel = supabase
+      ?.channel('tournamentx-venue-notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        const row = payload.new as Record<string, unknown>;
+        setNotifications((current) => [{ id: String(row.id), title: String(row.title), message: String(row.message), type: 'venue', createdAt: String(row.created_at) }, ...current].slice(0, 20));
+      })
+      .subscribe();
+    return () => {
+      socket.emit('unsubscribe-notifications'); socket.disconnect();
+      if (channel && supabase) void supabase.removeChannel(channel);
+    };
   }, []);
 
   const locateUser = () => {

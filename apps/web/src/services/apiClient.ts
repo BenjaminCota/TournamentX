@@ -1,5 +1,7 @@
-import type { AnalyticsOverview, AuthUser, CompetitiveOverview, Team, Tournament, TournamentMatch, User } from '../types';
+import type { AnalyticsOverview, AuthUser, CompetitiveOverview, Team, Tournament, TournamentMatch, User, Venue } from '../types';
 import type { LiveEvent, MediaStream } from '../features/media/media.types';
+import { isSupabaseConfigured } from './supabaseClient';
+import { supabaseRepository } from './supabaseRepository';
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
 
@@ -25,62 +27,114 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return response.json() as Promise<T>;
 }
 
+async function ensureLocalTournament(tournamentId: string) {
+  if (!isSupabaseConfigured) return;
+  try {
+    await request<Tournament>(`/tournaments/${tournamentId}`);
+  } catch {
+    const tournament = await supabaseRepository.tournament(tournamentId);
+    await request<Tournament>('/tournaments', { method: 'POST', body: tournament });
+  }
+}
+
+async function runTournamentOperation<T>(tournamentId: string, path: string, options: RequestOptions = {}) {
+  if (isSupabaseConfigured) await ensureLocalTournament(tournamentId);
+  const result = await request<T>(path, options);
+  if (isSupabaseConfigured) {
+    const updated = await request<Tournament>(`/tournaments/${tournamentId}`);
+    await supabaseRepository.upsertTournament(updated);
+  }
+  return result;
+}
+
 export const tournamentXApi = {
   health: () => request<{ status: string }>('/health'),
-  login: (email: string, password: string) => request<{ token: string; user: AuthUser; expiresIn: number }>('/auth/login', { method: 'POST', body: { email, password } }),
-  register: (data: { name: string; username?: string; email: string; password: string }) => request<{ token: string; user: AuthUser; expiresIn: number }>('/auth/register', { method: 'POST', body: data }),
-  me: () => request<{ user: AuthUser }>('/auth/me'),
-  users: () => request<{ data: AuthUser[] }>('/auth/users'),
-  updateUser: (id: string, data: Partial<AuthUser> & { password?: string }) => request<{ user: AuthUser }>(`/auth/users/${id}`, { method: 'PATCH', body: data }),
+  login: (email: string, password: string) => isSupabaseConfigured && !email.endsWith('.local')
+    ? supabaseRepository.login(email, password)
+    : request<{ token: string; user: AuthUser; expiresIn: number }>('/auth/login', { method: 'POST', body: { email, password } }),
+  register: (data: { name: string; username?: string; email: string; password: string }) => isSupabaseConfigured
+    ? supabaseRepository.register(data)
+    : request<{ token: string; user: AuthUser; expiresIn: number }>('/auth/register', { method: 'POST', body: data }),
+  me: async () => {
+    if (isSupabaseConfigured) {
+      try { return await supabaseRepository.me(); } catch { /* Permite conservar las cuentas locales de demostración. */ }
+    }
+    return request<{ user: AuthUser }>('/auth/me');
+  },
+  users: () => isSupabaseConfigured ? supabaseRepository.users() : request<{ data: AuthUser[] }>('/auth/users'),
+  updateUser: (id: string, data: Partial<AuthUser> & { password?: string }) => isSupabaseConfigured
+    ? supabaseRepository.updateUser(id, data)
+    : request<{ user: AuthUser }>(`/auth/users/${id}`, { method: 'PATCH', body: data }),
   analytics: () => request<AnalyticsOverview>('/analytics/overview'),
   competitiveOverview: () => request<CompetitiveOverview>('/competitive/overview'),
   sponsors: () => request<{ data: unknown[] }>('/sponsors'),
   prizePools: () => request<{ data: unknown[] }>('/prize-pools'),
   rewards: () => request<{ data: unknown[] }>('/rewards'),
-  teams: () => request<Team[]>('/teams'),
-  team: (id: string) => request<Team>(`/teams/${id}`),
-  createTeam: (data: unknown) => request<Team>('/teams', { method: 'POST', body: data }),
-  updateTeam: (id: string, data: unknown) => request<Team>(`/teams/${id}`, { method: 'PATCH', body: data }),
-  players: () => request<User[]>('/players'),
-  player: (id: string) => request<User>(`/players/${id}`),
-  createPlayer: (data: unknown) => request<User>('/players', { method: 'POST', body: data }),
-  updatePlayer: (id: string, data: unknown) => request<User>(`/players/${id}`, { method: 'PATCH', body: data }),
-  addRosterMember: (teamId: string, data: unknown) => request<{ id: string }>(`/teams/${teamId}/roster`, { method: 'POST', body: data }),
-  removeRosterMember: (teamId: string, playerId: string) => request(`/teams/${teamId}/roster/${playerId}`, { method: 'DELETE' }),
-  matches: () => request<TournamentMatch[]>('/matches'),
-  match: (id: string) => request<TournamentMatch>(`/matches/${id}`),
-  updateMatchScore: (id: string, data: unknown, token?: string) => request(`/matches/${id}/score`, {
-    method: 'PATCH',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    body: data,
-  }),
+  teams: () => isSupabaseConfigured ? supabaseRepository.teams() : request<Team[]>('/teams'),
+  team: (id: string) => isSupabaseConfigured ? supabaseRepository.team(id) : request<Team>(`/teams/${id}`),
+  createTeam: (data: unknown) => isSupabaseConfigured ? supabaseRepository.createTeam(data as Partial<Team>) : request<Team>('/teams', { method: 'POST', body: data }),
+  updateTeam: (id: string, data: unknown) => isSupabaseConfigured ? supabaseRepository.updateTeam(id, data as Partial<Team>) : request<Team>(`/teams/${id}`, { method: 'PATCH', body: data }),
+  players: () => isSupabaseConfigured ? supabaseRepository.players() : request<User[]>('/players'),
+  player: (id: string) => isSupabaseConfigured ? supabaseRepository.player(id) : request<User>(`/players/${id}`),
+  createPlayer: (data: unknown) => isSupabaseConfigured ? supabaseRepository.createPlayer(data as Partial<User>) : request<User>('/players', { method: 'POST', body: data }),
+  updatePlayer: (id: string, data: unknown) => isSupabaseConfigured ? supabaseRepository.updatePlayer(id, data as Partial<User>) : request<User>(`/players/${id}`, { method: 'PATCH', body: data }),
+  addRosterMember: (teamId: string, data: unknown) => isSupabaseConfigured
+    ? supabaseRepository.addRosterMember(teamId, data as { playerId: string; role: string; status?: string })
+    : request<{ id: string }>(`/teams/${teamId}/roster`, { method: 'POST', body: data }),
+  removeRosterMember: (teamId: string, playerId: string) => isSupabaseConfigured
+    ? supabaseRepository.removeRosterMember(teamId, playerId)
+    : request(`/teams/${teamId}/roster/${playerId}`, { method: 'DELETE' }),
+  matches: () => isSupabaseConfigured ? supabaseRepository.matches() : request<TournamentMatch[]>('/matches'),
+  match: (id: string) => isSupabaseConfigured ? supabaseRepository.match(id) : request<TournamentMatch>(`/matches/${id}`),
+  updateMatchScore: (id: string, data: unknown, token?: string) => isSupabaseConfigured
+    ? supabaseRepository.updateMatchScore(id, data as Record<string, unknown>)
+    : request(`/matches/${id}/score`, { method: 'PATCH', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: data }),
+  venues: () => isSupabaseConfigured ? supabaseRepository.venues() : request<Venue[]>('/geolocation/venues'),
+  notifications: () => isSupabaseConfigured ? supabaseRepository.notifications() : request<Array<{ id: string; title: string; message: string; type: string; createdAt: string }>>('/geolocation/notifications'),
   addContribution: (prizePoolId: number, data: unknown) =>
     request(`/prize-pools/${prizePoolId}/contributions`, { method: 'POST', body: data }),
   updateContributionStatus: (contributionId: number, status: string) =>
     request(`/contributions/${contributionId}/status`, { method: 'PATCH', body: { status } }),
   registerResults: (prizePoolId: number, data: unknown) =>
     request(`/prize-pools/${prizePoolId}/results`, { method: 'POST', body: data }),
-  tournaments: () => request<Tournament[]>('/tournaments'),
-  tournament: (id: string) => request<Tournament>(`/tournaments/${id}`),
-  createTournament: (data: unknown) => request<Tournament>('/tournaments', { method: 'POST', body: data }),
-  tournamentParticipants: (tournamentId: string) => request(`/tournaments/${tournamentId}/participants`),
+  tournaments: () => isSupabaseConfigured ? supabaseRepository.tournaments() : request<Tournament[]>('/tournaments'),
+  tournament: (id: string) => isSupabaseConfigured ? supabaseRepository.tournament(id) : request<Tournament>(`/tournaments/${id}`),
+  createTournament: async (data: unknown) => {
+    if (!isSupabaseConfigured) return request<Tournament>('/tournaments', { method: 'POST', body: data });
+    const created = await supabaseRepository.createTournament(data as Partial<Tournament>);
+    await request<Tournament>('/tournaments', { method: 'POST', body: created });
+    return created;
+  },
+  tournamentParticipants: async (tournamentId: string) => {
+    if (isSupabaseConfigured) await ensureLocalTournament(tournamentId);
+    return request(`/tournaments/${tournamentId}/participants`);
+  },
   registerTournamentParticipant: (tournamentId: string, data: unknown) =>
-    request(`/tournaments/${tournamentId}/participants`, { method: 'POST', body: data }),
-  tournamentGroups: (tournamentId: string) => request(`/tournaments/${tournamentId}/groups`),
+    runTournamentOperation(tournamentId, `/tournaments/${tournamentId}/participants`, { method: 'POST', body: data }),
+  tournamentGroups: async (tournamentId: string) => {
+    if (isSupabaseConfigured) await ensureLocalTournament(tournamentId);
+    return request(`/tournaments/${tournamentId}/groups`);
+  },
   generateTournamentGroups: (tournamentId: string, groupCount: number) =>
-    request(`/tournaments/${tournamentId}/groups/generate`, { method: 'POST', body: { groupCount } }),
+    runTournamentOperation(tournamentId, `/tournaments/${tournamentId}/groups/generate`, { method: 'POST', body: { groupCount } }),
   reportGroupMatchResult: (tournamentId: string, matchId: string, score1: number, score2: number) =>
-    request(`/tournaments/${tournamentId}/group-matches/${matchId}/result`, { method: 'PUT', body: { score1, score2 } }),
+    runTournamentOperation(tournamentId, `/tournaments/${tournamentId}/group-matches/${matchId}/result`, { method: 'PUT', body: { score1, score2 } }),
   generateTournamentBracket: (tournamentId: string) =>
-    request(`/tournaments/${tournamentId}/bracket/generate`, { method: 'POST' }),
-  tournamentBracket: (tournamentId: string) => request(`/tournaments/${tournamentId}/bracket`),
+    runTournamentOperation(tournamentId, `/tournaments/${tournamentId}/bracket/generate`, { method: 'POST' }),
+  tournamentBracket: async (tournamentId: string) => {
+    if (isSupabaseConfigured) await ensureLocalTournament(tournamentId);
+    return request(`/tournaments/${tournamentId}/bracket`);
+  },
   reportBracketMatchResult: (tournamentId: string, matchId: string, score1: number, score2: number) =>
-    request(`/tournaments/${tournamentId}/bracket-matches/${matchId}/result`, { method: 'PUT', body: { score1, score2 } }),
-  tournamentStatus: (tournamentId: string) => request(`/tournaments/${tournamentId}/status`),
+    runTournamentOperation(tournamentId, `/tournaments/${tournamentId}/bracket-matches/${matchId}/result`, { method: 'PUT', body: { score1, score2 } }),
+  tournamentStatus: async (tournamentId: string) => {
+    if (isSupabaseConfigured) await ensureLocalTournament(tournamentId);
+    return request(`/tournaments/${tournamentId}/status`);
+  },
   streams: () => request<{ data: MediaStream[]; integration: { twitch: string; youtube: string } }>('/media/streams'),
   mediaEvents: () => request<{ data: LiveEvent[]; generatedAt: string }>('/media/events'),
-  lobbies: () => request<{ data: Array<{ id: string; name: string; game: string; server: string; map: string; team1: string; team2: string; status: 'In Game' | 'Waiting' | 'Paused'; ping: number; players: number; maxPlayers: number }> }>('/media/lobbies'),
+  lobbies: () => isSupabaseConfigured ? supabaseRepository.lobbies() : request<{ data: Array<{ id: string; name: string; game: string; server: string; map: string; team1: string; team2: string; status: 'In Game' | 'Waiting' | 'Paused'; ping: number; players: number; maxPlayers: number }> }>('/media/lobbies'),
   mediaMetrics: () => request<{ data: Array<{ game: string; lobbies: number; activePlayers: number; viewers: number }> }>('/media/metrics'),
-  createLobby: (data: unknown) => request('/media/lobbies', { method: 'POST', body: data }),
-  updateLobby: (id: string, data: unknown) => request(`/media/lobbies/${id}`, { method: 'PATCH', body: data }),
+  createLobby: (data: unknown) => isSupabaseConfigured ? supabaseRepository.createLobby(data as Record<string, unknown>) : request('/media/lobbies', { method: 'POST', body: data }),
+  updateLobby: (id: string, data: unknown) => isSupabaseConfigured ? supabaseRepository.updateLobby(id, data as Record<string, unknown>) : request(`/media/lobbies/${id}`, { method: 'PATCH', body: data }),
 };

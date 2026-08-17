@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarClock, CheckCircle2, ChevronRight, Gamepad2, Globe2, Plus, Radio, Server, Signal, Sparkles, Trophy, Users, X } from 'lucide-react';
 import { UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { supabase } from '../../services/supabaseClient';
 import { OfficialStreamPlayer } from './OfficialStreamPlayer';
 import type { LiveEvent, MediaStream } from './media.types';
 
@@ -52,7 +53,18 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
     }
   };
 
-  useEffect(() => { void load(); const timer = window.setInterval(() => void load(), 30000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => {
+    void load();
+    const timer = window.setInterval(() => void load(), 30000);
+    const channel = supabase
+      ?.channel('tournamentx-media-lobbies')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'media_lobbies' }, () => void load())
+      .subscribe();
+    return () => {
+      window.clearInterval(timer);
+      if (channel && supabase) void supabase.removeChannel(channel);
+    };
+  }, []);
   useEffect(() => { const timer = window.setInterval(() => setTick((current) => current + 1), 1000); return () => window.clearInterval(timer); }, []);
 
   const selectedStream = streams.find((stream) => stream.id === selectedStreamId) ?? streams[0];

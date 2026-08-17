@@ -5,12 +5,9 @@ import { DashboardView } from './features/analytics/DashboardView';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { TournamentsView } from './features/tournaments/TournamentsView';
 import { TournamentCreateWizard } from './features/tournaments/TournamentCreateWizard';
-import { LiveMatchView } from './features/matches/LiveMatchView';
-import { CalendarView } from './features/matches/CalendarView';
-import { PlayersView } from './features/teams/PlayersView';
 import { TeamDetailView } from './features/teams/TeamDetailView';
-import { TeamsListView } from './features/teams/TeamsListView';
-import { EsportsArenaView } from './features/media/EsportsArenaView';
+import { TeamsWorkspace } from './features/teams/TeamsWorkspace';
+import { MatchesWorkspace } from './features/matches/MatchesWorkspace';
 import { SedesMapView } from './features/geolocation/SedesMapView';
 import { RecompensasView } from './features/rewards/RecompensasView';
 import { LoginView } from './features/auth/LoginView';
@@ -19,6 +16,7 @@ import { SplashScreen } from './features/landing/SplashScreen';
 import { AuthUser, Team, Tournament, User, UserRole } from './types';
 import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
+import { isSupabaseConfigured, supabase } from './services/supabaseClient';
 
 const TEAM_STORAGE_KEY = 'tournamentx-dev3-teams';
 const PLAYER_STORAGE_KEY = 'tournamentx-dev3-players';
@@ -89,7 +87,7 @@ function normalizePlayer(player: Partial<User> | Record<string, unknown>): User 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('landing');
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Admin');
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>(isSupabaseConfigured ? 'Espectador' : 'Admin');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [teams, setTeams] = useState<Team[]>(() => {
@@ -105,13 +103,30 @@ export default function App() {
     return initial ? JSON.parse(initial) : MOCK_TOURNAMENTS;
   });
   const [selectedTeamId, setSelectedTeamId] = useState<string>('team-lnx');
-  const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>();
 
   useEffect(() => { const timer = window.setTimeout(() => setShowSplash(false), 3000); return () => window.clearTimeout(timer); }, []);
 
   useEffect(() => {
-    if (!localStorage.getItem('tournamentx_token')) return;
-    tournamentXApi.me().then(({ user }) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); }).catch(() => localStorage.removeItem('tournamentx_token'));
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [activeTab]);
+
+  useEffect(() => {
+    const restoreUser = () => tournamentXApi.me()
+      .then(({ user }) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); })
+      .catch(() => {
+        if (!supabase) localStorage.removeItem('tournamentx_token');
+      });
+
+    if (supabase) {
+      void supabase.auth.getSession().then(({ data }) => { if (data.session) void restoreUser(); });
+      const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_OUT') { setCurrentUser(null); setCurrentUserRole('Espectador'); }
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') void restoreUser();
+      });
+      return () => authListener.subscription.unsubscribe();
+    }
+
+    if (localStorage.getItem('tournamentx_token')) void restoreUser();
   }, []);
 
   useEffect(() => {
@@ -139,6 +154,16 @@ export default function App() {
       }
     };
     loadData();
+
+    if (!supabase) return;
+    const channel = supabase
+      .channel('tournamentx-core-data')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => void loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => void loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_roster' }, () => void loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => void loadData())
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -394,15 +419,12 @@ export default function App() {
   };
 
   const openTournamentWizard = () => setShowCreateWizard(true);
-  const navigate = (tab: TabId) => { setActiveTab(tab); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const navigate = (tab: TabId) => setActiveTab(tab === 'live_match' ? 'esports' : tab);
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
   };
-  const navigateToMatch = (matchId: string) => {
-    setSelectedMatchId(matchId);
-    setActiveTab('live_match');
-  };
+  const navigateToMatch = () => setActiveTab('esports');
 
   if (showSplash) return <SplashScreen />;
 
@@ -436,21 +458,25 @@ export default function App() {
                 onGenerateBracket={handleGenerateBracket}
               />
             )}
-            {activeTab === 'live_match' && <LiveMatchView currentUserRole={currentUserRole} matchId={selectedMatchId} />}
-            {activeTab === 'players' && (
-              <PlayersView
+            {(activeTab === 'calendar' || activeTab === 'esports') && (
+              <MatchesWorkspace
+                section={activeTab}
                 currentUserRole={currentUserRole}
-                players={players}
-                onCreatePlayer={handleCreatePlayer}
-                onUpdatePlayer={handleUpdatePlayer}
+                onNavigate={navigate}
+                onOpenMatch={navigateToMatch}
               />
             )}
-            {activeTab === 'teams' && (
-              <TeamsListView
+            {(activeTab === 'teams' || activeTab === 'players') && (
+              <TeamsWorkspace
+                section={activeTab}
                 teams={teams}
+                players={players}
                 currentUserRole={currentUserRole}
+                onNavigate={navigate}
                 onSelectTeam={navigateToTeam}
                 onCreateTeam={handleCreateTeam}
+                onCreatePlayer={handleCreatePlayer}
+                onUpdatePlayer={handleUpdatePlayer}
               />
             )}
             {activeTab === 'team_detail' && (
@@ -466,9 +492,7 @@ export default function App() {
                 onRemoveRosterMember={handleRemoveRosterMember}
               />
             )}
-            {activeTab === 'calendar' && <CalendarView onOpenMatch={navigateToMatch} />}
             {activeTab === 'analytics' && <AnalyticsView />}
-            {activeTab === 'esports' && <EsportsArenaView currentUserRole={currentUserRole} />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
             {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} />}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} />}

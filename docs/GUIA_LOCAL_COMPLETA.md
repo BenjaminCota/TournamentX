@@ -32,11 +32,22 @@ Las cuentas nuevas se crean con rol Espectador. Solo el administrador puede camb
 
 ## Persistencia
 
-- Sin `DATABASE_URL`: almacenamiento JSON local automático.
+- Con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`: usuarios, roles, equipos, jugadores, plantillas, torneos, partidos, sedes, notificaciones y lobbies se leen y escriben en Supabase.
+- Sin Supabase: almacenamiento JSON local automático.
 - Con `DATABASE_URL`: partidos, calendario y pagos pueden utilizar MySQL.
 - `npm run db:init` aplica `apps/api/database/schema.sql` sin eliminar información existente.
 
 Para reiniciar exclusivamente los datos locales, detén la API y mueve `apps/api/data/tournamentx.local.json` a otra ubicación. Al iniciar nuevamente se generan datos de demostración limpios.
+
+### Supabase conectado
+
+El proyecto remoto activo es `fhjaqzexiwgjkvqvnydm`. La configuración real de esta computadora está en `apps/web/.env.local`, que Git ignora; `apps/web/.env.example` solo conserva marcadores seguros para compartir.
+
+Las migraciones reproducibles están en `supabase/migrations/` e incluyen el esquema, datos iniciales, Row Level Security, Realtime, funciones administrativas y el bucket privado `tournamentx-media`. No vuelvas a pegar la llave `service_role` en el frontend: el navegador únicamente debe utilizar la llave publicable.
+
+La primera cuenta creada en un proyecto vacío recibe el rol Administrador; las siguientes nacen como Espectador. Si la confirmación de correo está habilitada en Supabase, hay que confirmar el mensaje antes de iniciar sesión. Los accesos terminados en `.local` siguen siendo cuentas de demostración y no sincronizan cambios protegidos con Supabase.
+
+El motor probado de grupos y brackets continúa ejecutándose en la API local. La aplicación crea una copia de trabajo con el mismo ID y vuelve a persistir en Supabase el estado, marcador y rondas del torneo. Por eso deben estar encendidas tanto la API (`npm run dev:api`) como la web (`npm run dev:web`).
 
 ## Integraciones opcionales
 

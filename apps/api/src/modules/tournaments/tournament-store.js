@@ -119,7 +119,9 @@ function getTournament(tournamentId) {
 function createTournament(input) {
   const now = new Date().toISOString();
   const tournament = {
-    id: crypto.randomUUID(),
+    // Permite que la capa Supabase conserve el mismo identificador al crear
+    // una copia local para ejecutar los algoritmos de grupos y brackets.
+    id: input.id || crypto.randomUUID(),
     name: input.name,
     description: input.description || '',
     game: input.game,
