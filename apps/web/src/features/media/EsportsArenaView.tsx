@@ -82,8 +82,8 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Señales oficiales de Twitch y YouTube, marcador contextual y operación de salas en una sola vista.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`media-status ${integration.twitch === 'configured' ? 'text-emerald-300' : 'text-amber-200'}`}><span className="h-1.5 w-1.5 rounded-full bg-[#9146ff]"/> Twitch · {integration.twitch === 'configured' ? 'API real' : 'demo'}</span>
-            <span className={`media-status ${integration.youtube === 'configured' ? 'text-emerald-300' : 'text-amber-200'}`}><span className="h-1.5 w-1.5 rounded-full bg-[#d95656]"/> YouTube · {integration.youtube === 'configured' ? 'API real' : 'demo'}</span>
+            <span className={`media-status ${integration.twitch === 'configured' ? 'text-emerald-300' : 'text-amber-200'}`}><span className="h-1.5 w-1.5 rounded-full bg-[#9146ff]"/> Twitch · {integration.twitch === 'configured' ? 'API real' : 'enlace directo'}</span>
+            <span className={`media-status ${integration.youtube === 'configured' ? 'text-emerald-300' : 'text-amber-200'}`}><span className="h-1.5 w-1.5 rounded-full bg-[#d95656]"/> YouTube · {integration.youtube === 'configured' ? 'API real' : 'enlace directo'}</span>
             {canManage && <button type="button" onClick={() => setShowCreate(true)} className="ml-0 inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-xs font-bold text-black hover:-translate-y-0.5 hover:bg-[#d6b15e] sm:ml-2"><Plus className="h-4 w-4"/> Nueva sala</button>}
           </div>
         </header>

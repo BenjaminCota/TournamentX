@@ -37,6 +37,8 @@ test('Dev 6 gestiona lobbies, métricas y fuentes de stream', async () => {
   assert.ok(streams.body.data.every((stream) => stream.embedId));
   assert.ok(streams.body.data.some((stream) => stream.platform === 'Twitch'));
   assert.ok(streams.body.data.some((stream) => stream.platform === 'YouTube'));
+  assert.ok(streams.body.data.some((stream) => stream.embedId === 'lolesportsla'));
+  assert.ok(streams.body.data.some((stream) => stream.embedId === '6VOfpE_HGpw'));
   const events = await request(app).get('/api/media/events');
   assert.equal(events.status, 200); assert.ok(events.body.data.length >= 6);
   assert.ok(events.body.data.some((event) => event.category === 'esports'));
