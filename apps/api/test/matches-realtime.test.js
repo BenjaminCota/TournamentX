@@ -25,6 +25,8 @@ test('Dev 4 emite match-update solo para la sala del partido', async () => {
   const managerToken = jwt.sign({ sub: 'organizer-realtime', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
 
   try {
+    const health = await request(app).get('/api/health');
+    assert.equal(health.body.realtime.status, 'ready');
     await waitFor(client, 'connect');
     const tournament = await request(app).post('/api/tournaments').set({ Authorization: `Bearer ${managerToken}` }).send({
       name: `Torneo en tiempo real ${Date.now()}`,
