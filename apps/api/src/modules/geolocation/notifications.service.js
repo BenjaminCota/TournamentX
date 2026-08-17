@@ -16,4 +16,12 @@ function publishMatchResult(app, match) {
   });
 }
 
-module.exports = { publishNotification, publishMatchResult };
+function publishTournamentChampion(app, tournament, championName) {
+  return publishNotification(app, {
+    title: 'Torneo finalizado',
+    message: `${tournament.name} tiene campeón: ${championName}.`,
+    type: 'tournament',
+  });
+}
+
+module.exports = { publishNotification, publishMatchResult, publishTournamentChampion };
