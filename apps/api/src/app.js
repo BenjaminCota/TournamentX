@@ -19,7 +19,15 @@ app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: 'TournamentX API' }));
 
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', app: 'TournamentX', storage: process.env.DATABASE_URL ? 'mysql' : 'local', modules: 8 }));
+app.get('/api/health', (_req, res) => res.json({
+  status: 'ok',
+  app: 'TournamentX',
+  storage: 'local-json',
+  integrations: {
+    mysql: process.env.DATABASE_URL ? 'configured-for-schema-and-tests' : 'not-configured',
+  },
+  modules: 8,
+}));
 app.use('/api', apiRoutes);
 app.use('/api', notFound);
 app.use(errorHandler);

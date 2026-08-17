@@ -7,6 +7,7 @@ test('expone el estado de la API', async () => {
   const response = await request(app).get('/api/health');
   assert.equal(response.status, 200);
   assert.equal(response.body.app, 'TournamentX');
+  assert.equal(response.body.storage, 'local-json');
   assert.equal(response.body.modules, 8);
 });
 
