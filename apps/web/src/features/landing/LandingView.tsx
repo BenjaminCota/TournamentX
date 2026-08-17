@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, CalendarDays, Gamepad2, MapPin, Trophy, Users } from 'lucide-react';
+import { ArrowRight, BarChart3, CalendarDays, Gamepad2, Gift, LayoutDashboard, MapPin, Trophy, Users, UsersRound } from 'lucide-react';
 import { TournamentXLogo } from '../../shared/components/TournamentXLogo';
 import { TabId } from '../shell/Sidebar';
 
@@ -15,20 +15,30 @@ const tournaments = [
   { sport: 'Esports', name: 'TournamentX Open', date: '06 SEP', place: 'En línea', teams: 32 }
 ];
 
+const visitorNavigation: Array<{ id: TabId; label: string; icon: React.ElementType }> = [
+  { id: 'dashboard', label: 'Panel', icon: LayoutDashboard },
+  { id: 'tournaments', label: 'Torneos', icon: Trophy },
+  { id: 'calendar', label: 'Partidos', icon: CalendarDays },
+  { id: 'teams', label: 'Equipos', icon: UsersRound },
+  { id: 'analytics', label: 'Estadísticas', icon: BarChart3 },
+  { id: 'venues', label: 'Sedes', icon: MapPin },
+  { id: 'rewards', label: 'Premios', icon: Gift },
+];
+
 export const LandingView: React.FC<LandingViewProps> = ({ onEnterApp, onOpenCreateWizard, onOpenAuth }) => (
   <div className="min-h-screen bg-[#0b0c10] text-white">
-    <header className="border-b border-white/10">
-      <div className="max-w-7xl mx-auto h-20 px-6 flex items-center justify-between">
-        <TournamentXLogo size="md" />
-        <nav className="hidden md:flex items-center gap-7 text-sm text-slate-400">
-          <button onClick={() => onEnterApp('tournaments')} className="hover:text-white">Torneos</button>
-          <button onClick={() => onEnterApp('calendar')} className="hover:text-white">Calendario</button>
-          <button onClick={() => onEnterApp('venues')} className="hover:text-white">Sedes</button>
+    <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
+      <div className="mx-auto flex min-h-16 max-w-[1540px] items-center gap-3 px-4 lg:gap-5 lg:px-7">
+        <div className="shrink-0 border-r border-white/[.08] pr-4"><TournamentXLogo size="sm" /></div>
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2" aria-label="Navegación pública">
+          {visitorNavigation.map(({ id, label, icon: Icon }) => (
+            <button type="button" key={id} onClick={() => onEnterApp(id)} className="group inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-slate-400 transition-all hover:bg-white/[.05] hover:text-white">
+              <Icon className="h-4 w-4 text-slate-500 group-hover:text-slate-300" />
+              <span>{label}</span>
+            </button>
+          ))}
         </nav>
-        <div className="flex items-center gap-3">
-          <button onClick={onOpenAuth} className="px-4 py-2 text-sm text-slate-300 hover:text-white">Iniciar sesión</button>
-          <button onClick={() => onEnterApp('dashboard')} className="px-4 py-2 rounded-lg bg-white text-black text-sm font-semibold hover:bg-slate-200">Entrar</button>
-        </div>
+        <button type="button" onClick={onOpenAuth} className="shrink-0 rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778]">Iniciar sesión</button>
       </div>
     </header>
 
