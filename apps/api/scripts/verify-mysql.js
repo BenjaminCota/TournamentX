@@ -17,6 +17,7 @@ if (!databaseUrl) {
 
   try {
     run(['src/scripts/init-db.js']);
+    run(['--test', 'test/team-roster.mysql.integration.test.js']);
     run(['--test', 'test/mysql.integration.test.js']);
     run(['--test', 'test/dev8-frontend-flow.integration.test.js']);
   } catch (error) {
