@@ -5,6 +5,9 @@ del proyecto con el código actual. Sirve para coordinar a los ocho módulos sin
 duplicar trabajo. Un pendiente se cierra únicamente cuando cumple su criterio de
 aceptación y queda verificado en una rama o entorno compartido.
 
+El reparto actualizado y los criterios de terminado de cada desarrollador están
+en [`PENDIENTES_POR_MODULO.md`](./PENDIENTES_POR_MODULO.md).
+
 ## Estado de la revisión
 
 - Fecha de revisión: 2026-08-16.
@@ -16,6 +19,10 @@ aceptación y queda verificado en una rama o entorno compartido.
 - Avance 2026-08-17: las escrituras de equipos, jugadores, torneos, brackets,
   calendarios y creación de partidos requieren rol `admin` u `organizer`.
   Los árbitros conservan acceso exclusivo a la actualización de marcadores.
+- Avance 2026-08-17: se agregaron solicitudes de organizador, gestión de equipos
+  por capitán, check-in, evidencias, disputas y aprobación de resultados. El
+  resultado oficial ya conecta partido, bracket, notificaciones y premio del
+  campeón de forma idempotente.
 
 ## Prioridad transversal
 
@@ -24,7 +31,7 @@ aceptación y queda verificado en una rama o entorno compartido.
 | Hecho | P0 | Ejecutar tipos, pruebas API y build web automáticamente en cada PR y push a `main`. | Integración | Ninguna | GitHub Actions ejecuta `npm ci`, `npm run check` y `npm run build`. |
 | Pendiente | P0 | Verificar en un entorno compartido las migraciones y políticas RLS de Supabase. | Dev 1 + integrador | Proyecto Supabase y credenciales con permisos de despliegue | Migraciones aplicadas; altas, lecturas y escrituras cumplen los roles documentados. |
 | Hecho | P0 | Ejecutar las pruebas MySQL de premios y calendario contra una base efímera o de pruebas. | Dev 4 + Dev 8 | Base `tournamentx_test` local | `npm run test:db --workspace @tournamentx/api` pasó el 2026-08-17 y no dejó datos de prueba. |
-| Hecho | P1 | Definir un flujo E2E mínimo: registro, equipo, torneo, bracket/calendario, resultado, notificación y recompensa. | Integración con Dev 1-8 | Contratos estables y datos de prueba | El cierre de partido ya publica la notificación de resultado; falta cubrir la cadena completa hasta recompensa. |
+| Hecho | P1 | Definir un flujo E2E mínimo: registro, equipo, torneo, bracket/calendario, resultado, notificación y recompensa. | Integración con Dev 1-8 | Contratos estables y datos de prueba | Una prueba de integración cubre solicitud de rol, equipo, check-in, resultado aprobado, avance de bracket, notificación y premio del campeón. |
 | En curso | P1 | Consolidar la fuente de verdad de entidades compartidas entre API local, Supabase y MySQL. | Dev 1 + integrador | Supabase elegido; faltan credenciales y aplicar RLS | Cada entidad declara almacenamiento, sincronización y fallback; no hay divergencia silenciosa. |
 | Hecho | P1 | Añadir pruebas de autorización por rol para mutaciones de cada API. | Dueño de cada módulo | Usuarios/roles de prueba | Las rutas de escritura aceptan solo los roles permitidos y devuelven 401/403 correctamente. |
 | Hecho | P1 | Publicar una matriz de variables de entorno y verificación sin exponer secretos. | Integración | Acceso a configuraciones de despliegue | Desarrollo, pruebas y producción tienen variables requeridas y modo de fallback explícito. |
@@ -34,10 +41,10 @@ aceptación y queda verificado en una rama o entorno compartido.
 
 | Módulo | Estado actual confirmado | Próximo pendiente | Prioridad | Criterio de aceptación |
 | --- | --- | --- | --- | --- |
-| Dev 1 — autenticación y roles | Login, registro y control administrativo tienen prueba local. | Validar sesión Supabase y RLS con usuarios reales de prueba. | P0 | Un administrador, organizador, jugador y espectador ven y modifican solo lo autorizado. |
-| Dev 2 — torneos y brackets | Brackets de eliminación y grupos están cubiertos por pruebas. | Enlazar el resultado oficial de bracket con el calendario y las recompensas. | P1 | Al cerrar un partido, el avance y los ganadores se reflejan una sola vez. |
-| Dev 3 — equipos y jugadores | CRUD y roster están cubiertos por pruebas. | Asegurar que los participantes de torneos referencien equipos/jugadores persistidos. | P1 | No se pueden inscribir referencias inexistentes ni duplicar roster. |
-| Dev 4 — calendario y en vivo | Calendarios, marcadores y Socket.IO tienen cobertura local y MySQL condicional. | Vincular el resultado oficial de calendario con el bracket del torneo. | P1 | Un resultado autorizado avanza una sola vez la llave y llega al cliente suscrito correcto. |
+| Dev 1 — autenticación y roles | Registro como jugador, solicitud de organizador, aprobación y permisos tienen prueba local. | Persistir el flujo en la base compartida y completar KYC, OAuth y recuperación. | P0 | Un administrador, organizador, jugador y espectador ven y modifican solo lo autorizado. |
+| Dev 2 — torneos y brackets | Brackets de eliminación y grupos, BYE y avance por resultado oficial están cubiertos por pruebas. | Completar estados de publicación, seeding editable y programación de siguientes rondas. | P1 | El bracket publicado avanza una sola vez y cada ronda crea su partido correspondiente. |
+| Dev 3 — equipos y jugadores | Capitán, invitaciones, solicitudes, roster único y transferencia están cubiertos por pruebas. | Completar perfiles de juego, archivos y validación del roster por torneo. | P1 | No se pueden inscribir referencias inexistentes ni duplicar roster. |
+| Dev 4 — calendario y en vivo | Check-in, partido en vivo, evidencia por URL, disputa, aprobación y Socket.IO tienen cobertura local. | Subir evidencias, comparar ambos reportes y cerrar disputas. | P1 | Una disputa bloquea el avance hasta que el organizador publique el resultado oficial. |
 | Dev 5 — analítica | Consume el feed competitivo regional y expone métricas locales. | Definir métricas derivadas de resultados oficiales, no solo del feed demo. | P1 | Dashboard distingue datos oficiales, API externa y demostración. |
 | Dev 6 — streams y lobbies | Lobbies, eventos y métricas tienen prueba API; proveedores externos caen a demo. | Probar credenciales de Twitch/YouTube en entorno de prueba y manejo de cuota/error. | P2 | La UI informa fuente, última actualización y fallback sin romper la vista. |
 | Dev 7 — geolocalización y notificaciones | Búsqueda por cercanía y emisión en tiempo real tienen pruebas. | Validar permisos de ubicación y entrega de notificaciones con eventos reales. | P1 | Un resultado o cambio de sede genera una notificación para el público correcto. |

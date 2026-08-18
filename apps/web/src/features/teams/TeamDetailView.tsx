@@ -1,13 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Pencil, Plus, Share2, Star, Swords, Trash2, Users } from 'lucide-react';
-import { Team, User } from '../../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Copy, Link2, Pencil, Plus, Share2, Star, Swords, Trash2, Users } from 'lucide-react';
+import { Team, User, UserRole } from '../../types';
 import { MOCK_TEAMS } from '../../data/mockData';
 import { TabId } from '../shell/Sidebar';
+import { tournamentXApi } from '../../services/apiClient';
 
 interface TeamDetailViewProps {
   teamId?: string;
   teams?: Team[];
   players?: User[];
+  currentUserRole: UserRole;
+  currentUserId?: string;
   onNavigate: (tab: TabId) => void;
   onSelectTeam?: (teamId: string) => void;
   onCreateTeam?: (team: Partial<Team>) => Promise<Team> | Team;
@@ -20,6 +23,8 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   teamId = 'team-lnx',
   teams = MOCK_TEAMS,
   players = [],
+  currentUserRole,
+  currentUserId,
   onNavigate,
   onSelectTeam,
   onCreateTeam,
@@ -35,8 +40,26 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   const [searchText, setSearchText] = useState('');
   const [selectedRole, setSelectedRole] = useState('Capitán');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
+  const [invitationCode, setInvitationCode] = useState('');
+  const [joinRequests, setJoinRequests] = useState<Array<{ id: string; playerId: string; status: string; player?: User }>>([]);
+  const [teamFlowMessage, setTeamFlowMessage] = useState('');
 
   const currentTeam = useMemo(() => teams.find((team) => team.id === teamId) || teams[0] || MOCK_TEAMS[0], [teamId, teams]);
+  const canManage = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || (currentUserRole === 'Capitán' && currentTeam.captainUserId === currentUserId);
+
+  useEffect(() => {
+    if (!canManage || !currentTeam.id) { setJoinRequests([]); return; }
+    tournamentXApi.teamJoinRequests(currentTeam.id).then((response) => setJoinRequests(response.data)).catch(() => setJoinRequests([]));
+  }, [canManage, currentTeam.id]);
+
+  const createInvitation = async () => {
+    try { const result = await tournamentXApi.createTeamInvitation(currentTeam.id, { expiresInHours: 72, rosterRole: 'Jugador' }); setInvitationCode(result.invitation.code); setTeamFlowMessage('Invitación creada. Comparte el código con el jugador.'); }
+    catch (error) { setTeamFlowMessage(error instanceof Error ? error.message : 'No se pudo crear la invitación'); }
+  };
+  const decideJoinRequest = async (requestId: string, decision: 'approve' | 'reject') => {
+    try { await tournamentXApi.decideTeamJoinRequest(currentTeam.id, requestId, decision); setJoinRequests((current) => current.map((item) => item.id === requestId ? { ...item, status: decision === 'approve' ? 'APPROVED' : 'REJECTED' } : item)); setTeamFlowMessage(decision === 'approve' ? 'Jugador agregado al roster.' : 'Solicitud rechazada.'); }
+    catch (error) { setTeamFlowMessage(error instanceof Error ? error.message : 'No se pudo revisar la solicitud'); }
+  };
 
   const availablePlayers = useMemo(() => {
     return players.filter((player) => !currentTeam.roster.some((member) => member.playerId === player.id));
@@ -145,7 +168,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <button onClick={() => openTeamModal('edit')} className="px-4 py-2.5 rounded-xl border border-[#ff2e83]/40 bg-[#ff2e83]/10 text-[#ff2e83] font-black text-xs uppercase flex items-center gap-2"><Pencil className="w-4 h-4" /> Editar equipo</button>
+            {canManage && <button onClick={() => openTeamModal('edit')} className="px-4 py-2.5 rounded-xl border border-[#ff2e83]/40 bg-[#ff2e83]/10 text-[#ff2e83] font-black text-xs uppercase flex items-center gap-2"><Pencil className="w-4 h-4" /> Editar equipo</button>}
             <button onClick={() => setIsFollowing(!isFollowing)} className={`px-6 py-2.5 rounded-xl font-black text-xs tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer font-tech ${isFollowing ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-[#ff2e83] hover:bg-[#e11d48] text-white shadow-lg shadow-[#ff2e83]/30'}`}>
               <Star className="w-4 h-4" />
               <span>{isFollowing ? 'SIGUIENDO' : '＋ SEGUIR'}</span>
@@ -170,12 +193,14 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
         </div>
       </div>
 
+      {canManage && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[#10121a] p-5 space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold text-white"><Link2 className="h-5 w-5 text-[#ff2e83]"/> Invitaciones del equipo</h2><p className="mt-1 text-xs text-slate-400">El capitán comparte un código y aprueba la entrada al roster.</p></div><button onClick={() => void createInvitation()} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white">CREAR CÓDIGO</button></div>{invitationCode && <button onClick={() => void navigator.clipboard?.writeText(invitationCode)} className="flex w-full items-center justify-between rounded-xl border border-emerald-500/25 bg-emerald-500/[.06] px-4 py-3 text-left"><span className="font-mono text-lg font-black tracking-[.25em] text-emerald-300">{invitationCode}</span><Copy className="h-4 w-4 text-emerald-300"/></button>}{joinRequests.filter((item) => item.status === 'PENDING').map((item) => <div key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 p-3"><span className="text-sm text-slate-300">{item.player?.name || item.playerId} quiere entrar</span><span className="flex gap-2"><button onClick={() => void decideJoinRequest(item.id, 'reject')} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300">Rechazar</button><button onClick={() => void decideJoinRequest(item.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Aceptar</button></span></div>)}{teamFlowMessage && <p className="text-xs text-slate-300">{teamFlowMessage}</p>}</section>}
+
       {activeTab === 'ROSTER' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <h2 className="font-display font-bold text-xl uppercase tracking-wider text-white flex items-center gap-2"><Users className="w-5 h-5 text-[#ff2e83]" /> PLANTILLA ACTIVA ({currentTeam.roster.length} JUGADORES)</h2>
             <div className="flex items-center gap-3">
-              <button onClick={() => setShowRosterModal(true)} className="px-4 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-black text-xs uppercase flex items-center gap-2"><Plus className="w-4 h-4" /> + AGREGAR JUGADOR</button>
+              {canManage && <button onClick={() => setShowRosterModal(true)} className="px-4 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-black text-xs uppercase flex items-center gap-2"><Plus className="w-4 h-4" /> + AGREGAR JUGADOR</button>}
             </div>
           </div>
 
@@ -190,7 +215,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
 
                   <div className="flex items-center gap-2">
                     <button onClick={() => onNavigate('players')} className="p-1.5 rounded-lg bg-[#181b28] hover:bg-[#202435] text-slate-300"><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => removeRosterMember(player.playerId || player.id)} className="p-1.5 rounded-lg bg-[#181b28] hover:bg-red-900/40 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                    {canManage && <button onClick={() => removeRosterMember(player.playerId || player.id)} className="p-1.5 rounded-lg bg-[#181b28] hover:bg-red-900/40 text-slate-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>}
                   </div>
                 </div>
 

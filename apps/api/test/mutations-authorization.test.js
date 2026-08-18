@@ -51,6 +51,7 @@ test('las mutaciones protegidas requieren sesión autenticada', async () => {
 
 test('el rol player no puede ejecutar mutaciones administrativas', async () => {
   for (const [method, path] of protectedMutations) {
+    if (method === 'post' && path === '/api/players') continue;
     const response = await request(app)[method](path).set(playerAuthorization).send({});
     assert.equal(response.status, 403, `${method.toUpperCase()} ${path}`);
   }

@@ -8,19 +8,23 @@ import {
   Maximize, 
   Swords, 
   Plus,
-  Minus
+  Minus,
+  ClipboardCheck,
+  FileCheck2,
+  AlertTriangle
 } from 'lucide-react';
 import { MOCK_LIVE_MATCH } from '../../data/mockData';
-import { Team, TournamentMatch, UserRole } from '../../types';
+import { MatchWorkflow, Team, TournamentMatch, UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
 import { io } from 'socket.io-client';
 
 interface LiveMatchViewProps {
   currentUserRole: UserRole;
+  currentUserId?: string;
   matchId?: string;
 }
 
-export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, matchId }) => {
+export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, currentUserId, matchId }) => {
   const [matchData] = useState(MOCK_LIVE_MATCH);
   const [apiMatch, setApiMatch] = useState<TournamentMatch | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -31,6 +35,10 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, m
   const [isMuted, setIsMuted] = useState(false);
   const [seconds, setSeconds] = useState(45 * 60 + 12);
   const [feed, setFeed] = useState(matchData.killFeed);
+  const [workflow, setWorkflow] = useState<MatchWorkflow | null>(null);
+  const [evidenceUrl, setEvidenceUrl] = useState('https://example.test/evidencias/resultado.png');
+  const [reportedScore, setReportedScore] = useState({ team1: 0, team2: 0 });
+  const [workflowMessage, setWorkflowMessage] = useState('');
 
   const canControlScore = (currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro')
     && Boolean(apiMatch) && !['completed', 'cancelled'].includes(apiMatch.status);
@@ -48,6 +56,9 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, m
         if (active) {
           setApiMatch(selected as TournamentMatch | null);
           setTeams(Array.isArray(nextTeams) ? nextTeams as Team[] : []);
+          if (selected && localStorage.getItem('tournamentx_token')) {
+            tournamentXApi.matchWorkflow(selected.id).then((value) => { if (active) setWorkflow(value); }).catch(() => undefined);
+          }
         }
       } catch {
         if (active) setScoreError('No fue posible cargar el partido desde la API.');
@@ -66,6 +77,9 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, m
     socket.on('match-update', (updatedMatch: TournamentMatch) => {
       if (updatedMatch.id === apiMatch.id) setApiMatch(updatedMatch);
     });
+    socket.on('match-workflow-update', () => {
+      tournamentXApi.matchWorkflow(apiMatch.id).then(setWorkflow).catch(() => undefined);
+    });
     return () => {
       socket.emit('unsubscribe-match', apiMatch.id);
       socket.disconnect();
@@ -73,6 +87,45 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, m
   }, [apiMatch?.id]);
 
   const teamName = (teamId: string | undefined, fallback: string) => teams.find((team) => team.id === teamId)?.name || teamId || fallback;
+  const captainTeamId = apiMatch && currentUserId
+    ? teams.find((team) => team.captainUserId === currentUserId && [apiMatch.team1Id, apiMatch.team2Id].includes(team.id))?.id
+    : undefined;
+  const canReviewReports = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
+  const confirmedTeams = new Set(workflow?.checkIns.filter((entry) => entry.status === 'CONFIRMED').map((entry) => entry.teamId) || []);
+
+  const refreshWorkflow = async () => {
+    if (!apiMatch) return;
+    const next = await tournamentXApi.matchWorkflow(apiMatch.id);
+    setWorkflow(next); setApiMatch(next.match);
+  };
+
+  const handleCheckIn = async () => {
+    if (!apiMatch || !captainTeamId) return;
+    try { await tournamentXApi.checkInMatch(apiMatch.id, captainTeamId); await refreshWorkflow(); setWorkflowMessage('Check-in confirmado.'); }
+    catch (error) { setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo confirmar el check-in'); }
+  };
+
+  const handleReport = async () => {
+    if (!apiMatch || !captainTeamId) return;
+    try {
+      await tournamentXApi.reportMatchResult(apiMatch.id, { teamId: captainTeamId, team1Score: reportedScore.team1, team2Score: reportedScore.team2, evidenceUrl });
+      await refreshWorkflow(); setWorkflowMessage('Resultado enviado al organizador para revisión.');
+    } catch (error) { setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo enviar el resultado'); }
+  };
+
+  const handleDecision = async (reportId: string, decision: 'approve' | 'reject') => {
+    if (!apiMatch) return;
+    try { await tournamentXApi.decideMatchReport(apiMatch.id, reportId, decision, decision === 'approve' ? 'Evidencia revisada' : 'La evidencia no coincide'); await refreshWorkflow(); setWorkflowMessage(decision === 'approve' ? 'Resultado oficial aprobado y sincronizado.' : 'Reporte rechazado.'); }
+    catch (error) { setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo revisar el reporte'); }
+  };
+
+  const handleDispute = async () => {
+    if (!apiMatch || !captainTeamId) return;
+    const reason = window.prompt('Explica el motivo de la disputa');
+    if (!reason) return;
+    try { await tournamentXApi.disputeMatch(apiMatch.id, { teamId: captainTeamId, reason, evidenceUrl }); await refreshWorkflow(); setWorkflowMessage('Disputa enviada al organizador.'); }
+    catch (error) { setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo abrir la disputa'); }
+  };
 
   // Live timer simulator
   useEffect(() => {
@@ -239,6 +292,17 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, m
 
       {isLoadingMatch && <p className="rounded-xl border border-[#252a3d] bg-[#11131c] p-4 text-sm text-slate-400">Cargando datos del partido…</p>}
       {scoreError && <p className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">{scoreError}</p>}
+
+      {apiMatch && (captainTeamId || canReviewReports) && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[#10121a] p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold text-white"><ClipboardCheck className="h-5 w-5 text-[#ff2e83]"/> Flujo oficial por rol</h2><p className="mt-1 text-xs text-slate-400">Check-in del capitán, evidencia y aprobación conectada con bracket, alertas y premios.</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">{confirmedTeams.size}/2 equipos listos</span></div>
+        {captainTeamId && <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto]">
+          <button onClick={() => void handleCheckIn()} disabled={confirmedTeams.has(captainTeamId) || apiMatch.status === 'completed'} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{confirmedTeams.has(captainTeamId) ? 'CHECK-IN CONFIRMADO' : 'HACER CHECK-IN'}</button>
+          <div className="grid grid-cols-[80px_80px_1fr] gap-2"><input type="number" min={0} value={reportedScore.team1} onChange={(event) => setReportedScore((current) => ({ ...current, team1: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 1"/><input type="number" min={0} value={reportedScore.team2} onChange={(event) => setReportedScore((current) => ({ ...current, team2: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 2"/><input type="url" value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} className="field" placeholder="URL de la captura de evidencia"/></div>
+          <div className="flex gap-2"><button onClick={() => void handleReport()} disabled={confirmedTeams.size < 2 || apiMatch.status !== 'live'} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><FileCheck2 className="mr-1 inline h-4 w-4"/> REPORTAR</button><button onClick={() => void handleDispute()} className="rounded-xl border border-amber-500/30 px-3 py-2.5 text-xs font-bold text-amber-300"><AlertTriangle className="h-4 w-4"/></button></div>
+        </div>}
+        {canReviewReports && workflow?.reports.filter((report) => report.status === 'PENDING_REVIEW').map((report) => <div key={report.id} className="flex flex-col gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[.06] p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong className="text-sm text-white">Marcador propuesto: {report.team1Score} - {report.team2Score}</strong><a href={report.evidenceUrl} target="_blank" rel="noreferrer" className="ml-3 text-xs text-[#ff69a8] underline">Ver evidencia</a></div><div className="flex gap-2"><button onClick={() => void handleDecision(report.id, 'reject')} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300">Rechazar</button><button onClick={() => void handleDecision(report.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Aprobar resultado</button></div></div>)}
+        {workflowMessage && <p className="text-xs text-slate-300">{workflowMessage}</p>}
+      </section>}
 
       {/* 2-COLUMN: STREAM PLAYER & LIVE KILL FEED */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

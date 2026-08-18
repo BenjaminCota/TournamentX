@@ -15,7 +15,7 @@ test('Dev 1 autentica, registra y protege la administración de roles', async ()
   const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
   assert.equal(me.status, 200); assert.equal(me.body.user.email, 'admin@tournamentx.local');
   const registration = await request(app).post('/api/auth/register').send({ name: 'Persona Invitada', email: `guest-${Date.now()}@example.test`, password: 'Password123!' });
-  assert.equal(registration.status, 201); assert.equal(registration.body.user.role, 'spectator');
+  assert.equal(registration.status, 201); assert.equal(registration.body.user.role, 'player');
   const forbidden = await request(app).get('/api/auth/users').set('Authorization', `Bearer ${registration.body.token}`);
   assert.equal(forbidden.status, 403);
   const users = await request(app).get('/api/auth/users').set('Authorization', `Bearer ${token}`);

@@ -3,6 +3,7 @@ const HttpError = require('../../utils/http-error');
 const database = require('../../config/database');
 const matchStore = require('./match-store');
 const localStore = require('../../config/local-store');
+const tournamentStore = require('../tournaments/tournament-store');
 
 const schedulesSeed = [
   { id: 'schedule-01', tournamentId: 'tour-1', startsAt: '2026-08-20T18:00:00.000Z', endsAt: '2026-08-20T19:30:00.000Z', status: 'published', format: 'single_elimination', createdAt: '2026-08-15T18:00:00.000Z', updatedAt: '2026-08-15T18:00:00.000Z' },
@@ -48,7 +49,16 @@ async function getSchedule(scheduleId) {
 }
 
 async function createSchedule({ tournamentId, teamIds, startsAt, endsAt, slotMinutes, venue, mode, format }) {
-  const pairings = createPairings(teamIds, format);
+  let pairings = createPairings(teamIds, format);
+  if (format === 'single_elimination') {
+    try {
+      const firstRound = tournamentStore.getBracket(tournamentId)[0];
+      const linked = firstRound?.matches
+        .filter((match) => match.team1.id !== 'tbd' && match.team2.id !== 'tbd' && match.status !== 'FINISHED')
+        .map((match) => ({ team1Id: match.team1.id, team2Id: match.team2.id, roundId: match.id }));
+      if (linked?.length) pairings = linked;
+    } catch (_error) { /* Conserva el emparejamiento del calendario si aÃºn no existe bracket. */ }
+  }
   const startTime = startsAt.getTime();
   const computedEnd = new Date(startTime + (pairings.length * slotMinutes * 60 * 1000));
   if (endsAt && computedEnd > endsAt) throw new HttpError(400, 'El calendario no cabe dentro del rango de fechas indicado');
