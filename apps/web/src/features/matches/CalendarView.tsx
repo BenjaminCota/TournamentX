@@ -66,10 +66,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
   }), [matches]);
 
   return (
-    <div id="calendar-view" className="p-6 lg:p-8 max-w-7xl mx-auto space-y-7">
+    <div id="calendar-view" className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-7 sm:p-6 lg:p-8">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
-          <h1 className="font-brand font-black text-4xl text-white uppercase italic flex items-center gap-3"><CalendarDays className="w-8 h-8 text-[#ff2e83]" /> Calendario de partidos</h1>
+          <h1 className="flex items-center gap-2 font-brand text-3xl font-black uppercase text-white sm:gap-3 sm:text-4xl"><CalendarDays className="h-7 w-7 shrink-0 text-[#ff2e83] sm:h-8 sm:w-8" /> Calendario de partidos</h1>
           <p className="text-sm text-slate-400 mt-2">Agenda unificada de encuentros registrados y proveedores oficiales disponibles.</p>
           <div className="mt-3 flex flex-wrap gap-2"><span className="status-chip text-slate-400">Esports: {integration.esports === 'configured' ? 'PandaScore' : 'TournamentX'}</span><span className="status-chip text-slate-400">Fútbol: {integration.football === 'configured' ? 'football-data.org' : 'TournamentX'}</span></div>
         </div>

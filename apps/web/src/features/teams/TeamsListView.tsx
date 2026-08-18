@@ -108,11 +108,11 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
           <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-[#6366f1] rounded-full blur-3xl translate-y-1/2" />
         </div>
 
-        <div className="relative p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="relative mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
           {/* TITLE AND CREATE BUTTON */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h1 className="font-brand font-black text-5xl text-white uppercase tracking-tight italic drop-shadow-lg">
+              <h1 className="font-brand text-4xl font-black uppercase tracking-tight text-white sm:text-5xl">
                 EQUIPOS
               </h1>
               <p className="text-sm text-slate-300 mt-2 font-tech">Explora los equipos registrados en TournamentX.</p>
@@ -166,7 +166,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
       </div>
 
       {/* SEARCH AND FILTERS */}
-      <div className="p-6 lg:p-8 space-y-4 max-w-7xl mx-auto">
+      <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6 lg:p-8">
         {/* SEARCH BAR */}
         <div className="relative w-full">
           <Search className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -199,7 +199,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
       </div>
 
       {/* TEAMS GRID */}
-      <div className="px-6 lg:p-8 pb-12 space-y-8 max-w-7xl mx-auto">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 pb-12 sm:px-6 lg:p-8">
         {filteredTeams.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTeams.map((team) => (
@@ -277,7 +277,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
       )}
       </div>
 
-      <section className="px-6 lg:px-8 pb-12 max-w-7xl mx-auto">
+      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-t border-white/[.07] pt-8"><div><span className="text-[10px] font-bold uppercase tracking-[.18em] text-[#d6b15e]">Directorio competitivo</span><h2 className="mt-1 text-2xl font-black text-white">Equipos y organizaciones</h2><p className="mt-1 text-xs text-slate-500">Registros de TournamentX enriquecidos con proveedores oficiales cuando están disponibles.</p></div><p className="text-[10px] text-slate-600">Esports: {feedIntegration.esports === 'configured' ? 'PandaScore' : 'TournamentX'} · Fútbol: {feedIntegration.football === 'configured' ? 'football-data.org' : 'TournamentX'}</p></div>
         <div className="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{filteredFeedTeams.map((team) => <article key={team.id} className="rounded-2xl border border-white/[.07] bg-[#10121a] p-4 hover:border-[#d6b15e]/40 transition-colors"><div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[.04] text-[10px] font-black">{team.logo ? <img src={team.logo} alt="" className="h-full w-full object-contain"/> : team.shortName}</div><div className="min-w-0"><h3 className="truncate text-sm font-bold text-white">{team.name}</h3><p className="mt-0.5 text-[10px] text-slate-500">{team.sport} · {team.region}</p></div></div><div className="mt-4 flex items-center justify-between"><div className="flex gap-1">{team.form.slice(-5).map((result, index) => <span key={`${result}-${index}`} className={`grid h-5 w-5 place-items-center rounded text-[8px] font-bold ${result === 'W' ? 'bg-emerald-500/15 text-emerald-300' : result === 'L' ? 'bg-red-500/15 text-red-300' : 'bg-slate-500/15 text-slate-300'}`}>{result}</span>)}</div><span className={`rounded px-1.5 py-1 text-[8px] font-bold ${team.dataMode === 'api' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-[#ff2e83]/10 text-[#ff69a8]'}`}>{team.source}</span></div><div className="mt-4 border-t border-white/[.06] pt-3"><p className="text-[9px] uppercase tracking-wider text-slate-600">Plantilla</p>{team.players.length ? <div className="mt-2 space-y-1">{team.players.slice(0, 4).map((player) => <div key={player.id} className="flex justify-between text-[10px]"><span className="truncate text-slate-300">{player.nickname || player.name}</span><span className="text-slate-600">{player.role}</span></div>)}</div> : <p className="mt-2 text-[10px] leading-4 text-slate-500">La plantilla aún no ha sido publicada por la organización.</p>}</div></article>)}</div>
       </section>

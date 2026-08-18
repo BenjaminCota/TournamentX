@@ -47,8 +47,8 @@ export const UsersView: React.FC<UsersViewProps> = ({ currentUserRole }) => {
   const shown = users.filter((user) => `${user.name} ${user.email} ${user.roleLabel}`.toLowerCase().includes(query.toLowerCase()));
   const pending = requests.filter((request) => request.status === 'PENDING');
 
-  return <div className="mx-auto max-w-7xl space-y-6 p-5 lg:p-8">
-    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><span className="text-[11px] font-black tracking-[.2em] text-[#ff5ba0]">IDENTIDAD Y PERMISOS</span><h1 className="mt-1 font-brand text-5xl font-black uppercase italic">Usuarios y roles</h1><p className="mt-2 text-sm text-slate-400">Las cuentas y solicitudes se validan desde el servidor.</p></div><button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}/> Actualizar</button></header>
+  return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-5 lg:p-8">
+    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><span className="text-[11px] font-black tracking-[.2em] text-[#ff5ba0]">IDENTIDAD Y PERMISOS</span><h1 className="mt-1 font-brand text-3xl font-black uppercase sm:text-5xl">Usuarios y roles</h1><p className="mt-2 text-sm text-slate-400">Las cuentas y solicitudes se validan desde el servidor.</p></div><button onClick={() => void load()} className="inline-flex self-start items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm sm:self-auto"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}/> Actualizar</button></header>
     {message && <div role="status" className="rounded-xl border border-[#ff2e83]/20 bg-[#ff2e83]/10 p-3 text-sm text-slate-200">{message}</div>}
 
     <section className="surface rounded-3xl p-5"><div className="mb-4 flex items-center gap-2"><Building2 className="h-5 w-5 text-[#ff2e83]"/><h2 className="font-bold text-white">Solicitudes de organizador</h2><span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300">{pending.length} pendientes</span></div>

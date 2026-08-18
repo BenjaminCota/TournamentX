@@ -307,7 +307,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     && groups.every((group) => group.matches.length > 0 && group.matches.every((m) => m.status === 'FINISHED'));
 
   return (
-    <div id="tournaments-view-container" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div id="tournaments-view-container" className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
           Torneos
@@ -323,14 +323,14 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
       {/* Tournament Selector Dropdown / Pills */}
       <div className="flex flex-col gap-2 rounded-2xl border border-[#1e2230] bg-[#10121a] p-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-mono-code uppercase font-bold text-slate-400">Torneo Activo:</span>
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <span className="shrink-0 text-xs font-mono-code uppercase font-bold text-slate-400">Torneo Activo:</span>
           <select
             id="tournament-selector-dropdown"
             aria-label="Seleccionar torneo activo"
             value={selectedTournament.id}
             onChange={(e) => setSelectedTournamentId(e.target.value)}
-            className="bg-[#141724] border border-[#232738] rounded-xl px-4 py-2 text-sm font-bold text-white focus:outline-none focus:border-[#ff2e83] cursor-pointer"
+            className="w-full min-w-0 rounded-xl border border-[#232738] bg-[#141724] px-3 py-2 text-sm font-bold text-white focus:border-[#ff2e83] focus:outline-none sm:w-auto sm:max-w-xl sm:px-4 cursor-pointer"
           >
             {tournaments.map(t => (
               <option key={t.id} value={t.id}>{t.name} ({t.game})</option>
@@ -368,7 +368,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       </section>}
 
       {/* TOURNAMENT HEADER */}
-      <div className="rounded-3xl bg-[#10121a] border border-[#1e2230] p-6 lg:p-8 space-y-6">
+      <div className="space-y-6 rounded-3xl border border-[#1e2230] bg-[#10121a] p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -460,7 +460,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           </div>}
 
           {/* BRACKET CANVAS */}
-          <div className="p-6 lg:p-8 rounded-3xl bg-[#0e1017] border border-[#1e2230] overflow-x-auto min-h-[500px]">
+          <div className="min-h-[420px] overflow-x-auto rounded-3xl border border-[#1e2230] bg-[#0e1017] p-4 sm:min-h-[500px] sm:p-6 lg:p-8">
             {rounds.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-24 text-center gap-3">
                 <p className="text-sm text-slate-400">Este torneo todavía no tiene un bracket generado.</p>

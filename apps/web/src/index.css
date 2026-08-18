@@ -16,6 +16,7 @@
     --tx-blue: #4f7cff;
   }
   * { box-sizing: border-box; }
+  html, body, #root { width: 100%; min-width: 0; max-width: 100%; }
   body {
     font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
     background-color: var(--tx-bg);
@@ -27,7 +28,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
+  img, video, iframe, canvas, svg { max-width: 100%; }
+  input, select, textarea, button { min-width: 0; }
   ::selection { background: rgba(255,46,131,.38); color: var(--tx-text-strong); }
   button, a, input, select, textarea { transition-duration: 180ms; transition-timing-function: cubic-bezier(.2,.8,.2,1); }
   button:not(:disabled) { cursor: pointer; }
@@ -91,6 +95,20 @@
   letter-spacing: .035em;
   line-height: .94;
   text-wrap: balance;
+}
+
+.tx-nav-scroll {
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.tx-nav-scroll::-webkit-scrollbar { display: none; }
+
+@media (max-width: 639px) {
+  .surface, .tx-card, .tx-spotlight { border-radius: 1rem; }
+  .tx-kicker { max-width: 100%; letter-spacing: .16em; line-height: 1.45; }
+  .tx-kicker::before { width: 1.2rem; flex: 0 0 auto; }
+  .tx-spotlight::after { right: -2rem; bottom: -2.4rem; font-size: 8rem; }
 }
 
 .font-mono-code {

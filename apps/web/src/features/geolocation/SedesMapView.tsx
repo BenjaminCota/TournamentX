@@ -170,9 +170,9 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
   const locationMessage = locationState === 'denied' ? 'Permiso de ubicación denegado. Actívalo en tu navegador.'
     : locationState === 'unsupported' ? 'Este navegador no permite geolocalización.' : null;
 
-  return <div id="sedes-map-view" className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+  return <div id="sedes-map-view" className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div><h1 className="font-brand font-black text-4xl text-white uppercase italic flex items-center gap-3"><MapPin className="w-8 h-8 text-[#ff2e83]"/> Sedes y torneos cercanos</h1><p className="text-xs text-slate-400 mt-1">Explora arenas, usa tu ubicación y recibe alertas en tiempo real.</p></div>
+      <div><h1 className="flex items-center gap-2 font-brand text-3xl font-black uppercase text-white sm:gap-3 sm:text-4xl"><MapPin className="h-7 w-7 shrink-0 text-[#ff2e83] sm:h-8 sm:w-8"/> Sedes y torneos cercanos</h1><p className="text-xs text-slate-400 mt-1">Explora arenas, usa tu ubicación y recibe alertas en tiempo real.</p></div>
       <div className="flex gap-2">
         <button onClick={() => setNotificationsOpen((value) => !value)} className="relative px-4 py-2.5 rounded-xl bg-[#181b28] border border-[#282d42] text-white flex items-center gap-2"><Bell className="w-4 h-4"/> Alertas{unreadNotifications > 0 && <span className="rounded-full bg-[#ff2e83] px-2 text-[10px]">{unreadNotifications}</span>}</button>
         <button onClick={locateUser} disabled={locationState === 'loading'} className="px-4 py-2.5 rounded-xl bg-[#ff2e83] disabled:opacity-60 text-white font-semibold text-xs flex items-center gap-2"><Navigation className="w-4 h-4"/>{locationState === 'loading' ? 'Localizando…' : 'Usar mi ubicación'}</button>
@@ -193,7 +193,7 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
           <label className="relative"><Search className="absolute left-3 top-3 w-4 h-4 text-slate-500"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar sede, ciudad o país" className="w-full rounded-xl bg-[#10121a] border border-[#282d42] py-2.5 pl-10 pr-3 text-sm text-white outline-none focus:border-[#ff2e83]"/></label>
           <label className="rounded-xl bg-[#10121a] border border-[#282d42] px-3 py-2 text-xs text-slate-400">Radio <select value={radiusKm} onChange={(event) => setRadiusKm(Number(event.target.value))} disabled={!userLocation} className="ml-2 bg-transparent text-white"><option value={50}>50 km</option><option value={250}>250 km</option><option value={1000}>1,000 km</option><option value={5000}>5,000 km</option><option value={20000}>Todas</option></select></label>
         </div>
-        <div className="relative rounded-3xl overflow-hidden border border-[#1e2230] shadow-2xl h-[500px]"><div ref={mapContainerRef} className="w-full h-full"/><div className="absolute top-4 left-14 z-[400] bg-[#0d0e14]/90 rounded-xl px-3 py-2 text-xs text-slate-300"><LocateFixed className="inline w-3 h-3 mr-1 text-[#ff2e83]"/>{venuesWithDistance.length} sedes visibles</div></div>
+        <div className="relative h-[380px] overflow-hidden rounded-3xl border border-[#1e2230] shadow-2xl sm:h-[500px]"><div ref={mapContainerRef} className="h-full w-full"/><div className="absolute left-14 top-4 z-[400] rounded-xl bg-[#0d0e14]/90 px-3 py-2 text-[10px] text-slate-300 sm:text-xs"><LocateFixed className="mr-1 inline h-3 w-3 text-[#ff2e83]"/>{venuesWithDistance.length} sedes visibles</div></div>
       </div>
       <aside className="space-y-3">
         {!selectedVenue ? <div className="rounded-3xl border border-dashed border-white/10 bg-[#10121a] p-8 text-center"><MapPin className="mx-auto h-8 w-8 text-[#ff2e83]"/><h2 className="mt-3 font-bold text-white">No hay sedes registradas</h2><p className="mt-2 text-xs leading-5 text-slate-500">Cuando un organizador publique una sede aparecerá aquí con sus torneos asociados.</p></div> : <>

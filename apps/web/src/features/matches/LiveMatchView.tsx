@@ -223,9 +223,9 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
   };
 
   return (
-    <div id="live-match-room-view" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div id="live-match-room-view" className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
       {/* MATCH HEADER (Image 9) */}
-      <div className="rounded-3xl bg-gradient-to-r from-[#171926] via-[#12141f] to-[#1a1524] border border-[#ff2e83]/40 p-6 lg:p-8 shadow-2xl space-y-4">
+      <div className="space-y-4 rounded-3xl border border-[#ff2e83]/40 bg-gradient-to-r from-[#171926] via-[#12141f] to-[#1a1524] p-4 shadow-2xl sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono-code font-bold text-xs flex items-center gap-1.5 animate-pulse">
@@ -241,23 +241,23 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
         </div>
 
         {/* Big Teams Scoreboard (Image 9) */}
-        <div className="flex items-center justify-between pt-2">
+        <div className="grid grid-cols-2 gap-4 pt-2 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
           {/* Team 1: NOVA */}
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#202438] border border-[#2e344e] flex items-center justify-center font-brand font-black text-2xl text-white shadow-inner">
+          <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#2e344e] bg-[#202438] font-brand text-xl font-black text-white shadow-inner sm:h-16 sm:w-16 sm:text-2xl">
               {teamName(apiMatch?.team1Id, 'TBD').slice(0, 3).toUpperCase()}
             </div>
             <div>
               <div className="text-[11px] font-tech text-[#ff2e83] font-bold uppercase tracking-wider">EQUIPO 1</div>
-              <h2 className="font-brand font-black text-3xl sm:text-5xl text-white uppercase tracking-tight italic">
+              <h2 className="break-words font-brand text-xl font-black uppercase tracking-tight text-white sm:text-3xl lg:text-5xl">
                 {teamName(apiMatch?.team1Id, 'Por definir')}
               </h2>
             </div>
           </div>
 
           {/* Central Score Block with Scorekeeper Buttons */}
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-4 px-6 py-3 rounded-2xl bg-[#0b0c12] border border-[#23273b] shadow-2xl">
+          <div className="col-span-2 row-start-2 flex flex-col items-center gap-2 lg:col-span-1 lg:col-start-2 lg:row-start-1">
+            <div className="flex items-center gap-2 rounded-2xl border border-[#23273b] bg-[#0b0c12] px-3 py-3 shadow-2xl sm:gap-4 sm:px-6">
               {canControlScore && (
                 <button
                   disabled={isSavingScore}
@@ -269,7 +269,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
                 </button>
               )}
 
-              <span className="font-brand font-black text-5xl sm:text-6xl text-white">
+              <span className="font-brand text-4xl font-black text-white sm:text-6xl">
                 {apiMatch?.score.team1 ?? 0}
               </span>
 
@@ -277,7 +277,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
                 {apiMatch?.mode?.replace('best_of_', 'BO') || 'VS'}
               </span>
 
-              <span className="font-brand font-black text-5xl sm:text-6xl text-[#ff2e83]">
+              <span className="font-brand text-4xl font-black text-[#ff2e83] sm:text-6xl">
                 {apiMatch?.score.team2 ?? 0}
               </span>
 
@@ -301,14 +301,14 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
           </div>
 
           {/* Team 2: RAVEN */}
-          <div className="flex items-center gap-4 text-right">
+          <div className="flex min-w-0 flex-col-reverse items-end gap-3 text-right sm:flex-row sm:items-center sm:justify-end sm:gap-4">
             <div>
               <div className="text-[11px] font-tech text-slate-400 font-bold uppercase tracking-wider">EQUIPO 2</div>
-              <h2 className="font-brand font-black text-3xl sm:text-5xl text-white uppercase tracking-tight italic">
+              <h2 className="break-words font-brand text-xl font-black uppercase tracking-tight text-white sm:text-3xl lg:text-5xl">
                 {teamName(apiMatch?.team2Id, 'Por definir')}
               </h2>
             </div>
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#202438] border border-[#2e344e] flex items-center justify-center font-brand font-black text-2xl text-white shadow-inner">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#2e344e] bg-[#202438] font-brand text-xl font-black text-white shadow-inner sm:h-16 sm:w-16 sm:text-2xl">
               {teamName(apiMatch?.team2Id, 'TBD').slice(0, 3).toUpperCase()}
             </div>
           </div>
@@ -322,7 +322,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold text-white"><ClipboardCheck className="h-5 w-5 text-[#ff2e83]"/> Flujo oficial por rol</h2><p className="mt-1 text-xs text-slate-400">Check-in del capitán, evidencia y aprobación conectada con bracket, alertas y premios.</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">{confirmedTeams.size}/2 equipos listos</span></div>
         {captainTeamId && <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto]">
           <button onClick={() => void handleCheckIn()} disabled={confirmedTeams.has(captainTeamId) || apiMatch.status === 'completed'} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{confirmedTeams.has(captainTeamId) ? 'CHECK-IN CONFIRMADO' : 'HACER CHECK-IN'}</button>
-          <div className="grid grid-cols-[80px_80px_1fr] gap-2"><input type="number" min={0} value={reportedScore.team1} onChange={(event) => setReportedScore((current) => ({ ...current, team1: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 1"/><input type="number" min={0} value={reportedScore.team2} onChange={(event) => setReportedScore((current) => ({ ...current, team2: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 2"/><label className="field flex cursor-pointer items-center text-xs text-slate-400"><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={(event) => void handleEvidenceFile(event.target.files?.[0])}/>{isUploadingEvidence ? 'Cargando evidencia…' : evidenceUrl ? 'Evidencia privada lista ✓' : 'Adjuntar captura o PDF'}</label></div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-[80px_80px_1fr]"><input type="number" min={0} value={reportedScore.team1} onChange={(event) => setReportedScore((current) => ({ ...current, team1: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 1"/><input type="number" min={0} value={reportedScore.team2} onChange={(event) => setReportedScore((current) => ({ ...current, team2: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 2"/><label className="field col-span-2 flex cursor-pointer items-center text-xs text-slate-400 sm:col-span-1"><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={(event) => void handleEvidenceFile(event.target.files?.[0])}/>{isUploadingEvidence ? 'Cargando evidencia…' : evidenceUrl ? 'Evidencia privada lista ✓' : 'Adjuntar captura o PDF'}</label></div>
           <div className="flex gap-2"><button onClick={() => void handleReport()} disabled={confirmedTeams.size < 2 || apiMatch.status !== 'live' || !evidenceUrl || isUploadingEvidence} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><FileCheck2 className="mr-1 inline h-4 w-4"/> REPORTAR</button><button onClick={() => void handleDispute()} disabled={!evidenceUrl} className="rounded-xl border border-amber-500/30 px-3 py-2.5 text-xs font-bold text-amber-300 disabled:opacity-40"><AlertTriangle className="h-4 w-4"/></button></div>
         </div>}
         {canReviewReports && workflow?.disputes.filter((dispute) => dispute.status === 'OPEN').map((dispute) => <div key={dispute.id} className="flex flex-col gap-3 rounded-2xl border border-red-500/30 bg-red-500/[.06] p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong className="text-sm text-red-200">Disputa abierta</strong><p className="mt-1 text-xs text-slate-300">{dispute.reason}</p>{dispute.evidenceUrl && <a href={dispute.evidenceUrl} target="_blank" rel="noreferrer" className="text-xs text-[#ff69a8] underline">Ver evidencia</a>}</div><div className="flex gap-2"><button onClick={() => void handleDisputeDecision(dispute.id, 'dismiss')} className="rounded-lg border border-white/15 px-3 py-2 text-xs text-slate-300">Descartar</button><button onClick={() => void handleDisputeDecision(dispute.id, 'resolve')} className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black">Resolver</button></div></div>)}

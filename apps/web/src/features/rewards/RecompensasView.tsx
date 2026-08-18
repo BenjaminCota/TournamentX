@@ -651,9 +651,9 @@ export function RecompensasView({ currentUserRole, isAuthenticated, currentUserI
                 ? 'Completa el número, vencimiento MM/AA y CVC de una tarjeta de prueba.'
                 : 'La tarjeta de prueba es válida y la aportación está lista para confirmarse.';
 
-  return <div id="recompensas-view" className="mx-auto max-w-7xl space-y-7 p-6 lg:p-8">
+  return <div id="recompensas-view" className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-7 sm:p-6 lg:p-8">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div><h1 className="flex items-center gap-3 font-brand text-4xl font-black uppercase italic text-white"><CreditCard className="h-8 w-8 text-[#ff2e83]"/> Premios y pagos</h1><p className="mt-2 text-sm text-slate-400">{accessLabel}.</p></div>
+      <div><h1 className="flex items-center gap-2 font-brand text-3xl font-black uppercase text-white sm:gap-3 sm:text-4xl"><CreditCard className="h-7 w-7 shrink-0 text-[#ff2e83] sm:h-8 sm:w-8"/> Premios y pagos</h1><p className="mt-2 text-sm text-slate-400">{accessLabel}.</p></div>
       <span className="inline-flex items-center gap-2 self-start rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-300"><ShieldCheck className="h-4 w-4"/>{connectionMessage}</span>
     </header>
 
@@ -691,7 +691,7 @@ export function RecompensasView({ currentUserRole, isAuthenticated, currentUserI
           <label className="block text-xs text-slate-300">Torneo<select required value={selectedEntryTournamentId} onChange={(event) => setSelectedEntryTournamentId(event.target.value)} className="field mt-1">{entryTournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name} · ${Number(tournament.entryFee).toFixed(2)} {tournament.entryCurrency}</option>)}</select></label>
           <label className="block text-xs text-slate-300">Tu equipo<select required value={selectedEntryTeamId} onChange={(event) => setSelectedEntryTeamId(event.target.value)} className="field mt-1">{captainTeams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
         </div>
-        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-4 text-sm"><span className="text-slate-400">Cuota definida por el torneo</span><strong className="text-emerald-400">${Number(selectedEntryTournament?.entryFee || 0).toFixed(2)} {selectedEntryTournament?.entryCurrency || 'USD'}</strong></div>
+        <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[.03] p-4 text-sm sm:flex-row sm:items-center sm:justify-between"><span className="text-slate-400">Cuota definida por el torneo</span><strong className="text-emerald-400">${Number(selectedEntryTournament?.entryFee || 0).toFixed(2)} {selectedEntryTournament?.entryCurrency || 'USD'}</strong></div>
         {currentRegistration?.status === 'paid' ? <div className="flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-300"><CheckCircle2 className="h-5 w-5"/>{currentRegistration.enrollmentStatus === 'confirmed' ? 'Pago e inscripción confirmados' : 'Pago completado'} para {currentRegistration.teamName}</div> : <>
           <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[.06] p-4"><span className="text-xs font-bold text-white">Pago seguro</span>{stripePublishableKey ? <div ref={cardMountRef} className="mt-3 min-h-10 rounded-xl border border-white/10 bg-[#0c0d14] px-4 py-3"/> : <p className="mt-2 text-xs text-slate-400">Confirma para continuar con el pago.</p>}</div>
           <button disabled={isProcessing || !selectedEntryTournamentId || !selectedEntryTeamId || !stripePublishableKey || !stripeReady} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white disabled:opacity-50">{isProcessing ? 'Procesando...' : 'PAGAR INSCRIPCIÓN'}<ArrowRight className="h-4 w-4"/></button>
