@@ -526,7 +526,7 @@ export default function App() {
             {activeTab === 'analytics' && <AnalyticsView />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
             {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} />}
-            {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} />}
+            {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} currentUserId={currentUser?.id} isAuthenticated={Boolean(currentUser)} />}
           </main>
         </>
       )}

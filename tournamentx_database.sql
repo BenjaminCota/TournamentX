@@ -353,7 +353,7 @@ CREATE TABLE prize_distribution_rules (
 -- Descripción: Pagos de entrada recibidos mediante proveedores externos.
 CREATE TABLE payments (
  payment_id bigserial PRIMARY KEY, prize_pool_id bigint NOT NULL REFERENCES prize_pools,
- provider varchar(30) NOT NULL CHECK(provider IN ('stripe','binance_pay')), external_payment_id varchar(150) NOT NULL UNIQUE,
+ provider varchar(30) NOT NULL CHECK(provider IN ('stripe')), external_payment_id varchar(150) NOT NULL UNIQUE,
  amount numeric(18,8) NOT NULL CHECK(amount>0), currency varchar(10) NOT NULL, status payment_status NOT NULL DEFAULT 'created',
  idempotency_key uuid NOT NULL DEFAULT gen_random_uuid() UNIQUE, provider_payload jsonb NOT NULL DEFAULT '{}',
  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()

@@ -10,7 +10,7 @@ TournamentX es una plataforma para administrar torneos de deportes tradicionales
 - Tiempo real: Socket.IO para marcadores, alertas y lobbies.
 - Streaming: reproductores oficiales de Twitch y YouTube con fuentes reales opcionales y demo local.
 - Datos competitivos: feed normalizado para partidos, clasificaciones, forma, equipos y plantillas; adaptadores opcionales de PandaScore y football-data.org.
-- Pagos: flujo local completo y adaptadores opcionales de Stripe/Binance Pay.
+- Pagos: Stripe Test, Stripe Elements y cuentas conectadas Express.
 
 No existe una integración de inteligencia artificial ni se cargan recursos de fuentes externas para la tipografía.
 
@@ -86,7 +86,10 @@ Ejemplo seguro:
 PORT=3000
 NODE_ENV=development
 JWT_SECRET=replace-with-a-long-random-secret
-PAYMENTS_MODE=simulated
+STRIPE_MODE=test
+STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
 ```
 
 No se deben subir archivos `.env`, contraseñas ni llaves privadas.
@@ -130,24 +133,17 @@ npm run dev:web
 - Estado: `http://localhost:3000/api/health`
 - Documentación: `http://localhost:3000/api/docs`
 
-## Stripe y Binance Pay
+## Stripe
 
-Los dos proveedores funcionan como simulaciones del MVP:
+El módulo financiero usa exclusivamente Stripe Test durante el desarrollo:
 
-- Stripe genera referencias con prefijo `pi_test_`.
-- Binance Pay genera referencias con prefijo `bp_test_`.
-- Las aportaciones empiezan en estado `pending`.
-- Un administrador u organizador puede aprobar, rechazar o reembolsar la operación.
-- Las transiciones se guardan en `payment_events`.
-- No se contactan servicios externos ni se mueve dinero.
+- Stripe Elements captura la tarjeta sin enviarla a Express ni guardarla en la base.
+- Las aportaciones usan PaymentIntent con captura manual y webhook firmado.
+- Stripe Connect Express incorpora a los capitanes y recibe los premios mediante transferencias de prueba.
+- Los reembolsos, eventos y recibos quedan registrados para conciliación.
+- Sin las variables Stripe Test, los pagos quedan deshabilitados; la aplicación no inventa cobros.
 
-Debe mantenerse:
-
-```env
-PAYMENTS_MODE=simulated
-```
-
-Las credenciales reales no son necesarias para este proyecto.
+Configura solamente claves con prefijos `pk_test_`, `sk_test_` y `whsec_` en los archivos `.env` locales o en el gestor de secretos del alojamiento. Nunca subas esas claves al repositorio.
 
 ## Comandos
 
@@ -179,7 +175,7 @@ $env:RUN_DB_TESTS='1'; npm test
 Formato de commits recomendado:
 
 ```text
-feat(rewards): registrar aportación simulada
+feat(rewards): registrar aportación con Stripe Test
 fix(matches): corregir actualización del marcador
 docs(core): documentar contrato de autenticación
 ```

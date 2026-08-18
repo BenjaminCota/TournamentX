@@ -11,7 +11,6 @@ test('recorrido que consume el frontend Dev 8', { skip: process.env.RUN_DB_TESTS
   const connection = await pool.getConnection();
   const sponsorId = crypto.randomUUID();
   const poolId = crypto.randomUUID();
-  const rewardId = crypto.randomUUID();
   const recipientId = crypto.randomUUID();
   const token = jwt.sign({ sub: crypto.randomUUID(), role: 'admin' }, env.jwtSecret);
   const auth = { Authorization: `Bearer ${token}` };
@@ -20,14 +19,14 @@ test('recorrido que consume el frontend Dev 8', { skip: process.env.RUN_DB_TESTS
     await connection.execute('INSERT INTO sponsors (id, name, contact_email) VALUES (?,?,?)', [sponsorId, 'Flujo frontend', `${sponsorId}@test.local`]);
     await connection.execute('INSERT INTO prize_pools (id, tournament_id, name, currency, created_by) VALUES (?,?,?,?,?)', [poolId, crypto.randomUUID(), 'Bolsa flujo frontend', 'USD', crypto.randomUUID()]);
 
-    const contribution = await request(app).post(`/api/prize-pools/${poolId}/contributions`).set(auth).send({ sponsorId, amount: 100, provider: 'binance_pay', idempotencyKey: `ui-${crypto.randomUUID()}` });
+    const contribution = await request(app).post(`/api/prize-pools/${poolId}/contributions`).set(auth).send({ sponsorId, amount: 100, provider: 'stripe', idempotencyKey: `ui-${crypto.randomUUID()}` });
+    contributionId = contribution.body.data?.id;
     assert.equal(contribution.status, 201);
-    assert.match(contribution.body.payment.qrContent, /^binance:\/\/pay\?/);
-    contributionId = contribution.body.data.id;
+    assert.match(contribution.body.data.provider_reference, /^pi_test_/);
 
-    const simulated = await request(app).post(`/api/contributions/${contributionId}/binance/simulate`).set(auth).send({ status: 'paid' });
+    const simulated = await request(app).patch(`/api/contributions/${contributionId}/status`).set(auth).send({ status: 'paid', notes: 'Stripe simulado para prueba de frontend' });
     assert.equal(simulated.status, 200);
-    assert.equal(simulated.body.webhookVerified, true);
+    assert.equal(simulated.body.data.status, 'paid');
 
     const distribution = await request(app).put(`/api/prize-pools/${poolId}/distribution`).set(auth).send({ rules: [{ position: 1, percentage: 100 }] });
     assert.equal(distribution.status, 200);
@@ -35,7 +34,7 @@ test('recorrido que consume el frontend Dev 8', { skip: process.env.RUN_DB_TESTS
 
     const payout = await request(app).post(`/api/prize-pools/${poolId}/payouts`).set(auth).send({ recipientId, position: 1, destination: `simulated:winner:${recipientId}` });
     assert.equal(payout.status, 201);
-    const receipt = await request(app).get(`/api/receipts/${payout.body.data.receiptCode}`);
+    const receipt = await request(app).get(`/api/receipts/${payout.body.data.receiptCode}`).set(auth);
     assert.equal(receipt.status, 200);
     assert.equal(Number(receipt.body.data.amount), 100);
 
@@ -45,17 +44,16 @@ test('recorrido que consume el frontend Dev 8', { skip: process.env.RUN_DB_TESTS
     assert.equal(rewards.status, 200);
     assert.equal(rewards.body.data.length, 1);
   } finally {
-    await connection.execute('DELETE FROM reward_assignments WHERE reward_item_id = ?', [rewardId]);
+    await connection.execute('DELETE FROM reward_assignments WHERE reward_item_id IN (SELECT id FROM reward_items WHERE prize_pool_id = ?)', [poolId]);
     await connection.execute('DELETE FROM reward_items WHERE prize_pool_id = ?', [poolId]);
+    await connection.execute('DELETE FROM payout_events WHERE payout_id IN (SELECT id FROM payouts WHERE prize_pool_id = ?)', [poolId]);
     await connection.execute('DELETE FROM payouts WHERE prize_pool_id = ?', [poolId]);
     await connection.execute('DELETE FROM tournament_winners WHERE result_import_id IN (SELECT id FROM tournament_result_imports WHERE prize_pool_id = ?)', [poolId]);
     await connection.execute('DELETE FROM tournament_result_imports WHERE prize_pool_id = ?', [poolId]);
     await connection.execute('DELETE FROM distribution_rules WHERE prize_pool_id = ?', [poolId]);
-    if (contributionId) {
-      await connection.execute('DELETE FROM payment_events WHERE contribution_id = ?', [contributionId]);
-      await connection.execute('DELETE FROM payment_idempotency WHERE contribution_id = ?', [contributionId]);
-      await connection.execute('DELETE FROM contributions WHERE id = ?', [contributionId]);
-    }
+    await connection.execute('DELETE FROM payment_events WHERE contribution_id IN (SELECT id FROM contributions WHERE prize_pool_id = ?)', [poolId]);
+    await connection.execute('DELETE FROM payment_idempotency WHERE contribution_id IN (SELECT id FROM contributions WHERE prize_pool_id = ?)', [poolId]);
+    await connection.execute('DELETE FROM contributions WHERE prize_pool_id = ?', [poolId]);
     await connection.execute('DELETE FROM prize_pools WHERE id = ?', [poolId]);
     await connection.execute('DELETE FROM sponsors WHERE id = ?', [sponsorId]);
     connection.release();

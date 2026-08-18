@@ -1,562 +1,609 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { 
-  CreditCard, 
-  DollarSign, 
-  ShieldCheck, 
-  QrCode, 
-  FileText, 
-  CheckCircle2, 
-  ArrowRight, 
-  Download,
+import { useEffect, useRef, useState } from 'react';
+import {
+  ArrowRight,
   Building2,
-  Gift
+  CheckCircle2,
+  CreditCard,
+  DollarSign,
+  Download,
+  Eye,
+  FileText,
+  Gift,
+  LockKeyhole,
+  ShieldCheck,
+  Trophy,
 } from 'lucide-react';
-import { EscrowTransaction, UserRole } from '../../types';
 import confetti from 'canvas-confetti';
-import { QRCodeSVG } from 'qrcode.react';
 import { loadStripe, Stripe, StripeCardElement } from '@stripe/stripe-js';
+import { EscrowTransaction, UserRole } from '../../types';
 
 interface RecompensasViewProps {
   currentUserRole: UserRole;
+  isAuthenticated: boolean;
+  currentUserId?: string;
 }
 
-const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
-type DemoSession = { token: string; stripePublishableKey?: string | null; sponsor: { id: string; name: string }; prizePool: { id: string; name: string } };
-type ApiContribution = { id: string; amount: number; currency: string; provider: 'stripe' | 'binance_pay'; providerReference: string; status: string; sponsorName: string; createdAt?: string };
+type PrizePoolSummary = {
+  id: string;
+  tournamentId: string;
+  name: string;
+  currency: string;
+  targetAmount?: number | null;
+  fundedAmount: number;
+  status: string;
+};
+type ApiContribution = {
+  id: string;
+  amount: number;
+  currency: string;
+  provider: 'stripe';
+  providerReference?: string;
+  provider_reference?: string;
+  providerRefundReference?: string;
+  status: string;
+  sponsorName?: string;
+  createdAt?: string;
+};
 type Sponsor = { id: string; name: string; contactEmail: string; active: boolean };
 type Reward = { id: string; name: string; rewardType: string; quantity: number; assignedQuantity: number };
 type Rule = { position: number; percentage: number; amount: number };
-type Payout = { id: string; recipientId: string; position: number; amount: number; currency: string; status: string; receiptCode: string };
+type Payout = { id: string; recipientId: string; position: number; amount: number; platformFeePercentage?: number; platformFeeAmount?: number; netAmount?: number; currency: string; status: string; receiptCode: string; providerReference?: string | null; attemptCount?: number; lastError?: string | null };
 type Winner = { recipientId: string; recipientType: string; position: number };
-type PoolDetails = { id: string; status: string; fundedAmount: number; distributionRules: Rule[]; payouts: Payout[]; winners: Winner[] };
+type PoolDetails = PrizePoolSummary & { distributionRules: Rule[]; payouts: Payout[]; winners: Winner[] };
+type RewardsSession = { token: string; stripePublishableKey: string | null; pool: PrizePoolSummary };
+type PaymentResult = { mode?: 'stripe-test'; clientSecret?: string | null; reused?: boolean };
+type EntryTournament = { id: string; name: string; status: string; entryFee: number; entryCurrency: string; registeredTeams: number; maxTeams: number };
+type CaptainTeam = { id: string; name: string; captainUserId?: string | null; status: string };
+type TournamentRegistration = {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  teamId: string;
+  teamName: string;
+  amount: number;
+  currency: string;
+  provider: 'stripe';
+  status: string;
+  enrollmentStatus?: string;
+  paidAt?: string | null;
+};
+type StripeConnectStatus = {
+  status: 'not_created' | 'onboarding_required' | 'pending_verification' | 'restricted' | 'ready';
+  detailsSubmitted: boolean;
+  payoutsEnabled: boolean;
+  requirementsDue: number;
+  mode: string;
+};
+type PaymentSettings = { platformFeePercentage: number; updatedAt?: string | null };
+type Reconciliation = {
+  prizePoolId: string;
+  currency: string;
+  available: number;
+  collected: number;
+  refunded: number;
+  awarded: number;
+  platformFees: number;
+  transferred: number;
+  pending: number;
+  failed: number;
+  events: Array<{ id: string; payoutId: string; eventType: string; message?: string; createdAt?: string; position?: number; status?: string }>;
+};
 
-export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRole }) => {
+const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
+const managerRoles: UserRole[] = ['Admin', 'Organizador'];
+
+function normalizePool(data: PrizePoolSummary & Partial<PoolDetails>): PoolDetails {
+  return {
+    ...data,
+    fundedAmount: Number(data.fundedAmount || 0),
+    distributionRules: Array.isArray(data.distributionRules) ? data.distributionRules : [],
+    payouts: Array.isArray(data.payouts) ? data.payouts : [],
+    winners: Array.isArray(data.winners) ? data.winners : [],
+  };
+}
+
+export function RecompensasView({ currentUserRole, isAuthenticated, currentUserId }: RecompensasViewProps) {
+  const canManage = managerRoles.includes(currentUserRole);
+  const isCaptain = currentUserRole === 'Capitán';
+  const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null;
+  const [publicPools, setPublicPools] = useState<PrizePoolSummary[]>([]);
+  const [session, setSession] = useState<RewardsSession | null>(null);
+  const [poolDetails, setPoolDetails] = useState<PoolDetails | null>(null);
   const [transactions, setTransactions] = useState<EscrowTransaction[]>([]);
-  const [demoSession, setDemoSession] = useState<DemoSession | null>(null);
-  const [connectionMessage, setConnectionMessage] = useState('Preparando la información...');
-  const [activeGateway, setActiveGateway] = useState<'STRIPE' | 'BINANCE_PAY'>('STRIPE');
-  const [selectedReceipt, setSelectedReceipt] = useState<EscrowTransaction | null>(null);
-  const [amountInput, setAmountInput] = useState('5000');
-  const [payerName, setPayerName] = useState('Team Luminex Vault');
-  const [selectedSponsorId, setSelectedSponsorId] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [successTx, setSuccessTx] = useState<EscrowTransaction | null>(null);
+  const [paymentStatuses, setPaymentStatuses] = useState<Record<string, string>>({});
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [poolDetails, setPoolDetails] = useState<PoolDetails | null>(null);
-  const [qrContent, setQrContent] = useState('binance://pay?mode=simulated');
-  const [paymentStatuses, setPaymentStatuses] = useState<Record<string, string>>({});
+  const [selectedSponsorId, setSelectedSponsorId] = useState('');
+  const [payerName, setPayerName] = useState('Patrocinador');
+  const [amountInput, setAmountInput] = useState('100');
+  const [connectionMessage, setConnectionMessage] = useState('Cargando premios...');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [stripeReady, setStripeReady] = useState(false);
+  const [successTx, setSuccessTx] = useState<EscrowTransaction | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<EscrowTransaction | null>(null);
+  const [entryTournaments, setEntryTournaments] = useState<EntryTournament[]>([]);
+  const [captainTeams, setCaptainTeams] = useState<CaptainTeam[]>([]);
+  const [selectedEntryTournamentId, setSelectedEntryTournamentId] = useState('');
+  const [selectedEntryTeamId, setSelectedEntryTeamId] = useState('');
+  const [captainRegistrations, setCaptainRegistrations] = useState<TournamentRegistration[]>([]);
+  const [teamRegistrationStatuses, setTeamRegistrationStatuses] = useState<TournamentRegistration[]>([]);
+  const [registrationMessage, setRegistrationMessage] = useState('Selecciona un torneo y confirma la inscripción.');
+  const [connectStatus, setConnectStatus] = useState<StripeConnectStatus | null>(null);
+  const [connectMessage, setConnectMessage] = useState('Consultando tu cuenta de cobro...');
+  const [isConnectLoading, setIsConnectLoading] = useState(false);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ platformFeePercentage: 5 });
+  const [feeInput, setFeeInput] = useState('5');
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null);
   const stripeRef = useRef<Stripe | null>(null);
   const cardElementRef = useRef<StripeCardElement | null>(null);
-  const [stripeReady, setStripeReady] = useState(false);
+  const cardMountRef = useRef<HTMLDivElement | null>(null);
+  const currentRegistration = captainRegistrations.find((registration) => registration.teamId === selectedEntryTeamId);
 
-  const apiRequest = async (path: string, options: RequestInit = {}, token = demoSession?.token) => {
+  const apiRequest = async <T,>(path: string, options: RequestInit = {}, authenticated = true): Promise<T> => {
+    const token = localStorage.getItem('tournamentx_token');
     const response = await fetch(`${API_URL}${path}`, {
       ...options,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authenticated && token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.message || 'No fue posible completar la operación');
-    return body;
+    return body as T;
   };
 
-  const mapContribution = (item: ApiContribution): EscrowTransaction => ({
+  const mapContribution = (item: ApiContribution, pool: PrizePoolSummary): EscrowTransaction => ({
     id: item.id,
     uuid: item.id,
-    tournamentId: demoSession?.prizePool.id || 'demo',
-    tournamentName: demoSession?.prizePool.name || 'Bolsa Demo Módulo 8',
+    tournamentId: pool.tournamentId,
+    tournamentName: pool.name,
     amountUSD: Number(item.amount),
-    gateway: item.provider === 'stripe' ? 'STRIPE' : 'BINANCE_PAY',
-    status: 'LOCKED',
+    gateway: 'STRIPE',
+    status: item.status === 'paid' ? 'LOCKED' : 'PENDING',
     date: item.createdAt ? new Date(item.createdAt).toLocaleString() : new Date().toLocaleString(),
-    payer: item.sponsorName || 'Patrocinador Demo',
-    recipientTeam: 'Pendiente de Finalista',
-    txHash: item.providerReference,
+    payer: item.sponsorName || 'Patrocinador',
+    recipientTeam: 'Pendiente de resultado oficial',
+    txHash: item.providerReference || item.provider_reference,
   });
 
-  const loadData = async (active: DemoSession) => {
-    const [contributionsBody, sponsorsBody, rewardsBody, poolBody] = await Promise.all([
-      apiRequest(`/contributions?prizePoolId=${active.prizePool.id}`, {}, active.token),
-      apiRequest('/sponsors', {}, active.token),
-      apiRequest(`/rewards?prizePoolId=${active.prizePool.id}`, {}, active.token),
-      apiRequest(`/prize-pools/${active.prizePool.id}`, {}, active.token),
-    ]);
-    setTransactions((contributionsBody.data as ApiContribution[]).map((item) => ({
-      ...mapContribution(item), tournamentId: active.prizePool.id, tournamentName: active.prizePool.name,
-    })));
-    setPaymentStatuses(Object.fromEntries((contributionsBody.data as ApiContribution[]).map((item) => [item.id, item.status])));
-    setSponsors(sponsorsBody.data); setRewards(rewardsBody.data); setPoolDetails(poolBody.data);
-    if (!selectedSponsorId && sponsorsBody.data[0]) { setSelectedSponsorId(sponsorsBody.data[0].id); setPayerName(sponsorsBody.data[0].name); }
+  const loadData = async (preferredPoolId?: string) => {
+    setConnectionMessage('Cargando premios...');
+    try {
+      const publicBody = await apiRequest<{ data: PrizePoolSummary[] }>('/prize-pools/public', {}, false);
+      setPublicPools(publicBody.data);
+      if (!isAuthenticated) {
+        setSession(null);
+        setPoolDetails(null);
+        setConnectionMessage('Vista pública de premios');
+        return;
+      }
+
+      const token = localStorage.getItem('tournamentx_token');
+      if (!token) throw new Error('Tu sesión terminó. Inicia sesión nuevamente.');
+      const listed = await apiRequest<{ data: PrizePoolSummary[] }>('/prize-pools');
+      const storedPoolId = preferredPoolId || localStorage.getItem('tournamentx_prize_pool_id');
+      const pool = listed.data.find((item) => item.id === storedPoolId) || listed.data[0];
+      if (!pool) {
+        setSession(null);
+        setPoolDetails(null);
+        setConnectionMessage(canManage ? 'Todavía no existe una bolsa de premios.' : 'No hay premios disponibles para consultar.');
+        return;
+      }
+      localStorage.setItem('tournamentx_prize_pool_id', pool.id);
+      const nextSession = { token, stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null, pool };
+      setSession(nextSession);
+
+      const [poolBody, rewardsBody] = await Promise.all([
+        apiRequest<{ data: PoolDetails }>(`/prize-pools/${pool.id}`),
+        apiRequest<{ data: Reward[] }>(`/rewards?prizePoolId=${pool.id}`),
+      ]);
+      setPoolDetails(normalizePool(poolBody.data));
+      setRewards(rewardsBody.data);
+
+      if (!canManage && ['Capitán', 'Jugador'].includes(currentUserRole)) {
+        const statusBody = await apiRequest<{ data: TournamentRegistration[] }>(`/tournaments/${pool.tournamentId}/registrations/status`);
+        setTeamRegistrationStatuses(statusBody.data);
+      } else {
+        setTeamRegistrationStatuses([]);
+      }
+
+      if (canManage) {
+        const [contributionsBody, sponsorsBody, settingsBody, reconciliationBody] = await Promise.all([
+          apiRequest<{ data: ApiContribution[] }>(`/contributions?prizePoolId=${pool.id}`),
+          apiRequest<{ data: Sponsor[] }>('/sponsors'),
+          apiRequest<{ data: PaymentSettings }>('/payment-settings'),
+          apiRequest<{ data: Reconciliation }>(`/prize-pools/${pool.id}/reconciliation`),
+        ]);
+        setTransactions(contributionsBody.data.map((item) => mapContribution(item, pool)));
+        setPaymentStatuses(Object.fromEntries(contributionsBody.data.map((item) => [item.id, item.status])));
+        setSponsors(sponsorsBody.data);
+        setPaymentSettings(settingsBody.data);
+        setFeeInput(String(settingsBody.data.platformFeePercentage));
+        setReconciliation(reconciliationBody.data);
+        const firstSponsor = sponsorsBody.data.find((item) => item.active);
+        if (firstSponsor) {
+          setSelectedSponsorId((current) => current || firstSponsor.id);
+          setPayerName(firstSponsor.name);
+        }
+      } else {
+        setTransactions([]);
+        setSponsors([]);
+        setReconciliation(null);
+      }
+      setConnectionMessage(canManage ? 'Stripe y la bolsa están listos' : 'Consulta habilitada');
+    } catch (error) {
+      setConnectionMessage(error instanceof Error ? error.message : 'Error de conexión');
+    }
   };
 
-  useEffect(() => { void (async () => {
-    try {
-      const definitiveToken = localStorage.getItem('tournamentx_token');
-      const definitivePoolId = localStorage.getItem('tournamentx_prize_pool_id');
-      const definitivePoolName = localStorage.getItem('tournamentx_prize_pool_name');
-      const definitiveSponsorId = localStorage.getItem('tournamentx_sponsor_id');
-      const active = definitiveToken && definitivePoolId && definitiveSponsorId
-        ? { token: definitiveToken, stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null, sponsor: { id: definitiveSponsorId, name: 'Patrocinador' }, prizePool: { id: definitivePoolId, name: definitivePoolName || 'Bolsa de premios' } }
-        : await apiRequest('/dev8-demo/session', { method: 'POST' }, null);
-      setDemoSession(active);
-      setSelectedSponsorId(active.sponsor.id);
-      await loadData(active);
-      setConnectionMessage('Todo está listo');
-    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'Error de conexión'); }
-  })(); }, []);
+  useEffect(() => { void loadData(); }, [canManage, currentUserRole, isAuthenticated]);
 
   useEffect(() => {
-    if (activeGateway !== 'STRIPE' || !demoSession?.stripePublishableKey) return;
-    setStripeReady(false);
+    if (!isAuthenticated || !isCaptain || !currentUserId) {
+      setEntryTournaments([]);
+      setCaptainTeams([]);
+      return;
+    }
+    void Promise.all([
+      apiRequest<EntryTournament[]>('/tournaments'),
+      apiRequest<CaptainTeam[]>('/teams'),
+    ]).then(([tournaments, teams]) => {
+      const available = tournaments.filter((tournament) => tournament.status === 'OPEN' && Number(tournament.entryFee) > 0 && (!tournament.maxTeams || tournament.registeredTeams < tournament.maxTeams));
+      const owned = teams.filter((team) => team.captainUserId === currentUserId && team.status === 'active');
+      setEntryTournaments(available);
+      setCaptainTeams(owned);
+      setSelectedEntryTournamentId((current) => current || available[0]?.id || '');
+      setSelectedEntryTeamId((current) => current || owned[0]?.id || '');
+      if (!owned.length) setRegistrationMessage('Necesitas un equipo activo del que seas capitán.');
+      else if (!available.length) setRegistrationMessage('No hay torneos abiertos con cuota de inscripción.');
+    }).catch((error) => setRegistrationMessage(error instanceof Error ? error.message : 'No fue posible cargar las inscripciones.'));
+  }, [currentUserId, isAuthenticated, isCaptain]);
+
+  useEffect(() => {
+    if (!isCaptain || !selectedEntryTournamentId) {
+      setCaptainRegistrations([]);
+      return;
+    }
+    void apiRequest<{ data: TournamentRegistration[] }>(`/tournaments/${selectedEntryTournamentId}/registrations/me`)
+      .then((body) => setCaptainRegistrations(body.data))
+      .catch((error) => setRegistrationMessage(error instanceof Error ? error.message : 'No fue posible consultar la inscripción.'));
+  }, [isCaptain, selectedEntryTournamentId]);
+
+  const loadConnectStatus = async () => {
+    if (!isCaptain || !isAuthenticated) return;
+    try {
+      const body = await apiRequest<{ data: StripeConnectStatus }>('/stripe/connect/status');
+      setConnectStatus(body.data);
+      if (body.data.status === 'ready') setConnectMessage('Tu cuenta está lista para recibir premios.');
+      else if (body.data.status === 'pending_verification') setConnectMessage('Stripe está revisando los datos de tu cuenta.');
+      else if (body.data.status === 'restricted') setConnectMessage('Stripe necesita que completes o corrijas algunos datos.');
+      else if (body.data.status === 'onboarding_required') setConnectMessage('Continúa el registro seguro en Stripe.');
+      else setConnectMessage('Configura tu cuenta antes de recibir un premio.');
+    } catch (error) {
+      setConnectMessage(error instanceof Error ? error.message : 'No fue posible consultar Stripe Connect.');
+    }
+  };
+
+  useEffect(() => { void loadConnectStatus(); }, [isAuthenticated, isCaptain]);
+
+  useEffect(() => {
+    if (
+      (!canManage && !isCaptain)
+      || !stripePublishableKey
+      || (canManage && !session)
+      || (isCaptain && currentRegistration?.status === 'paid')
+    ) return;
     let cancelled = false;
+    setStripeReady(false);
     void (async () => {
-      const stripe = await loadStripe(demoSession.stripePublishableKey as string);
-      if (!stripe || cancelled) return;
+      const stripe = await loadStripe(stripePublishableKey);
+      const mountNode = cardMountRef.current;
+      if (!stripe || cancelled || !mountNode) return;
       stripeRef.current = stripe;
-      const elements = stripe.elements();
-      const card = elements.create('card', {
+      const card = stripe.elements().create('card', {
         style: { base: { color: '#cbd5e1', fontSize: '13px', '::placeholder': { color: '#64748b' } }, invalid: { color: '#fb7185' } },
       });
-      card.mount('#stripe-card-element'); cardElementRef.current = card; setStripeReady(true);
+      card.mount(mountNode);
+      cardElementRef.current = card;
+      setStripeReady(true);
     })();
-    return () => { cancelled = true; cardElementRef.current?.unmount(); cardElementRef.current = null; setStripeReady(false); };
-  }, [activeGateway, demoSession?.stripePublishableKey]);
+    return () => {
+      cancelled = true;
+      cardElementRef.current?.unmount();
+      cardElementRef.current = null;
+      setStripeReady(false);
+    };
+  }, [canManage, currentRegistration?.status, isCaptain, session?.pool.id, stripePublishableKey]);
 
-  const handleProcessPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!demoSession) return;
-    if (poolDetails?.status !== 'funding') { setConnectionMessage('La bolsa está bloqueada y ya no acepta aportaciones'); return; }
+  const processStripePayment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canManage || !session || !selectedSponsorId || poolDetails?.status !== 'funding') return;
     setIsProcessing(true);
     try {
-      const provider = activeGateway === 'STRIPE' ? 'stripe' : 'binance_pay';
-      const created = await apiRequest(`/prize-pools/${demoSession.prizePool.id}/contributions`, {
-        method: 'POST', body: JSON.stringify({ sponsorId: selectedSponsorId || demoSession.sponsor.id, amount: Number(amountInput), provider, idempotencyKey: crypto.randomUUID() }),
+      const created = await apiRequest<{ data: ApiContribution; payment: PaymentResult }>(`/prize-pools/${session.pool.id}/contributions`, {
+        method: 'POST',
+        body: JSON.stringify({ sponsorId: selectedSponsorId, amount: Number(amountInput), provider: 'stripe', idempotencyKey: crypto.randomUUID() }),
       });
-      if (provider === 'stripe') {
-        setConnectionMessage('Validando la tarjeta...');
-        if (!stripeRef.current || !cardElementRef.current || !created.payment.clientSecret) throw new Error('El formulario de tarjeta todavía no está listo; espera un momento');
+
+      if (created.payment.clientSecret) {
+        if (!stripeRef.current || !cardElementRef.current) throw new Error('El formulario de Stripe todavía no está listo.');
         const confirmation = await stripeRef.current.confirmCardPayment(created.payment.clientSecret, { payment_method: { card: cardElementRef.current } });
-        if (confirmation.error) throw new Error(confirmation.error.message || 'Stripe rechazó los datos de prueba');
+        if (confirmation.error) throw new Error(confirmation.error.message || 'No fue posible validar los datos de pago.');
         for (let attempt = 0; attempt < 24; attempt += 1) {
-          const listed = await apiRequest('/contributions');
-          const current = (listed.data as ApiContribution[]).find((item) => item.id === created.data.id);
-          if (current?.status === 'authorized') break;
+          const listed = await apiRequest<{ data: ApiContribution[] }>('/contributions');
+          if (listed.data.find((item) => item.id === created.data.id)?.status === 'authorized') break;
           await new Promise((resolve) => setTimeout(resolve, 250));
         }
         await apiRequest(`/contributions/${created.data.id}/stripe/capture`, { method: 'POST' });
-        setConnectionMessage('Aportación con tarjeta registrada');
       } else {
-        setQrContent(created.payment.qrContent);
-        await apiRequest(`/contributions/${created.data.id}/binance/simulate`, { method: 'POST', body: JSON.stringify({ status: 'paid' }) });
-        setConnectionMessage('Aportación con Binance registrada');
+        throw new Error('Stripe no entregó los datos necesarios para confirmar la aportación.');
       }
-      const completed = { ...created.data, status: 'paid', sponsorName: payerName } as ApiContribution;
-      const newTx = mapContribution(completed);
-      setSuccessTx(newTx);
-      await loadData(demoSession);
-      confetti({
-        particleCount: 80,
-        spread: 60,
-        origin: { y: 0.6 }
-      });
+
+      setSuccessTx(mapContribution({ ...created.data, status: 'paid', sponsorName: payerName }, session.pool));
+      setConnectionMessage('Aportación de Stripe registrada');
+      await loadData(session.pool.id);
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
     } catch (error) {
-      setConnectionMessage(error instanceof Error ? error.message : 'No fue posible procesar el pago');
-    } finally { setIsProcessing(false); }
+      setConnectionMessage(error instanceof Error ? error.message : 'No fue posible procesar Stripe');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleReleaseEscrow = async (_txId: string) => {
-    if (currentUserRole !== 'Admin' && currentUserRole !== 'Organizador') {
-      alert('Solo los Administradores u Organizadores pueden liberar fondos de custodia.');
-      return;
-    }
-
-    if (!demoSession || !poolDetails?.distributionRules.length) return alert('Primero configura y bloquea la distribución.');
-    const pendingRule = poolDetails.distributionRules.find((rule) => !poolDetails.payouts.some((payout) => payout.position === rule.position));
-    if (!pendingRule) return alert('Todos los pagos ya fueron entregados.');
-    const knownWinner = poolDetails.winners.find((winner) => winner.position === pendingRule.position);
-    const recipientId = knownWinner?.recipientId || window.prompt(`Identificador del ganador de la posición ${pendingRule.position}`);
-    if (!recipientId) return;
+  const processCaptainRegistration = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!isCaptain || !selectedEntryTournamentId || !selectedEntryTeamId) return;
+    setIsProcessing(true);
+    setRegistrationMessage('Creando la inscripción en Stripe...');
     try {
-      await apiRequest(`/prize-pools/${demoSession.prizePool.id}/payouts`, { method: 'POST', body: JSON.stringify({ recipientId, position: pendingRule.position, destination: `simulated:winner:${recipientId}` }) });
-      await loadData(demoSession); setConnectionMessage(`Payout de la posición ${pendingRule.position} liberado`);
-    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible entregar el pago'); }
+      const created = await apiRequest<{ data: TournamentRegistration; payment: PaymentResult }>(`/tournaments/${selectedEntryTournamentId}/registrations/stripe`, {
+        method: 'POST',
+        body: JSON.stringify({ teamId: selectedEntryTeamId, idempotencyKey: crypto.randomUUID() }),
+      });
+
+      if (created.payment.clientSecret) {
+        if (!stripeRef.current || !cardElementRef.current) throw new Error('El formulario de Stripe todavía no está listo.');
+        const confirmation = await stripeRef.current.confirmCardPayment(created.payment.clientSecret, { payment_method: { card: cardElementRef.current } });
+        if (confirmation.error) throw new Error(confirmation.error.message || 'No fue posible validar los datos de pago.');
+
+        let authorized = false;
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          const listed = await apiRequest<{ data: TournamentRegistration[] }>(`/tournaments/${selectedEntryTournamentId}/registrations/me`);
+          const current = listed.data.find((item) => item.id === created.data.id);
+          if (current?.status === 'authorized') { authorized = true; break; }
+          if (current && ['failed', 'cancelled'].includes(current.status)) throw new Error(`Stripe dejó la inscripción en estado ${current.status}.`);
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        if (!authorized) throw new Error('No pudimos confirmar la autorización del pago. Inténtalo nuevamente.');
+      } else {
+        throw new Error('Stripe no entregó los datos necesarios para confirmar la inscripción.');
+      }
+
+      const captured = await apiRequest<{ data: TournamentRegistration }>(`/registrations/${created.data.id}/stripe/capture`, { method: 'POST' });
+      setCaptainRegistrations((current) => [captured.data, ...current.filter((item) => item.id !== captured.data.id)]);
+      setRegistrationMessage('Pago e inscripción confirmados. El equipo ya aparece como participante.');
+      cardElementRef.current?.clear();
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+    } catch (error) {
+      setRegistrationMessage(error instanceof Error ? error.message : 'No fue posible pagar la inscripción.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const startConnectOnboarding = async () => {
+    setIsConnectLoading(true);
+    setConnectMessage('Preparando el registro seguro de Stripe...');
+    try {
+      const body = await apiRequest<{ data: { url: string; account: StripeConnectStatus } }>('/stripe/connect/onboarding-link', { method: 'POST' });
+      setConnectStatus(body.data.account);
+      window.location.assign(body.data.url);
+    } catch (error) {
+      setConnectMessage(error instanceof Error ? error.message : 'No fue posible iniciar el registro en Stripe.');
+      setIsConnectLoading(false);
+    }
+  };
+
+  const openConnectDashboard = async () => {
+    setIsConnectLoading(true);
+    try {
+      const body = await apiRequest<{ data: { url: string } }>('/stripe/connect/dashboard-link', { method: 'POST' });
+      window.location.assign(body.data.url);
+    } catch (error) {
+      setConnectMessage(error instanceof Error ? error.message : 'No fue posible abrir la cuenta.');
+      setIsConnectLoading(false);
+    }
   };
 
   const addSponsor = async () => {
-    if (!demoSession) return;
-    const name = window.prompt('Nombre del patrocinador'); const contactEmail = window.prompt('Correo del patrocinador');
-    if (!name || !contactEmail) return;
-    try { await apiRequest('/sponsors', { method: 'POST', body: JSON.stringify({ name, contactEmail }) }); await loadData(demoSession); }
-    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el patrocinador'); }
+    const name = window.prompt('Nombre del patrocinador');
+    const contactEmail = window.prompt('Correo del patrocinador');
+    if (!name || !contactEmail || !session) return;
+    try {
+      await apiRequest('/sponsors', { method: 'POST', body: JSON.stringify({ name, contactEmail }) });
+      await loadData(session.pool.id);
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el patrocinador'); }
   };
 
   const addReward = async () => {
-    if (!demoSession) return;
-    const name = window.prompt('Nombre del premio o cupón'); if (!name) return;
+    const name = window.prompt('Nombre del premio o cupón');
+    if (!name || !session) return;
     const quantity = Number(window.prompt('Cantidad disponible', '1') || 1);
-    try { await apiRequest('/rewards', { method: 'POST', body: JSON.stringify({ prizePoolId: demoSession.prizePool.id, rewardType: 'coupon', name, quantity }) }); await loadData(demoSession); }
-    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el premio'); }
+    try {
+      await apiRequest('/rewards', { method: 'POST', body: JSON.stringify({ prizePoolId: session.pool.id, rewardType: 'coupon', name, quantity }) });
+      await loadData(session.pool.id);
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el premio'); }
   };
 
   const configureDistribution = async () => {
-    if (!demoSession) return;
-    if (!poolDetails || Number(poolDetails.fundedAmount) <= 0) { setConnectionMessage('Registra al menos una aportación pagada antes de distribuir'); return; }
+    if (!session || !poolDetails || poolDetails.fundedAmount <= 0) return;
     try {
-      await apiRequest(`/prize-pools/${demoSession.prizePool.id}/distribution`, { method: 'PUT', body: JSON.stringify({ rules: [{ position: 1, percentage: 60 }, { position: 2, percentage: 25 }, { position: 3, percentage: 15 }] }) });
-      await loadData(demoSession); setConnectionMessage('Distribución guardada correctamente');
+      await apiRequest(`/prize-pools/${session.pool.id}/distribution`, { method: 'PUT', body: JSON.stringify({ rules: [{ position: 1, percentage: 60 }, { position: 2, percentage: 25 }, { position: 3, percentage: 15 }] }) });
+      await loadData(session.pool.id);
     } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible configurar la distribución'); }
+  };
+
+  const savePlatformFee = async () => {
+    const value = Number(feeInput);
+    if (!Number.isFinite(value) || value < 0 || value > 30) {
+      setConnectionMessage('La comisión debe estar entre 0 y 30%.');
+      return;
+    }
+    try {
+      const body = await apiRequest<{ data: PaymentSettings }>('/payment-settings', { method: 'PUT', body: JSON.stringify({ platformFeePercentage: value }) });
+      setPaymentSettings(body.data);
+      setFeeInput(String(body.data.platformFeePercentage));
+      setConnectionMessage('Comisión actualizada');
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible actualizar la comisión'); }
+  };
+
+  const refundContribution = async (contributionId: string) => {
+    if (!session || !window.confirm('¿Quieres devolver esta aportación?')) return;
+    setIsProcessing(true);
+    try {
+      await apiRequest(`/contributions/${contributionId}/stripe/refund`, { method: 'POST' });
+      setConnectionMessage('Reembolso completado');
+      await loadData(session.pool.id);
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible completar el reembolso'); }
+    finally { setIsProcessing(false); }
+  };
+
+  const releaseNextPayout = async () => {
+    if (!session || !poolDetails) return;
+    const pending = poolDetails.distributionRules.find((rule) => !poolDetails.payouts.some((payout) => payout.position === rule.position && payout.status === 'released'));
+    if (!pending) return;
+    const previousAttempt = poolDetails.payouts.find((payout) => payout.position === pending.position);
+    const known = poolDetails.winners.find((winner) => winner.position === pending.position);
+    const recipientId = previousAttempt?.recipientId || known?.recipientId;
+    if (!recipientId) {
+      setConnectionMessage('Primero registra el resultado oficial del torneo.');
+      return;
+    }
+    try {
+      await apiRequest(`/prize-pools/${session.pool.id}/payouts`, { method: 'POST', body: JSON.stringify({ recipientId, position: pending.position }) });
+      await loadData(session.pool.id);
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible enviar el premio'); }
   };
 
   const downloadReceipt = async (receiptCode: string) => {
     try {
-      const body = await apiRequest(`/receipts/${receiptCode}`, {}, null);
+      const body = await apiRequest<{ data: unknown }>(`/receipts/${receiptCode}`);
       const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${receiptCode}.json`; link.click(); URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${receiptCode}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
     } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible descargar el recibo'); }
   };
 
-  return (
-    <div id="recompensas-escrow-view" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-brand font-black text-4xl text-white uppercase tracking-tight italic flex items-center gap-3">
-            <CreditCard className="w-8 h-8 text-[#ff2e83]" />
-            Premios y pagos
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 font-tech">
-            Administra aportaciones, premios y pagos a ganadores en un solo lugar
-          </p>
+  const totalPublic = publicPools.reduce((total, pool) => total + Number(pool.fundedAmount || 0), 0);
+  const selectedEntryTournament = entryTournaments.find((tournament) => tournament.id === selectedEntryTournamentId);
+  const accessLabel = currentUserRole === 'Admin' ? 'Auditoría y control total'
+    : currentUserRole === 'Organizador' ? 'Administración de bolsas y premios'
+      : currentUserRole === 'Capitán' ? 'Consulta del estado económico del equipo'
+        : currentUserRole === 'Jugador' ? 'Consulta de premios del equipo'
+          : 'Información pública de premios';
+  const paymentStatusLabel: Record<string, string> = { pending: 'Pendiente', authorized: 'Autorizado', paid: 'Pagado', failed: 'Fallido', cancelled: 'Cancelado', refunded: 'Reembolsado' };
+  const nextRule = poolDetails?.distributionRules.find((rule) => !poolDetails.payouts.some((payout) => payout.position === rule.position && payout.status === 'released'));
+  const nextAttempt = nextRule ? poolDetails?.payouts.find((payout) => payout.position === nextRule.position) : undefined;
+  const nextWinner = nextRule ? poolDetails?.winners.find((winner) => winner.position === nextRule.position) : undefined;
+
+  return <div id="recompensas-view" className="mx-auto max-w-7xl space-y-7 p-6 lg:p-8">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div><h1 className="flex items-center gap-3 font-brand text-4xl font-black uppercase italic text-white"><CreditCard className="h-8 w-8 text-[#ff2e83]"/> Premios y pagos</h1><p className="mt-2 text-sm text-slate-400">{accessLabel}.</p></div>
+      <span className="inline-flex items-center gap-2 self-start rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-300"><ShieldCheck className="h-4 w-4"/>{connectionMessage}</span>
+    </header>
+
+    <section className="grid gap-4 sm:grid-cols-3">
+      <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><Trophy className="h-5 w-5 text-[#d6b15e]"/><p className="mt-3 text-xs text-slate-500">Total público acumulado</p><strong className="mt-1 block text-3xl text-white">${totalPublic.toLocaleString()} USD</strong></article>
+      <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><Eye className="h-5 w-5 text-blue-400"/><p className="mt-3 text-xs text-slate-500">Bolsas visibles</p><strong className="mt-1 block text-3xl text-white">{publicPools.length}</strong></article>
+      <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><LockKeyhole className="h-5 w-5 text-emerald-400"/><p className="mt-3 text-xs text-slate-500">Tu acceso</p><strong className="mt-1 block text-sm text-white">{accessLabel}</strong></article>
+    </section>
+
+    {publicPools.length > 0 && <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{publicPools.map((pool) => <article key={pool.id} className="rounded-2xl border border-white/10 bg-[#10121a] p-4"><p className="text-xs text-slate-500">{pool.name}</p><strong className="mt-2 block text-xl text-white">${Number(pool.fundedAmount).toLocaleString()} {pool.currency}</strong><span className="mt-2 inline-block text-[10px] text-emerald-300">{pool.status === 'funding' ? 'Recibiendo aportaciones' : pool.status === 'locked' ? 'Lista para repartir' : pool.status === 'distributed' ? 'Premios entregados' : 'Cerrada'}</span></article>)}</section>}
+
+    {!isAuthenticated && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[#ff2e83]/[.06] p-7 text-center"><LockKeyhole className="mx-auto h-8 w-8 text-[#ff2e83]"/><h2 className="mt-3 text-xl font-bold text-white">Inicia sesión para ver los datos de tu equipo</h2><p className="mt-2 text-sm text-slate-400">Los visitantes solamente pueden consultar el total público de las bolsas.</p></section>}
+
+    {isAuthenticated && !canManage && <>
+      <section className="rounded-3xl border border-white/10 bg-[#10121a] p-6"><h2 className="text-xl font-bold text-white">{poolDetails?.name || 'Premios disponibles'}</h2><p className="mt-2 text-sm text-slate-400">Consulta el monto reunido y cómo se repartirán los premios.</p><div className="mt-5 flex flex-wrap gap-2">{poolDetails?.distributionRules.map((rule) => <span key={rule.position} className="rounded-lg bg-white/[.05] px-3 py-2 text-xs text-slate-300">{rule.position}º lugar · {rule.percentage}%</span>)}</div>{teamRegistrationStatuses.map((registration) => <div key={registration.id} className={`mt-4 flex items-center gap-2 rounded-xl border p-3 text-sm ${registration.status === 'paid' ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/25 bg-amber-500/10 text-amber-300'}`}><CheckCircle2 className="h-4 w-4"/><span>{registration.teamName}: {registration.status === 'paid' ? 'inscripción pagada y confirmada' : 'pago de inscripción pendiente'}</span></div>)}</section>
+      {isCaptain && <section className="rounded-3xl border border-emerald-500/20 bg-[#10121a] p-6">
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div><h2 className="text-2xl font-black text-white">Cuenta para recibir premios</h2><p className="mt-2 max-w-2xl text-xs text-slate-400">Tus datos de identidad y cuenta bancaria se registran de forma segura. TournamentX no guarda esa información.</p></div>
+          <span className={`self-start rounded-full px-3 py-1 text-xs font-bold ${connectStatus?.status === 'ready' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>{connectStatus?.status === 'ready' ? 'LISTA PARA COBRAR' : 'CONFIGURACIÓN PENDIENTE'}</span>
         </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-mono-code bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4" />
-            {connectionMessage}
-          </span>
+        <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-300">{connectMessage}</p><button type="button" disabled={isConnectLoading} onClick={() => void (connectStatus?.status === 'ready' ? openConnectDashboard() : startConnectOnboarding())} className="rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white disabled:opacity-50">{isConnectLoading ? 'ABRIENDO...' : connectStatus?.status === 'ready' ? 'ADMINISTRAR CUENTA' : 'CONFIGURAR CUENTA'}</button></div>
+      </section>}
+      {isCaptain && <form onSubmit={processCaptainRegistration} className="space-y-5 rounded-3xl border border-blue-500/20 bg-[#10121a] p-6">
+        <div><span className="text-[10px] font-bold uppercase text-blue-300">Inscripción del equipo</span><h2 className="mt-1 text-2xl font-black text-white">Pagar con Stripe</h2><p className="mt-1 text-xs text-slate-400">La cuota se toma del torneo. No puedes cambiar el monto ni pagar por otro equipo.</p></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block text-xs text-slate-300">Torneo<select required value={selectedEntryTournamentId} onChange={(event) => setSelectedEntryTournamentId(event.target.value)} className="field mt-1">{entryTournaments.map((tournament) => <option key={tournament.id} value={tournament.id}>{tournament.name} · ${Number(tournament.entryFee).toFixed(2)} {tournament.entryCurrency}</option>)}</select></label>
+          <label className="block text-xs text-slate-300">Tu equipo<select required value={selectedEntryTeamId} onChange={(event) => setSelectedEntryTeamId(event.target.value)} className="field mt-1">{captainTeams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
         </div>
-      </div>
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-4 text-sm"><span className="text-slate-400">Cuota definida por el torneo</span><strong className="text-emerald-400">${Number(selectedEntryTournament?.entryFee || 0).toFixed(2)} {selectedEntryTournament?.entryCurrency || 'USD'}</strong></div>
+        {currentRegistration?.status === 'paid' ? <div className="flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-300"><CheckCircle2 className="h-5 w-5"/>{currentRegistration.enrollmentStatus === 'confirmed' ? 'Pago e inscripción confirmados' : 'Pago completado'} para {currentRegistration.teamName}</div> : <>
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[.06] p-4"><span className="text-xs font-bold text-white">Pago seguro</span>{stripePublishableKey ? <div ref={cardMountRef} className="mt-3 min-h-10 rounded-xl border border-white/10 bg-[#0c0d14] px-4 py-3"/> : <p className="mt-2 text-xs text-slate-400">Confirma para continuar con el pago.</p>}</div>
+          <button disabled={isProcessing || !selectedEntryTournamentId || !selectedEntryTeamId || Boolean(stripePublishableKey && !stripeReady)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-xs font-bold text-white disabled:opacity-50">{isProcessing ? 'Procesando...' : 'PAGAR INSCRIPCIÓN'}<ArrowRight className="h-4 w-4"/></button>
+        </>}
+        <p className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-xs text-slate-300">{registrationMessage}</p>
+      </form>}
+      <section className="rounded-3xl border border-white/10 bg-[#10121a] p-6"><h2 className="flex items-center gap-2 text-xl font-bold text-white"><Gift className="h-5 w-5 text-[#ff2e83]"/> Premios publicados</h2><div className="mt-4 grid gap-3 sm:grid-cols-3">{rewards.map((reward) => <article key={reward.id} className="rounded-2xl border border-white/10 bg-white/[.03] p-4"><strong className="text-sm text-white">{reward.name}</strong><p className="mt-2 text-xs text-emerald-400">{Math.max(0, reward.quantity - Number(reward.assignedQuantity))} disponibles</p></article>)}</div></section>
+    </>}
 
-      {/* 2-COLUMN: PAYMENT GATEWAY SIMULATOR & ESCROW LEDGER */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* LEFT: PAYMENT / DEPOSIT GATEWAY SIMULATOR */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-6 shadow-2xl">
-          <div>
-            <span className="text-[10px] font-mono-code uppercase font-bold text-[#ff2e83]">
-              Nueva aportación
-            </span>
-            <h2 className="font-display font-black text-2xl text-white mt-1">
-              Agregar fondos al premio
-            </h2>
-            <p className="text-xs text-slate-400">
-              Elige un método y registra la aportación para el torneo.
-            </p>
-          </div>
+    {isAuthenticated && canManage && session && <>
+      <section className="grid gap-6 lg:grid-cols-2">
+        <form onSubmit={processStripePayment} className="space-y-5 rounded-3xl border border-white/10 bg-[#10121a] p-6">
+          <div><h2 className="text-2xl font-black text-white">Agregar aportación</h2><p className="mt-1 text-xs text-slate-400">Registra el apoyo de un patrocinador en la bolsa de premios.</p></div>
+          <label className="block text-xs text-slate-300">Monto en USD<div className="relative mt-1"><DollarSign className="absolute left-3 top-3 h-4 w-4 text-emerald-400"/><input type="number" min="1" step="0.01" required value={amountInput} onChange={(event) => setAmountInput(event.target.value)} className="field pl-9"/></div></label>
+          <label className="block text-xs text-slate-300">Patrocinador<select required value={selectedSponsorId} onChange={(event) => { setSelectedSponsorId(event.target.value); setPayerName(sponsors.find((item) => item.id === event.target.value)?.name || 'Patrocinador'); }} className="field mt-1">{sponsors.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/[.06] p-4"><span className="text-xs font-bold text-white">Pago seguro</span>{session.stripePublishableKey ? <div ref={cardMountRef} className="mt-3 min-h-10 rounded-xl border border-white/10 bg-[#0c0d14] px-4 py-3"/> : <p className="mt-2 text-xs text-slate-400">Confirma para continuar con el pago.</p>}</div>
+          <button disabled={isProcessing || !selectedSponsorId || poolDetails?.status !== 'funding' || Boolean(session.stripePublishableKey && !stripeReady)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff2e83] py-3 text-xs font-bold text-white disabled:opacity-50">{isProcessing ? 'Procesando...' : 'CONFIRMAR APORTACIÓN'}<ArrowRight className="h-4 w-4"/></button>
+          {successTx && <button type="button" onClick={() => setSelectedReceipt(successTx)} className="flex w-full items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300"><span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4"/>Aportación registrada</span><span>Ver comprobante</span></button>}
+        </form>
 
-          {/* Gateway Switcher Tabs */}
-          <div className="grid grid-cols-2 gap-3 p-1 rounded-2xl bg-[#141724] border border-[#1e2230]">
-            <button
-              type="button"
-              onClick={() => setActiveGateway('STRIPE')}
-              className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                activeGateway === 'STRIPE'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>STRIPE (TARJETA)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveGateway('BINANCE_PAY')}
-              className={`py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                activeGateway === 'BINANCE_PAY'
-                  ? 'bg-[#F0B90B] text-black shadow-lg shadow-[#F0B90B]/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <QrCode className="w-4 h-4" />
-              <span>BINANCE PAY (CRYPTO)</span>
-            </button>
-          </div>
-
-          {/* Payment Form */}
-          <form onSubmit={handleProcessPayment} className="space-y-4">
-            <div>
-              <label className="text-xs font-mono-code uppercase font-bold text-slate-300">
-                Monto de la aportación (USD)
-              </label>
-              <div className="relative mt-1">
-                <DollarSign className="w-4 h-4 text-emerald-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="number"
-                  min="1"
-                  max="1000000000"
-                  step="0.01"
-                  required
-                  value={amountInput}
-                  onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full bg-[#181b28] border border-[#232738] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white font-mono-code font-bold focus:border-[#ff2e83] focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-mono-code uppercase font-bold text-slate-300">
-                Nombre del Patrocinador / Entidad
-              </label>
-              <select required value={selectedSponsorId} onChange={(e) => { setSelectedSponsorId(e.target.value); setPayerName(sponsors.find((item) => item.id === e.target.value)?.name || 'Patrocinador'); }} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1">
-                {sponsors.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </div>
-
-            {activeGateway === 'STRIPE' ? (
-              <div className="space-y-3 p-4 rounded-2xl bg-[#141724] border border-[#232738]">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span className="font-mono-code">Tarjeta de prueba</span>
-                  <span className="text-emerald-400 font-bold">Sin dinero real</span>
-                </div>
-                <div id="stripe-card-element" className="w-full min-h-10 bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-3" />
-                <p className="text-[10px] text-slate-500">Prueba: 4242 4242 4242 4242 · vencimiento futuro · CVC de 3 dígitos · cualquier C.P.</p>
-              </div>
-            ) : (
-              <div className="p-4 rounded-2xl bg-[#141724] border border-[#F0B90B]/30 flex items-center gap-4">
-                <div className="w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 flex items-center justify-center">
-                  <QRCodeSVG value={qrContent} size={68} level="M" />
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs font-bold text-white">Pago de prueba con Binance Pay</div>
-                  <p className="text-[11px] text-slate-400">
-                    El QR local reproduce el formato de pago; no mueve criptomonedas reales.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isProcessing || !demoSession || poolDetails?.status !== 'funding' || (activeGateway === 'STRIPE' && !stripeReady)}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
-            >
-              {isProcessing ? (
-                <span>Procesando...</span>
-              ) : (
-                <>
-                  <span>{poolDetails?.status === 'funding' ? 'Confirmar aportación' : 'Bolsa bloqueada'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Success Banner */}
-          {successTx && (
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 space-y-2 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Aportación registrada
-                </span>
-                <button
-                  onClick={() => setSelectedReceipt(successTx)}
-                  className="text-xs text-white underline hover:text-emerald-300 font-mono-code"
-                >
-                  Ver comprobante
-                </button>
-              </div>
-              <p className="text-[11px] font-mono-code text-slate-400">
-                Folio: {successTx.uuid}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT: ESCROW LEDGER & TRANSACTIONS TABLE */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-6 shadow-2xl flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[#1e2230] pb-3">
-              <div>
-                <h2 className="font-display font-black text-2xl text-white">
-                  Movimientos del premio
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Fondos retenidos y regla de distribución automática
-                </p>
-              </div>
-              <span className="text-xs font-mono-code text-slate-400 bg-[#161926] px-3 py-1 rounded-full border border-[#232738]">
-                {transactions.length} Transacciones
-              </span>
-            </div>
-
-            {/* Transactions List */}
-            <div className="space-y-3 max-h-[380px] overflow-y-auto">
-              {transactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="p-4 rounded-2xl bg-[#141724] border border-[#1e2230] hover:border-slate-600 transition-all space-y-3"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono-code font-bold ${
-                          tx.gateway === 'STRIPE' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'
-                        }`}>
-                          {tx.gateway}
-                        </span>
-                        <span className="font-bold text-white text-xs">{tx.tournamentName}</span>
-                      </div>
-                      <div className="text-[10px] font-mono-code text-slate-500 mt-1">
-                        Payer: {tx.payer} • {tx.date}
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="font-mono-code font-bold text-sm text-emerald-400">
-                        ${tx.amountUSD.toLocaleString()} USD
-                      </div>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono-code font-bold ${
-                        paymentStatuses[tx.id] === 'paid'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                          : paymentStatuses[tx.id] === 'authorized'
-                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                            : 'bg-slate-500/10 text-slate-400 border border-slate-500/30'
-                      }`}>
-                        {paymentStatuses[tx.id] === 'authorized' ? 'AUTORIZADO' : paymentStatuses[tx.id] === 'paid' ? 'PAGADO / EN CUSTODIA' : (paymentStatuses[tx.id] || 'PENDIENTE').toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-[#1e2230] flex items-center justify-between text-xs">
-                    <button
-                      onClick={() => setSelectedReceipt(tx)}
-                      className="text-[11px] text-[#ff2e83] hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      Ver aportación
-                    </button>
-
-                    <span className="text-[10px] text-slate-500">{paymentStatuses[tx.id] === 'paid' ? 'Fondos sumados a la bolsa' : 'Esperando confirmación'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-[#1e2230] text-[11px] font-mono-code text-slate-500 flex items-center justify-between">
-            <span>{poolDetails?.distributionRules.length ? `Regla: ${poolDetails.distributionRules.map((rule) => `${rule.position}º ${rule.percentage}%`).join(' • ')}` : 'Distribución todavía no configurada'}</span>
-            {!poolDetails?.distributionRules.length ? <button onClick={configureDistribution} disabled={!poolDetails || Number(poolDetails.fundedAmount) <= 0} className="text-[#ff2e83] font-bold disabled:text-slate-600">CONFIGURAR 60/25/15</button> : <span className="text-emerald-400">Distribución confirmada</span>}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        <section className="bg-[#10121a] border border-[#1e2230] rounded-3xl p-6 space-y-5">
-          <div className="flex items-center justify-between"><div><h2 className="font-display font-black text-xl text-white flex items-center gap-2"><Building2 className="w-5 h-5 text-[#ff2e83]" /> Patrocinadores</h2><p className="text-xs text-slate-400 mt-1">Personas y organizaciones que aportan premios.</p></div><button onClick={addSponsor} className="px-3 py-2 rounded-xl bg-[#ff2e83] text-white text-xs font-bold">＋ AGREGAR</button></div>
-          {sponsors.map((sponsor) => <div key={sponsor.id} className="flex items-center justify-between p-3 rounded-2xl bg-[#151824] border border-[#24293b]"><div><div className="font-bold text-sm text-white">{sponsor.name}</div><div className="text-[11px] text-slate-500">{sponsor.contactEmail}</div></div><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${sponsor.active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-500/15 text-slate-500'}`}>{sponsor.active ? 'ACTIVO' : 'INACTIVO'}</span></div>)}
+        <section className="rounded-3xl border border-white/10 bg-[#10121a] p-6">
+          <div className="flex items-center justify-between"><div><h2 className="text-2xl font-black text-white">Aportaciones</h2><p className="mt-1 text-xs text-slate-400">Consulta pagos y devuelve aportaciones mientras la bolsa siga abierta.</p></div><span className="rounded-full bg-white/[.05] px-3 py-1 text-xs text-slate-400">{transactions.length}</span></div>
+          <div className="mt-5 max-h-[390px] space-y-3 overflow-y-auto">{transactions.map((tx) => {
+            const status = paymentStatuses[tx.id] || 'pending';
+            return <article key={tx.id} className="rounded-2xl border border-white/10 bg-white/[.03] p-4"><div className="flex justify-between gap-3"><div><strong className="text-xs text-white">{tx.payer}</strong><p className="mt-2 text-[10px] text-slate-500">{tx.date}</p></div><div className="text-right"><strong className="text-emerald-400">${tx.amountUSD.toLocaleString()}</strong><p className="mt-1 text-[10px] text-slate-400">{paymentStatusLabel[status] || status}</p></div></div><div className="mt-3 flex flex-wrap gap-3"><button onClick={() => setSelectedReceipt(tx)} className="flex items-center gap-1 text-[11px] text-[#ff2e83]"><FileText className="h-3.5 w-3.5"/>Ver comprobante</button>{status === 'paid' && poolDetails?.status === 'funding' && <button disabled={isProcessing} onClick={() => void refundContribution(tx.id)} className="text-[11px] font-bold text-amber-300 disabled:opacity-50">Reembolsar</button>}</div></article>;
+          })}</div>
+          <footer className="mt-5 border-t border-white/10 pt-4 text-xs text-slate-400">{poolDetails?.distributionRules.length ? poolDetails.distributionRules.map((rule) => `${rule.position}º ${rule.percentage}%`).join(' · ') : <button onClick={() => void configureDistribution()} disabled={!poolDetails?.fundedAmount} className="font-bold text-[#ff2e83] disabled:text-slate-600">DEFINIR REPARTO 60/25/15</button>}</footer>
         </section>
-
-        <section className="bg-[#10121a] border border-[#1e2230] rounded-3xl p-6 space-y-5">
-          <div className="flex items-center justify-between"><div><h2 className="font-display font-black text-xl text-white flex items-center gap-2"><Gift className="w-5 h-5 text-[#ff2e83]" /> Premios y cupones</h2><p className="text-xs text-slate-400 mt-1">Premios disponibles para entregar.</p></div><button onClick={addReward} className="px-3 py-2 rounded-xl bg-[#ff2e83] text-white text-xs font-bold">＋ AGREGAR</button></div>
-          <div className="grid sm:grid-cols-3 gap-3">
-            {rewards.map((reward) => <div key={reward.id} className="p-4 rounded-2xl bg-[#151824] border border-[#24293b]"><Gift className="w-5 h-5 text-[#ff2e83]" /><div className="font-bold text-sm text-white mt-3">{reward.name}</div><div className="text-[10px] text-slate-500 mt-1">{reward.rewardType.toUpperCase()}</div><div className="text-xs text-emerald-400 mt-3">{Math.max(0, reward.quantity - Number(reward.assignedQuantity))} disponibles</div></div>)}
-            {!rewards.length && <p className="text-xs text-slate-500">Aún no hay premios registrados.</p>}
-          </div>
-        </section>
-      </div>
-
-      <section className="bg-[#10121a] border border-[#1e2230] rounded-3xl p-6 space-y-4">
-        <div><h2 className="font-display font-black text-xl text-white">Ganadores, pagos y recibos</h2><p className="text-xs text-slate-400 mt-1">Aquí aparecerán los ganadores y sus pagos.</p></div>
-        {!poolDetails?.winners.length && <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">Todavía no se han registrado ganadores. También puedes ingresar su identificador manualmente.</div>}
-        {!!poolDetails?.winners.length && <div className="grid sm:grid-cols-3 gap-3">{poolDetails.winners.map((winner) => <div key={`${winner.position}-${winner.recipientId}`} className="p-3 rounded-xl bg-[#151824] border border-[#24293b] text-xs"><div className="text-[#ff2e83] font-bold">Posición {winner.position}</div><div className="text-white mt-1">{winner.recipientType}</div><div className="text-slate-500 break-all mt-1">{winner.recipientId}</div></div>)}</div>}
-        <div className="space-y-2">{poolDetails?.payouts.map((payout) => <div key={payout.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#151824] border border-[#24293b]"><div className="text-xs"><span className="text-white font-bold">{payout.position}º lugar · ${Number(payout.amount).toFixed(2)} {payout.currency}</span><div className="text-slate-500 mt-1">{payout.receiptCode}</div></div><button onClick={() => void downloadReceipt(payout.receiptCode)} className="px-3 py-2 rounded-lg bg-[#ff2e83] text-white text-xs font-bold flex items-center gap-2"><Download className="w-4 h-4" /> Descargar recibo</button></div>)}</div>
-        {!!poolDetails?.distributionRules.length && poolDetails.payouts.length < poolDetails.distributionRules.length && <button onClick={() => void handleReleaseEscrow('pool')} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">LIBERAR SIGUIENTE PAGO AL GANADOR</button>}
       </section>
 
-      {/* RECEIPT / COUPON MODAL */}
-      {selectedReceipt && (
-        <div 
-          id="modal-receipt-view"
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
-        >
-          <div className="bg-[#12141f] border border-[#282e44] rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl animate-in zoom-in-95 duration-150 text-slate-200">
-            <div className="flex items-center justify-between border-b border-[#1e2230] pb-4">
-              <h3 className="font-display font-black text-2xl text-white">
-                Comprobante de aportación
-              </h3>
-              <button
-                onClick={() => setSelectedReceipt(null)}
-                className="text-slate-400 hover:text-white font-mono-code text-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Printable Receipt Canvas */}
-            <div className="p-6 rounded-2xl bg-[#0a0b0e] border border-[#232738] space-y-4 font-mono-code text-xs">
-              <div className="text-center pb-3 border-b border-dashed border-[#232738]">
-                <div className="font-display font-black text-lg text-white">TOURNAMENTX</div>
-                <div className="text-[10px] text-slate-500">Comprobante de Custodia Digital</div>
-              </div>
-
-              <div className="space-y-2 text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">FOLIO:</span>
-                  <span className="text-[#ff2e83] font-bold text-[9px]">{selectedReceipt.uuid}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">TORNEO:</span>
-                  <span className="text-white font-bold">{selectedReceipt.tournamentName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">MONTO:</span>
-                  <span className="text-emerald-400 font-bold text-sm">${selectedReceipt.amountUSD.toLocaleString()} USD</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">PASARELA:</span>
-                  <span className="text-white font-bold">{selectedReceipt.gateway}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">ESTADO:</span>
-                  <span className="text-amber-400 font-bold">{selectedReceipt.status}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">FECHA:</span>
-                  <span className="text-slate-300">{selectedReceipt.date}</span>
-                </div>
-              </div>
-
-              {/* Barcode Mock */}
-              <div className="pt-4 border-t border-dashed border-[#232738] text-center space-y-1">
-                <div className="h-10 bg-gradient-to-r from-transparent via-slate-700 to-transparent flex items-center justify-center tracking-widest text-[9px] text-slate-400">
-                  ||| | |||| || ||| ||||| ||| | ||
-                </div>
-                <span className="text-[9px] text-slate-500">VALIDACIÓN HASH SHA-256</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setSelectedReceipt(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
-              >
-                Cerrar
-              </button>
-              <button
-                onClick={() => {
-                  alert('Comprobante guardado en portapapeles y listo para imprimir.');
-                  setSelectedReceipt(null);
-                }}
-                className="px-6 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-bold text-xs shadow-lg shadow-[#ff2e83]/30 flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span>Imprimir / Descargar</span>
-              </button>
-            </div>
+      <section className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
+        <article className="rounded-3xl border border-white/10 bg-[#10121a] p-6">
+          <h2 className="text-xl font-bold text-white">Comisión de la plataforma</h2>
+          <p className="mt-2 text-xs text-slate-400">Se descuenta al enviar cada premio.</p>
+          {currentUserRole === 'Admin' ? <div className="mt-5 flex items-end gap-3"><label className="flex-1 text-xs text-slate-300">Porcentaje<input type="number" min="0" max="30" step="0.01" value={feeInput} onChange={(event) => setFeeInput(event.target.value)} className="field mt-1"/></label><button type="button" onClick={() => void savePlatformFee()} className="rounded-xl bg-[#ff2e83] px-4 py-3 text-xs font-bold text-white">GUARDAR</button></div> : <strong className="mt-5 block text-3xl text-white">{paymentSettings.platformFeePercentage}%</strong>}
+        </article>
+        <article className="rounded-3xl border border-white/10 bg-[#10121a] p-6">
+          <h2 className="text-xl font-bold text-white">Resumen financiero</h2>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {[
+              ['Disponible', reconciliation?.available || 0],
+              ['Reembolsado', reconciliation?.refunded || 0],
+              ['Comisiones', reconciliation?.platformFees || 0],
+              ['Premios enviados', reconciliation?.transferred || 0],
+            ].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-slate-500">{label}</p><strong className="mt-1 block text-sm text-white">${Number(value).toFixed(2)} {reconciliation?.currency || poolDetails?.currency}</strong></div>)}
+            <div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-slate-500">Pendientes</p><strong className="mt-1 block text-sm text-amber-300">{reconciliation?.pending || 0}</strong></div>
+            <div className="rounded-xl border border-white/10 bg-white/[.03] p-3"><p className="text-[10px] text-slate-500">Requieren atención</p><strong className="mt-1 block text-sm text-red-300">{reconciliation?.failed || 0}</strong></div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-};
+        </article>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2"><article className="rounded-3xl border border-white/10 bg-[#10121a] p-6"><div className="flex items-center justify-between"><h2 className="flex items-center gap-2 text-xl font-bold text-white"><Building2 className="h-5 w-5 text-[#ff2e83]"/>Patrocinadores</h2><button onClick={() => void addSponsor()} className="rounded-lg bg-[#ff2e83] px-3 py-2 text-xs font-bold text-white">+ AGREGAR</button></div><div className="mt-4 space-y-2">{sponsors.map((sponsor) => <div key={sponsor.id} className="rounded-xl border border-white/10 p-3"><strong className="text-sm text-white">{sponsor.name}</strong><p className="text-xs text-slate-500">{sponsor.contactEmail}</p></div>)}</div></article><article className="rounded-3xl border border-white/10 bg-[#10121a] p-6"><div className="flex items-center justify-between"><h2 className="flex items-center gap-2 text-xl font-bold text-white"><Gift className="h-5 w-5 text-[#ff2e83]"/>Premios</h2><button onClick={() => void addReward()} className="rounded-lg bg-[#ff2e83] px-3 py-2 text-xs font-bold text-white">+ AGREGAR</button></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{rewards.map((reward) => <div key={reward.id} className="rounded-xl border border-white/10 p-3"><strong className="text-sm text-white">{reward.name}</strong><p className="text-xs text-emerald-400">{Math.max(0, reward.quantity - Number(reward.assignedQuantity))} disponibles</p></div>)}</div></article></section>
+
+      <section className="rounded-3xl border border-white/10 bg-[#10121a] p-6">
+        <h2 className="text-xl font-bold text-white">Premios y recibos</h2><p className="mt-1 text-xs text-slate-400">Los premios se envían a la cuenta del capitán que aparece en el resultado oficial.</p>
+        <div className="mt-4 space-y-2">{poolDetails?.payouts.map((payout) => <div key={payout.id} className="flex flex-col justify-between gap-3 rounded-xl border border-white/10 p-3 sm:flex-row sm:items-center"><span className="text-sm text-white"><strong>{payout.position}º lugar · ${Number(payout.amount).toFixed(2)} {payout.currency}</strong><small className="mt-1 block text-[10px] text-slate-400">Comisión ${Number(payout.platformFeeAmount || 0).toFixed(2)} · Recibe ${Number(payout.netAmount ?? payout.amount).toFixed(2)}</small><small className={`mt-1 block text-[10px] ${payout.status === 'released' ? 'text-emerald-400' : payout.status === 'failed' ? 'text-red-300' : 'text-amber-300'}`}>{payout.status === 'released' ? 'Enviado' : payout.status === 'failed' ? 'Requiere otro intento' : 'En proceso'}</small></span>{payout.status === 'released' && <button onClick={() => void downloadReceipt(payout.receiptCode)} className="flex items-center gap-2 rounded-lg bg-[#ff2e83] px-3 py-2 text-xs font-bold text-white"><Download className="h-4 w-4"/>Recibo</button>}</div>)}</div>
+        {nextRule && <div className="mt-4"><button disabled={!nextAttempt?.recipientId && !nextWinner?.recipientId} onClick={() => void releaseNextPayout()} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">{nextAttempt?.status === 'failed' ? 'REINTENTAR ENVÍO' : 'ENVIAR SIGUIENTE PREMIO'}</button>{!nextAttempt?.recipientId && !nextWinner?.recipientId && <p className="mt-2 text-xs text-amber-300">Registra el resultado oficial para habilitar el envío.</p>}</div>}
+      </section>
+    </>}
+
+    {selectedReceipt && <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"><section className="w-full max-w-md rounded-3xl border border-white/10 bg-[#12141f] p-6"><h2 className="text-xl font-bold text-white">Comprobante Stripe</h2><dl className="mt-5 space-y-3 text-sm"><div className="flex justify-between"><dt className="text-slate-500">Folio</dt><dd className="max-w-56 break-all text-right text-white">{selectedReceipt.uuid}</dd></div><div className="flex justify-between"><dt className="text-slate-500">Monto</dt><dd className="text-emerald-400">${selectedReceipt.amountUSD.toLocaleString()} USD</dd></div><div className="flex justify-between"><dt className="text-slate-500">Pasarela</dt><dd className="text-white">Stripe</dd></div></dl><button onClick={() => setSelectedReceipt(null)} className="mt-6 w-full rounded-xl bg-white/10 py-2.5 text-sm text-white">Cerrar</button></section></div>}
+  </div>;
+}

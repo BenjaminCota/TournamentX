@@ -106,11 +106,11 @@ export const tournamentXApi = {
   disputeMatch: (id: string, data: { teamId: string; reason: string; evidenceUrl?: string }) => request(`/matches/${id}/disputes`, { method: 'POST', body: data }),
   venues: () => isSupabaseConfigured ? supabaseRepository.venues() : request<Venue[]>('/geolocation/venues'),
   notifications: () => isSupabaseConfigured ? supabaseRepository.notifications() : request<Array<{ id: string; title: string; message: string; type: string; createdAt: string }>>('/geolocation/notifications'),
-  addContribution: (prizePoolId: number, data: unknown) =>
+  addContribution: (prizePoolId: string, data: unknown) =>
     request(`/prize-pools/${prizePoolId}/contributions`, { method: 'POST', body: data }),
-  updateContributionStatus: (contributionId: number, status: string) =>
+  updateContributionStatus: (contributionId: string, status: string) =>
     request(`/contributions/${contributionId}/status`, { method: 'PATCH', body: { status } }),
-  registerResults: (prizePoolId: number, data: unknown) =>
+  registerResults: (prizePoolId: string, data: unknown) =>
     request(`/prize-pools/${prizePoolId}/results`, { method: 'POST', body: data }),
   tournaments: () => isSupabaseConfigured ? supabaseRepository.tournaments() : request<Tournament[]>('/tournaments'),
   tournament: (id: string) => isSupabaseConfigured ? supabaseRepository.tournament(id) : request<Tournament>(`/tournaments/${id}`),

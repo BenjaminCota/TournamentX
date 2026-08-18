@@ -2,26 +2,17 @@ const crypto = require('node:crypto');
 const env = require('../config/env');
 const HttpError = require('../utils/http-error');
 const stripeGateway = require('./stripe-gateway');
-const binancePayGateway = require('./binance-pay-gateway');
-const binancePaySimulator = require('./binance-pay-simulator');
 
-const SUPPORTED = ['stripe', 'binance_pay'];
+const SUPPORTED = ['stripe'];
 
 async function createPayment({ provider, amount, currency, reference, idempotencyKey }) {
   if (!SUPPORTED.includes(provider)) throw new HttpError(400, 'Proveedor de pago no soportado');
-  if (provider === 'stripe' && env.stripeMode === 'test') {
+  if (env.stripeMode === 'test') {
     return stripeGateway.authorizePayment({ amount, currency, reference, idempotencyKey });
   }
-  if (provider === 'binance_pay' && env.binancePayMode === 'test') {
-    return binancePayGateway.createOrder({ amount, currency, reference });
-  }
-  if (env.paymentsMode !== 'simulated') {
-    throw new HttpError(501, 'La conexión real todavía no está configurada; usa PAYMENTS_MODE=simulated');
-  }
+  if (!env.isTestRun) throw new HttpError(503, 'Stripe no está configurado para procesar pagos');
 
-  if (provider === 'binance_pay') return binancePaySimulator.createOrder({ amount, currency, reference });
-
-  const providerReference = `${provider === 'stripe' ? 'pi_test' : 'bp_test'}_${crypto.randomUUID()}`;
+  const providerReference = `pi_test_${crypto.randomUUID()}`;
   return {
     providerReference,
     status: 'pending',

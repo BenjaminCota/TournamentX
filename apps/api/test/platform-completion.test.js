@@ -80,6 +80,6 @@ test('Dev 8 completa el flujo financiero local con idempotencia y recibo', async
   assert.equal(distribution.status, 200);
   const payout = await request(app).post(`/api/prize-pools/${pool.id}/payouts`).set(authorization).send({ recipientId: 'team-winner', position: 1, destination: 'local:winner' });
   assert.equal(payout.status, 201);
-  const receipt = await request(app).get(`/api/receipts/${payout.body.data.receiptCode}`);
+  const receipt = await request(app).get(`/api/receipts/${payout.body.data.receiptCode}`).set(authorization);
   assert.equal(receipt.status, 200); assert.equal(receipt.body.data.recipientId, 'team-winner');
 });

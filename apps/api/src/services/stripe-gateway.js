@@ -56,8 +56,13 @@ async function cancelPayment(providerReference, client = createClient()) {
   return { providerReference: paymentIntent.id, providerStatus: paymentIntent.status };
 }
 
+async function refundPayment(providerReference, client = createClient()) {
+  const refund = await client.refunds.create({ payment_intent: providerReference });
+  return { providerReference: refund.id, providerStatus: refund.status };
+}
+
 async function confirmTestPayment(providerReference, client = createClient()) {
-  if (env.nodeEnv === 'production' || env.stripeMode !== 'test') throw new HttpError(404, 'Confirmación de demostración no disponible');
+  if (env.nodeEnv === 'production' || env.stripeMode !== 'test') throw new HttpError(404, 'Confirmación Stripe Test no disponible');
   const paymentIntent = await client.paymentIntents.confirm(providerReference, {
     payment_method: 'pm_card_visa',
     return_url: 'http://localhost:4173',
@@ -70,4 +75,60 @@ function constructWebhookEvent(payload, signature, client = createClient()) {
   return client.webhooks.constructEvent(payload, signature, env.stripeWebhookSecret);
 }
 
-module.exports = { authorizePayment, capturePayment, cancelPayment, confirmTestPayment, constructWebhookEvent, toMinorUnits };
+async function createConnectedAccount({ userId, email }, client = createClient()) {
+  return client.accounts.create({
+    type: 'express',
+    email,
+    capabilities: { transfers: { requested: true } },
+    metadata: { tournamentxUserId: String(userId) },
+  });
+}
+
+async function retrieveConnectedAccount(accountId, client = createClient()) {
+  return client.accounts.retrieve(accountId);
+}
+
+async function createConnectOnboardingLink(accountId, client = createClient()) {
+  return client.accountLinks.create({
+    account: accountId,
+    refresh_url: env.stripeConnectRefreshUrl,
+    return_url: env.stripeConnectReturnUrl,
+    type: 'account_onboarding',
+  });
+}
+
+async function createConnectDashboardLink(accountId, client = createClient()) {
+  return client.accounts.createLoginLink(accountId);
+}
+
+async function createTransfer({ amount, currency, destination, prizePoolId, recipientId, position, attempt = 1 }, client = createClient()) {
+  return client.transfers.create(
+    {
+      amount: toMinorUnits(amount, currency),
+      currency: currency.toLowerCase(),
+      destination,
+      transfer_group: `tournamentx:${prizePoolId}`,
+      metadata: {
+        tournamentxPrizePoolId: String(prizePoolId),
+        tournamentxRecipientId: String(recipientId),
+        tournamentxPosition: String(position),
+      },
+    },
+    { idempotencyKey: `tournamentx-payout:${prizePoolId}:${position}${attempt > 1 ? `:${attempt}` : ''}` },
+  );
+}
+
+module.exports = {
+  authorizePayment,
+  capturePayment,
+  cancelPayment,
+  refundPayment,
+  confirmTestPayment,
+  constructWebhookEvent,
+  createConnectedAccount,
+  retrieveConnectedAccount,
+  createConnectOnboardingLink,
+  createConnectDashboardLink,
+  createTransfer,
+  toMinorUnits,
+};

@@ -15,7 +15,7 @@ MySQL queda limitado a pruebas de compatibilidad durante la migración.
 | Calendarios, partidos y marcadores | JSON local (`schedule-store`, `match-store`) | El frontend puede operar partidos configurado con Supabase. | Esquema/integración, sin repositorio API activo. | JSON local y Socket.IO. |
 | Sedes y notificaciones | JSON local (`geolocation-store`) | Lectura y tiempo real opcionales desde frontend. | No es fuente de ejecución. | JSON local y Socket.IO. |
 | Lobbies y medios | JSON local (`media.store`) | Lobbies pueden usar Supabase desde frontend. | No es fuente de ejecución. | Datos demo/proveedores opcionales. |
-| Premios, aportaciones y pagos simulados | JSON local (`local-rewards.store`) | No es fuente API actual. | Pruebas de integración y esquema financiero. | Proveedores simulados. |
+| Premios, aportaciones y pagos Stripe | MySQL cuando `DATABASE_URL` está configurada; JSON local solo para consultas sin pago. | No es fuente API actual. | Persistencia y pruebas de integración financiera. | Stripe Test; sin claves, los pagos se deshabilitan. |
 | Datos competitivos externos | Proveedor o datos demo de solo lectura | No aplica. | No aplica. | Feed demo explícito. |
 
 ## Reglas vigentes

@@ -1,4 +1,4 @@
-import { User, Tournament, Team, MatchScoreboard, ServerLobby, Venue, EscrowTransaction, DevModuleSpec } from '../types';
+import { User, Tournament, Team, MatchScoreboard, ServerLobby, Venue, DevModuleSpec } from '../types';
 
 export const INITIAL_USERS: User[] = [
   {
@@ -608,7 +608,7 @@ export const MOCK_VENUES: Venue[] = [
     capacity: 1200,
     image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80',
     activeEventsCount: 4,
-    features: ['Stage Fighting Games', 'Tribunas Gaming', 'Pasarela Crypto & Stripe']
+    features: ['Stage Fighting Games', 'Tribunas Gaming', 'Pagos con Stripe']
   },
   {
     id: 'ven-4',
@@ -633,46 +633,6 @@ export const MOCK_VENUES: Venue[] = [
     image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&auto=format&fit=crop&q=80',
     activeEventsCount: 2,
     features: ['Lounge de Casters', 'Monitores 360Hz', 'Red Privada Baja Latencia']
-  }
-];
-
-export const MOCK_ESCROW_TRANSACTIONS: EscrowTransaction[] = [
-  {
-    id: 'tx-001',
-    uuid: 'a8b3f290-41cb-4e99-8832-726190aa2101',
-    tournamentId: 'tour-1',
-    tournamentName: 'PRO LEAGUE SEASON 5',
-    amountUSD: 50000,
-    gateway: 'STRIPE',
-    status: 'LOCKED',
-    date: '2026-08-10 14:32:00',
-    payer: 'TournamentX Sponsorship Vault',
-    recipientTeam: 'Pendiente de Finalista'
-  },
-  {
-    id: 'tx-002',
-    uuid: 'c72e9104-58ba-464a-993d-8371190bc440',
-    tournamentId: 'tour-2',
-    tournamentName: 'Global Series: Latam Qualifiers',
-    amountUSD: 50000,
-    gateway: 'BINANCE_PAY',
-    status: 'LOCKED',
-    date: '2026-08-12 18:20:11',
-    payer: 'Binance Pay Escrow Smart-Contract',
-    txHash: '0x8f28d849b2910fae8293c8371891048bc8271038591823901bcae82910294819'
-  },
-  {
-    id: 'tx-003',
-    uuid: 'f5518b20-192a-4318-971a-2948190dcb88',
-    tournamentId: 'tour-3',
-    tournamentName: 'Night City Brawl - Season 4',
-    amountUSD: 10000,
-    gateway: 'STRIPE',
-    status: 'RELEASED',
-    date: '2026-08-01 22:00:45',
-    payer: 'Capcom LATAM Pro Tour',
-    recipientTeam: 'LUMINEX ESPORTS',
-    txHash: 'pi_3MtwBwLkdIwHu7ix28A35VSt'
   }
 ];
 
@@ -760,14 +720,14 @@ export const DEV_MODULES: DevModuleSpec[] = [
   },
   {
     devNumber: 8,
-    title: 'Recompensas & Pasarela Dual',
-    scope: 'Sistema de patrocinadores, bolsas de premios (Prize Pool), integración básica de Stripe y Binance Pay para payouts, escrow lógico y generación de recibos.',
-    techStack: ['Express', 'MySQL', 'Stripe Mock', 'Binance Pay Mock', 'Zod', 'Swagger'],
+    title: 'Recompensas & Stripe',
+    scope: 'Sistema de patrocinadores, bolsas de premios (Prize Pool), integración de Stripe, escrow lógico y generación de recibos.',
+    techStack: ['Express', 'MySQL', 'Stripe Test', 'Zod', 'Swagger'],
     completed: true,
     endpoints: [
-      { method: 'POST', path: '/api/prize-pools/:id/contributions', description: 'Crear una aportación simulada con Stripe o Binance Pay.', zodSchema: 'z.object({ sponsorId: z.string().uuid(), amount: z.number().positive(), provider: z.enum(["stripe","binance_pay"]) })' },
-      { method: 'PATCH', path: '/api/contributions/:id/status', description: 'Simular aprobación, rechazo o reembolso de una aportación.' },
-      { method: 'POST', path: '/api/prize-pools/:id/results', description: 'Importar ganadores y generar dispersiones simuladas.' },
+      { method: 'POST', path: '/api/prize-pools/:id/contributions', description: 'Crear una aportación con Stripe.', zodSchema: 'z.object({ sponsorId: z.string().uuid(), amount: z.number().positive(), provider: z.literal("stripe") })' },
+      { method: 'PATCH', path: '/api/contributions/:id/status', description: 'Capturar, rechazar o reembolsar una aportación Stripe Test.' },
+      { method: 'POST', path: '/api/prize-pools/:id/results', description: 'Importar ganadores y preparar sus transferencias.' },
       { method: 'GET', path: '/api/rewards', description: 'Consultar premios físicos, códigos y cupones.' }
     ]
   }

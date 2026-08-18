@@ -64,11 +64,14 @@ YOUTUBE_SEARCH_QUERY=esports tournament gaming
 PANDASCORE_API_TOKEN=
 FOOTBALL_DATA_API_KEY=
 FOOTBALL_COMPETITIONS=PL,CL,BSA,MLS
-STRIPE_MODE=simulated
-BINANCE_PAY_MODE=simulated
+STRIPE_MODE=test
+STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
 ```
 
-Sin claves, Twitch, YouTube, Stripe y Binance Pay continúan funcionando en modo local simulado. El modo de producción de Binance permanece bloqueado salvo configuración explícita.
+Sin claves, Twitch y YouTube conservan sus fuentes de demostración. Los pagos
+Stripe permanecen deshabilitados y no generan operaciones ficticias.
 
 ### Centro de transmisión
 

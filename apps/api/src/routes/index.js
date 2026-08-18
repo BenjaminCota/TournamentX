@@ -9,7 +9,6 @@ const playersRoutes = require('../modules/teams/players.routes');
 const tournamentsRoutes = require('../modules/tournaments/tournaments.routes');
 const matchesRoutes = require('../modules/matches/matches.routes');
 const schedulesRoutes = require('../modules/matches/schedules.routes');
-const dev8DemoRoutes = require('./dev8-demo.routes');
 const geolocationRoutes = require('../modules/geolocation/geolocation.routes');
 const authRoutes = require('../modules/auth/auth.routes');
 const analyticsRoutes = require('../modules/analytics/analytics.routes');
@@ -17,6 +16,9 @@ const mediaRoutes = require('../modules/media/media.routes');
 const competitiveDataRoutes = require('../modules/competitive-data/competitive-data.routes');
 const env = require('../config/env');
 const localRewardsRoutes = require('../modules/rewards/local-rewards.routes');
+const registrationPaymentRoutes = require('../modules/registration-payments/registration-payments.routes');
+const stripeConnectRoutes = require('../modules/stripe-connect/stripe-connect.routes');
+const paymentSettingsRoutes = require('../modules/payments/payment-settings.routes');
 
 if (env.databaseUrl) {
   router.use('/sponsors', sponsorsRoutes);
@@ -29,10 +31,12 @@ if (env.databaseUrl) {
 }
 router.use('/teams', teamsRoutes);
 router.use('/players', playersRoutes);
+router.use('/', registrationPaymentRoutes);
+router.use('/stripe/connect', stripeConnectRoutes);
+router.use('/payment-settings', paymentSettingsRoutes);
 router.use('/tournaments', tournamentsRoutes);
 router.use('/matches', matchesRoutes);
 router.use('/schedules', schedulesRoutes);
-router.use('/dev8-demo', dev8DemoRoutes);
 router.use('/geolocation', geolocationRoutes);
 router.use('/auth', authRoutes);
 router.use('/analytics', analyticsRoutes);

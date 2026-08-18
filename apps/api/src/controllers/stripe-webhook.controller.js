@@ -1,6 +1,8 @@
 const db = require('../config/database');
 const stripeGateway = require('../services/stripe-gateway');
 const { transitionContribution } = require('./contributions.controller');
+const registrationPayments = require('../modules/registration-payments/registration-payments.controller');
+const stripeConnectService = require('../modules/stripe-connect/stripe-connect.service');
 
 const EVENT_STATUS = {
   'payment_intent.amount_capturable_updated': 'authorized',
@@ -13,13 +15,20 @@ async function handle(req, res, next) {
   try {
     const signature = req.headers['stripe-signature'];
     const event = stripeGateway.constructWebhookEvent(req.body, signature);
+    if (event.type === 'account.updated') {
+      const account = stripeConnectService.updateFromWebhook(event.data.object);
+      return res.json({ received: true, ignored: !account, resource: account ? 'connected-account' : undefined });
+    }
     const status = EVENT_STATUS[event.type];
     if (!status) return res.json({ received: true, ignored: true });
 
     const providerReference = event.data.object.id;
     const result = await db.query('SELECT * FROM contributions WHERE provider = $1 AND provider_reference = $2', ['stripe', providerReference]);
     const contribution = result.rows[0];
-    if (!contribution) return res.json({ received: true, ignored: true });
+    if (!contribution) {
+      const registration = registrationPayments.transitionFromWebhook(providerReference, status, event.type);
+      return res.json({ received: true, ignored: !registration, resource: registration ? 'tournament-registration' : undefined });
+    }
 
     await db.transaction((client) => transitionContribution(client, contribution, status, 'stripe-webhook', event.type));
     res.json({ received: true });
