@@ -2,6 +2,17 @@
 
 La plataforma funciona por defecto sin MySQL ni credenciales externas. La API crea una base JSON local en `apps/api/data/tournamentx.local.json`; el archivo está excluido de Git.
 
+## Configuración compartida del equipo
+
+La API carga automáticamente `apps/api/classroom.env`, que contiene la conexión
+publicable del proyecto académico de Supabase y valores comunes no sensibles.
+Después de clonar solo hace falta ejecutar `npm install`; no es necesario copiar un
+`.env` para el flujo local básico.
+
+El archivo `apps/api/.env` es opcional y sirve únicamente para sobrescribir valores
+o añadir secretos personales de Twitch, Stripe u otros proveedores. Nunca se sube
+al repositorio.
+
 ## Inicio rápido
 
 Desde la raíz del proyecto:

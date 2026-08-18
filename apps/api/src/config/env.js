@@ -3,7 +3,12 @@ const path = require('node:path');
 
 const isNodeTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
 const usesIntegrationDatabase = process.env.RUN_DB_TESTS === '1' || process.env.RUN_STRIPE_TESTS === '1';
-if (!isNodeTest) dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+if (!isNodeTest) {
+  // Configuración versionada para que todo el equipo use el mismo entorno de aula.
+  dotenv.config({ path: path.resolve(__dirname, '../../classroom.env') });
+  // Un .env local sigue siendo opcional y permite añadir secretos sin publicarlos.
+  dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
+}
 
 module.exports = {
   port: Number(process.env.PORT || 3000),
