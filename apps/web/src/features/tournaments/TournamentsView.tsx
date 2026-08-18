@@ -308,8 +308,21 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   return (
     <div id="tournaments-view-container" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Torneos
+        </h1>
+
+        {canManageTournament && <button
+          onClick={onOpenCreateWizard}
+          className="self-start rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] px-4 py-2 text-xs font-bold tracking-wide text-white shadow-md shadow-[#ff2e83]/20 transition-all hover:scale-105 sm:self-auto cursor-pointer"
+        >
+          ＋ CREAR NUEVO TORNEO
+        </button>}
+      </header>
+
       {/* Tournament Selector Dropdown / Pills */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-2 rounded-2xl border border-[#1e2230] bg-[#10121a] p-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <span className="text-xs font-mono-code uppercase font-bold text-slate-400">Torneo Activo:</span>
           <select
@@ -324,20 +337,13 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             ))}
           </select>
         </div>
-
-        {canManageTournament && <button
-          onClick={onOpenCreateWizard}
-          className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white text-xs font-bold tracking-wide shadow-md shadow-[#ff2e83]/20 hover:scale-105 transition-all self-start sm:self-auto cursor-pointer"
-        >
-          ＋ CREAR NUEVO TORNEO
-        </button>}
       </div>
 
       {selectedTournament.status !== 'COMPLETED' && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[linear-gradient(135deg,rgba(255,46,131,.08),rgba(16,18,26,.96)_45%)] p-5 lg:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[.2em] text-[#ff69a8]">Control de competición</div>
-            <h2 className="mt-1 text-xl font-bold text-white">Operación de {selectedTournament.name}</h2>
+            <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">Operación de {selectedTournament.name}</h2>
             <p className="mt-1 text-xs text-slate-400">Participantes, llave, agenda y resultados confirmados en el registro activo.</p>
           </div>
           {hasSchedule && <button type="button" onClick={() => onNavigate('calendar')} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white">ABRIR PARTIDOS</button>}
@@ -381,9 +387,9 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               </span>
             </div>
 
-            <h1 className="font-brand font-black text-4xl sm:text-5xl text-white uppercase tracking-tight italic">
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
               {selectedTournament.name}
-            </h1>
+            </h2>
 
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
               {selectedTournament.description}
@@ -475,12 +481,12 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                     <div key={round.id} className={`flex-1 flex flex-col ${isFinal ? 'justify-center space-y-6' : 'justify-around space-y-8'}`}>
                       <div className="text-center mb-2">
                         {isFinal ? (
-                          <span className="font-display font-bold text-sm tracking-wider uppercase text-amber-400 bg-amber-500/10 px-4 py-1.5 rounded-full border border-amber-500/30 flex items-center justify-center gap-1.5 w-fit mx-auto">
+                          <span className="mx-auto flex w-fit items-center justify-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-sm font-semibold text-amber-400">
                             <Trophy className="w-4 h-4" />
                             {round.name}
                           </span>
                         ) : (
-                          <span className="font-display font-bold text-sm tracking-wider uppercase text-slate-400 bg-[#161926] px-3 py-1 rounded-full border border-[#232738]">
+                          <span className="rounded-full border border-[#232738] bg-[#161926] px-3 py-1 text-sm font-semibold text-slate-400">
                             {round.name}{bestOf ? ` (BO${bestOf})` : ''}
                           </span>
                         )}
@@ -565,7 +571,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
       {activeTab === 'OVERVIEW' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-4">
-            <h3 className="font-display font-bold text-lg text-white">Detalles del Formato</h3>
+            <h3 className="text-lg font-semibold text-white">Detalles del Formato</h3>
             <ul className="text-xs space-y-2.5 text-slate-300">
               <li className="flex justify-between">
                 <span className="text-slate-400">Tipo de Torneo:</span>
@@ -587,7 +593,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           </div>
 
           <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-4">
-            <h3 className="font-display font-bold text-lg text-white">Bolsa de premios</h3>
+            <h3 className="text-lg font-semibold text-white">Bolsa de premios</h3>
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between p-2 rounded bg-[#141724]">
                 <span className="font-bold text-white">Monto total</span>
@@ -600,13 +606,13 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           </div>
 
           <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-4">
-            <h3 className="font-display font-bold text-lg text-white">Reglamento Oficial</h3>
+            <h3 className="text-lg font-semibold text-white">Reglamento Oficial</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Todos los equipos deben conectarse al servidor 15 minutos antes de la hora estipulada. El anti-cheat Vanguard debe estar activo. Se permite 1 pausa táctica de 60s por mapa.
             </p>
           </div>
 
-          {canManageTournament && <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-4 md:col-span-3"><div className="flex items-center justify-between"><div><h3 className="font-display font-bold text-lg text-white">Bitácora del torneo</h3><p className="mt-1 text-xs text-slate-500">Cada transición queda asociada a la cuenta que la autorizó.</p></div><span className="status-chip text-slate-300">{audit.length} cambios</span></div>{audit.length === 0 ? <p className="text-sm text-slate-500">Todavía no hay cambios de estado registrados.</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{[...audit].reverse().slice(0, 6).map((entry) => <article key={entry.id} className="rounded-xl border border-white/[.07] bg-black/20 p-3"><strong className="text-xs text-white">{entry.previousStatus} → {entry.nextStatus}</strong><p className="mt-1 text-[11px] text-slate-500">{new Date(entry.createdAt).toLocaleString('es-MX')}</p>{entry.note && <p className="mt-2 text-xs text-slate-400">{entry.note}</p>}</article>)}</div>}</div>}
+          {canManageTournament && <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-4 md:col-span-3"><div className="flex items-center justify-between"><div><h3 className="text-lg font-semibold text-white">Bitácora del torneo</h3><p className="mt-1 text-xs text-slate-500">Cada transición queda asociada a la cuenta que la autorizó.</p></div><span className="status-chip text-slate-300">{audit.length} cambios</span></div>{audit.length === 0 ? <p className="text-sm text-slate-500">Todavía no hay cambios de estado registrados.</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{[...audit].reverse().slice(0, 6).map((entry) => <article key={entry.id} className="rounded-xl border border-white/[.07] bg-black/20 p-3"><strong className="text-xs text-white">{entry.previousStatus} → {entry.nextStatus}</strong><p className="mt-1 text-[11px] text-slate-500">{new Date(entry.createdAt).toLocaleString('es-MX')}</p>{entry.note && <p className="mt-2 text-xs text-slate-400">{entry.note}</p>}</article>)}</div>}</div>}
         </div>
       )}
 
@@ -615,7 +621,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
         <div className="space-y-6">
           <div className="p-6 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display font-bold text-xl text-white uppercase">Participantes</h3>
+              <h3 className="text-xl font-semibold text-white">Participantes</h3>
               <span className="text-xs font-mono-code text-slate-400">
                 {selectedTournament.registeredTeams} / {selectedTournament.maxTeams || '∞'}
               </span>
@@ -668,7 +674,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           {selectedTournament.format === 'GROUP_STAGE_PLAYOFFS' && (
             <div className="p-6 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-4">
-              <h3 className="font-display font-bold text-xl text-white uppercase">Fase de Grupos</h3>
+              <h3 className="text-xl font-semibold text-white">Fase de Grupos</h3>
 
               {groupsLoading ? (
                 <p className="text-sm text-slate-400">Cargando grupos…</p>
@@ -742,7 +748,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           {selectedTournament.format !== 'GROUP_STAGE_PLAYOFFS' && rounds.length === 0 && (
             <div className="p-6 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-3">
-              <h3 className="font-display font-bold text-xl text-white uppercase">Generar Bracket</h3>
+              <h3 className="text-xl font-semibold text-white">Generar Bracket</h3>
               <p className="text-sm text-slate-400">
                 Con {participants.length} participante{participants.length === 1 ? '' : 's'} inscritos ya se puede armar la llave de eliminación directa.
               </p>
@@ -785,7 +791,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           ) : (
             groups.map((group) => (
               <div key={group.id} className="p-6 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-4">
-                <h3 className="font-display font-bold text-xl text-white uppercase">{group.name}</h3>
+                <h3 className="text-xl font-semibold text-white">{group.name}</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
@@ -829,10 +835,10 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           <div className="bg-[#12141e] border border-[#282e44] rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-[#1e2230] pb-4">
               <div>
-                <span className="text-[10px] font-mono-code text-[#ff2e83] uppercase font-bold">
+                <span className="text-xs font-medium text-[#ff69a8]">
                   {selectedTournament.name}
                 </span>
-                <h3 className="font-display font-black text-2xl text-white">
+                <h3 className="text-xl font-semibold text-white sm:text-2xl">
                   Detalles del Enfrentamiento
                 </h3>
               </div>

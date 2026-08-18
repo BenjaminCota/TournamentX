@@ -2,17 +2,23 @@ const localStore = require('../../config/local-store');
 const crypto = require('node:crypto');
 
 const venuesSeed = [
-  { id: 'ven-1', name: 'Arena CDMX Esports Dome', city: 'Ciudad de México', country: 'México', address: 'Av. de las Granjas 800, Azcapotzalco', latitude: 19.4978, longitude: -99.1757, activeEventsCount: 3 },
-  { id: 'ven-2', name: 'Movistar GameClub Santiago', city: 'Santiago', country: 'Chile', address: 'Av. Vicuña Mackenna 7110, La Florida', latitude: -33.5186, longitude: -70.5986, activeEventsCount: 2 },
-  { id: 'ven-3', name: 'Geek Lounge & Arena BA', city: 'Buenos Aires', country: 'Argentina', address: 'Av. Corrientes 3247, CABA', latitude: -34.6037, longitude: -58.4116, activeEventsCount: 4 },
-  { id: 'ven-4', name: 'Coliseo Medplus Gaming Arena', city: 'Bogotá', country: 'Colombia', address: 'Calle 80 Km 1.5 vía Cota', latitude: 4.735, longitude: -74.12, activeEventsCount: 1 },
-  { id: 'ven-5', name: 'Espacio Gamer Lima', city: 'Lima', country: 'Perú', address: 'Av. Javier Prado Este 4200, Surco', latitude: -12.0864, longitude: -76.9748, activeEventsCount: 2 },
+  { id: 'ven-1', name: 'Arena CDMX Esports Dome', city: 'Ciudad de México', country: 'México', address: 'Av. de las Granjas 800, Azcapotzalco', latitude: 19.4978, longitude: -99.1757, activeEventsCount: 3, image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1000&auto=format&fit=crop&q=82' },
+  { id: 'ven-2', name: 'Movistar GameClub Santiago', city: 'Santiago', country: 'Chile', address: 'Av. Vicuña Mackenna 7110, La Florida', latitude: -33.5186, longitude: -70.5986, activeEventsCount: 2, image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1000&auto=format&fit=crop&q=82' },
+  { id: 'ven-3', name: 'Geek Lounge & Arena BA', city: 'Buenos Aires', country: 'Argentina', address: 'Av. Corrientes 3247, CABA', latitude: -34.6037, longitude: -58.4116, activeEventsCount: 4, image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1000&auto=format&fit=crop&q=82' },
+  { id: 'ven-4', name: 'Coliseo Medplus Gaming Arena', city: 'Bogotá', country: 'Colombia', address: 'Calle 80 Km 1.5 vía Cota', latitude: 4.735, longitude: -74.12, activeEventsCount: 1, image: 'https://images.unsplash.com/photo-1598550476439-6847785fcea6?w=1000&auto=format&fit=crop&q=82' },
+  { id: 'ven-5', name: 'Espacio Gamer Lima', city: 'Lima', country: 'Perú', address: 'Av. Javier Prado Este 4200, Surco', latitude: -12.0864, longitude: -76.9748, activeEventsCount: 2, image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1000&auto=format&fit=crop&q=82' },
 ];
+
+const venueFallbackImages = venuesSeed.map((venue) => venue.image);
+function fallbackImageForVenue(venue) {
+  const hash = [...String(venue.id || venue.name || '')].reduce((total, character) => total + character.charCodeAt(0), 0);
+  return venueFallbackImages[hash % venueFallbackImages.length];
+}
 
 const venues = localStore.collection('venues', venuesSeed);
 function saveVenues() { localStore.saveCollection('venues', venues); }
 function serializeVenue(venue) {
-  return { ...venue, coordinates: venue.coordinates || [venue.latitude, venue.longitude], features: venue.features || ['Streaming', 'Zona de jugadores', 'Accesibilidad'], image: venue.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1000&auto=format&fit=crop&q=80' };
+  return { ...venue, coordinates: venue.coordinates || [venue.latitude, venue.longitude], features: venue.features || ['Streaming', 'Zona de jugadores', 'Accesibilidad'], image: venue.image || fallbackImageForVenue(venue) };
 }
 function listVenues() { return venues.map(serializeVenue); }
 function createVenue(input) { const venue = { id: crypto.randomUUID(), ...input, latitude: input.latitude, longitude: input.longitude, activeEventsCount: Number(input.activeEventsCount || 0), createdAt: new Date().toISOString() }; venues.push(venue); saveVenues(); return serializeVenue(venue); }

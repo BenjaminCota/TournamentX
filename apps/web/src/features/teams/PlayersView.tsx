@@ -15,15 +15,18 @@ interface PlayersViewProps {
   players: User[];
   onCreatePlayer: (data: Partial<User>) => Promise<User>;
   onUpdatePlayer: (id: string, data: Partial<User>) => Promise<User>;
+  onDeletePlayer: (id: string) => Promise<void>;
 }
 
-export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, currentUserId, players, onCreatePlayer, onUpdatePlayer }) => {
+export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, currentUserId, players, onCreatePlayer, onUpdatePlayer, onDeletePlayer }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get('team_invite') || '');
   const [inviteMessage, setInviteMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deletingPlayerId, setDeletingPlayerId] = useState('');
 
   // New Player Form State
   const [formName, setFormName] = useState('');
@@ -86,8 +89,16 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
 
   const handleDeletePlayer = async (id: string) => {
     if (!canManage) return;
-    if (confirm('¿Estás seguro de eliminar este jugador del roster oficial?')) {
-      await onUpdatePlayer(id, { status: 'SUSPENDED', teamId: undefined, teamName: undefined });
+    const player = players.find((entry) => entry.id === id);
+    if (!confirm(`¿Eliminar permanentemente a ${player?.name || 'este jugador'}? También saldrá de su plantilla activa.`)) return;
+    setDeletingPlayerId(id);
+    setDeleteError('');
+    try {
+      await onDeletePlayer(id);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'No fue posible eliminar al jugador.');
+    } finally {
+      setDeletingPlayerId('');
     }
   };
 
@@ -117,6 +128,8 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
       </div>
 
       {canRequestTeam && <section className="rounded-2xl border border-[#ff2e83]/25 bg-[#ff2e83]/[.06] p-4"><h2 className="text-sm font-bold text-white">Entrar a un equipo</h2><p className="mt-1 text-xs text-slate-400">Escribe el código que compartió el capitán.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase())} className="field font-mono uppercase tracking-widest" placeholder="CÓDIGO DE INVITACIÓN"/><button onClick={() => void requestTeam()} disabled={inviteCode.length < 6} className="rounded-xl bg-[#ff2e83] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50">SOLICITAR INGRESO</button></div>{inviteMessage && <p className="mt-2 text-xs text-slate-300">{inviteMessage}</p>}</section>}
+
+      {deleteError && <div role="alert" className="rounded-2xl border border-red-500/30 bg-red-500/[.08] px-4 py-3 text-sm text-red-200">{deleteError}</div>}
 
       {/* FILTER CONTROLS BAR (Image 13) */}
       <div className="p-4 rounded-2xl bg-[#10121a] border border-[#1e2230] flex flex-col md:flex-row items-center justify-between gap-4">
@@ -257,9 +270,10 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
                             {player.status === 'ACTIVE' ? <Ban className="w-3.5 h-3.5 text-amber-400" /> : <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />}
                           </button>
                           <button
-                            onClick={() => handleDeletePlayer(player.id)}
-                            title="Eliminar de roster"
-                            className="p-1.5 rounded-lg bg-[#181b28] hover:bg-red-900/40 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                            onClick={() => void handleDeletePlayer(player.id)}
+                            disabled={deletingPlayerId === player.id}
+                            title="Eliminar jugador"
+                            className="p-1.5 rounded-lg bg-[#181b28] hover:bg-red-900/40 text-slate-400 hover:text-red-400 transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-40"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

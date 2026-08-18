@@ -109,8 +109,14 @@ async function authorizeTest(req, res, next) {
     const registration = ownedRegistration(req.validated.params.id, req.user.sub);
     if (registration.status !== 'pending') throw new HttpError(409, 'La inscripción ya no está pendiente');
     if (env.stripeMode === 'test') {
-      const result = await stripeGateway.confirmTestPayment(registration.providerReference);
-      return res.json({ providerStatus: result.providerStatus, awaitingWebhook: true });
+      let result = await stripeGateway.retrievePayment(registration.providerReference);
+      if (result.providerStatus === 'requires_payment_method') {
+        result = await stripeGateway.confirmTestPayment(registration.providerReference);
+      }
+      if (result.providerStatus !== 'requires_capture') {
+        throw new HttpError(409, `Stripe dejó la inscripción en estado ${result.providerStatus}`);
+      }
+      return res.json({ data: store.transition(registration, 'authorized', req.user.sub, 'Autorización Stripe Test confirmada'), providerStatus: result.providerStatus });
     }
     if (!env.isTestRun) throw new HttpError(503, 'Stripe no está configurado para autorizar la inscripción');
     return res.json({ data: store.transition(registration, 'authorized', req.user.sub, 'Autorización Stripe local'), providerStatus: 'requires_capture' });

@@ -98,7 +98,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
               <Trophy className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-brand font-black text-2xl text-white uppercase tracking-tight italic">
+              <h2 className="text-2xl font-bold tracking-tight text-white">
                 CREADOR DE TORNEOS TOURNAMENTX
               </h2>
               <p className="text-xs text-slate-400 font-tech">
@@ -160,7 +160,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             {/* STEP 1: INFORMACIÓN GENERAL (Image 17) */}
             {currentStep === 1 && (
               <div className="space-y-5 animate-in fade-in duration-200">
-                <h3 className="font-display font-bold text-xl text-white">
+                <h3 className="text-xl font-semibold text-white">
                   Información Básica del Torneo
                 </h3>
 
@@ -244,7 +244,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             {/* STEP 2: DEPORTE / JUEGO */}
             {currentStep === 2 && (
               <div className="space-y-5 animate-in fade-in duration-200">
-                <h3 className="font-display font-bold text-xl text-white">
+                <h3 className="text-xl font-semibold text-white">
                   Selecciona el Videojuego o Disciplina
                 </h3>
 
@@ -281,7 +281,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             {/* STEP 3: FORMATO Y LLAVES */}
             {currentStep === 3 && (
               <div className="space-y-5 animate-in fade-in duration-200">
-                <h3 className="font-display font-bold text-xl text-white">
+                <h3 className="text-xl font-semibold text-white">
                   Estructura y Algoritmo de Brackets
                 </h3>
 
@@ -312,7 +312,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             {/* STEP 4: PARTICIPANTES */}
             {currentStep === 4 && (
               <div className="space-y-5 animate-in fade-in duration-200">
-                <h3 className="font-display font-bold text-xl text-white">
+                <h3 className="text-xl font-semibold text-white">
                   Límite de Cupos y Requisitos
                 </h3>
 
@@ -338,7 +338,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             {/* STEP 5: REGLAS */}
             {currentStep === 5 && (
               <div className="space-y-4 animate-in fade-in duration-200">
-                <h3 className="font-display font-bold text-xl text-white">
+                <h3 className="text-xl font-semibold text-white">
                   Reglas de Enfrentamiento & Fair Play
                 </h3>
                 <div className="p-4 rounded-2xl bg-[#141724] border border-[#1e2230] space-y-3 text-xs text-slate-300">
@@ -361,7 +361,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             {/* STEP 6: CALENDARIO & SEDES */}
             {currentStep === 6 && (
               <div className="space-y-5 animate-in fade-in duration-200">
-                <h3 className="font-display font-bold text-xl text-white">
+                <h3 className="text-xl font-semibold text-white">
                   Fechas y Sede Presencial
                 </h3>
 
@@ -399,7 +399,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             {/* STEP 7: PREMIOS & ESCROW */}
             {currentStep === 7 && (
               <div className="space-y-5 animate-in fade-in duration-200">
-                <h3 className="font-display font-bold text-xl text-white">
+                <h3 className="text-xl font-semibold text-white">
                   Bolsa de premios
                 </h3>
 

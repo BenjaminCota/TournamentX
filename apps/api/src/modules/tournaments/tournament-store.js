@@ -125,6 +125,10 @@ function canUserManageTournament(tournamentId, userId) {
   return Boolean(tournament.createdBy && tournament.createdBy === userId);
 }
 
+function getTournamentOwner(tournamentId) {
+  return findTournament(tournamentId).createdBy || null;
+}
+
 function createTournament(input) {
   const now = new Date().toISOString();
   const tournament = {
@@ -391,7 +395,6 @@ function reportBracketMatchResult(tournamentId, matchId, { score1, score2 }) {
   match.status = 'completed';
   match.winnerParticipantId = score1 > score2 ? match.participant1Id : match.participant2Id;
   tournament.updatedAt = new Date().toISOString();
-  persist();
 
   if (match.nextMatchId) {
     const next = tournament.matches.find((entry) => entry.id === match.nextMatchId);
@@ -402,6 +405,11 @@ function reportBracketMatchResult(tournamentId, matchId, { score1, score2 }) {
     tournament.championId = match.winnerParticipantId;
     tournament.status = 'COMPLETED';
   }
+
+  // Persiste también el avance a la siguiente ronda y, especialmente, el
+  // campeón de la final. Antes se guardaba demasiado pronto y el campeón se
+  // perdía al reiniciar la API aunque el partido figurara como completado.
+  persist();
 
   const byId = participantsById(tournament);
   return serializeKnockoutMatch(match, byId);
@@ -474,11 +482,29 @@ function seed() {
   });
 }
 
+function restoreChampionFromCompletedFinals() {
+  let changed = false;
+  for (const tournament of tournaments) {
+    if (tournament.championId) continue;
+    const completedFinal = knockoutMatches(tournament)
+      .filter((match) => !match.nextMatchId && match.status === 'completed' && match.winnerParticipantId)
+      .sort((left, right) => Number(right.round || 0) - Number(left.round || 0))[0];
+    if (!completedFinal) continue;
+    tournament.championId = completedFinal.winnerParticipantId;
+    tournament.status = 'COMPLETED';
+    tournament.updatedAt = tournament.updatedAt || new Date().toISOString();
+    changed = true;
+  }
+  if (changed) localStore.saveCollection('tournaments', tournaments);
+}
+
 if (tournaments.length === 0) seed();
+else restoreChampionFromCompletedFinals();
 
 module.exports = {
   listTournaments,
   getTournament,
+  getTournamentOwner,
   canUserManageTournament,
   createTournament,
   listParticipants,

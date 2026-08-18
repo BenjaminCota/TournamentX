@@ -20,6 +20,7 @@ module.exports = {
   supabaseUrl: process.env.SUPABASE_URL,
   supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY,
   stripeMode: process.env.STRIPE_MODE || 'disabled',
+  paymentsMode: process.env.PAYMENTS_MODE || (isNodeTest ? 'simulated' : 'disabled'),
   stripeSecretKey: process.env.STRIPE_SECRET_KEY,
   stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,

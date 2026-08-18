@@ -98,6 +98,11 @@ test('el resultado aprobado conecta check-in, calendario, bracket, notificaciÃ�
   assert.equal(status.body.status, 'COMPLETED');
   assert.equal(status.body.championId, teamOne.body.id);
   const updatedPool = await request(app).get(`/api/prize-pools/${pool.body.data.id}`).set(organizer);
-  assert.equal(updatedPool.body.data.status, 'distributed');
-  assert.equal(updatedPool.body.data.payouts[0].recipientId, teamOne.body.id);
+  assert.equal(updatedPool.body.data.status, 'locked');
+  assert.equal(updatedPool.body.data.winners[0].recipientId, teamOne.body.id);
+  const claimed = await request(app).post(`/api/prize-pools/${pool.body.data.id}/claim`).set(captainOne).send({ payoutMethod: { type: 'card', brand: 'mastercard', last4: '4444', cardholderName: 'Capitán Uno' } });
+  assert.equal(claimed.status, 201);
+  assert.equal(claimed.body.data.payout.recipientId, teamOne.body.id);
+  const paidPool = await request(app).get(`/api/prize-pools/${pool.body.data.id}`).set(organizer);
+  assert.equal(paidPool.body.data.status, 'distributed');
 });

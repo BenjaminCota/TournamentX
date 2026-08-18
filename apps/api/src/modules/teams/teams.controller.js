@@ -90,6 +90,16 @@ async function updatePlayer(req, res, next) {
   }
 }
 
+async function deletePlayer(req, res, next) {
+  try {
+    const result = teamStore.deletePlayer(req.params.id);
+    if (!result) throw new HttpError(404, 'Jugador no encontrado');
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function addRosterMember(req, res, next) {
   try {
     assertTeamManager(req);
@@ -152,6 +162,7 @@ module.exports = {
   getPlayer,
   createPlayer,
   updatePlayer,
+  deletePlayer,
   addRosterMember,
   removeRosterMember,
   createInvitation,

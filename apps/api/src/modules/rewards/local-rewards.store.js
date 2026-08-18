@@ -14,7 +14,11 @@ const seed = {
 
 function collection(name) { return localStore.collection(`rewards_${name}`, seed[name] || []); }
 function save(name, data) { return localStore.saveCollection(`rewards_${name}`, data); }
-function publicContribution(item) { const sponsor = collection('sponsors').find((entry) => entry.id === item.sponsorId); return { ...item, sponsorName: sponsor?.name || 'Patrocinador' }; }
+function publicContribution(item) {
+  const sponsor = collection('sponsors').find((entry) => entry.id === item.sponsorId);
+  const { paymentClientSecret: _paymentClientSecret, ...safe } = item;
+  return { ...safe, sponsorName: sponsor?.name || 'Patrocinador' };
+}
 function poolDetails(pool) { return { ...pool, contributions: collection('contributions').filter((item) => item.prizePoolId === pool.id).map(publicContribution), distributionRules: collection('distributionRules').filter((item) => item.prizePoolId === pool.id).sort((a, b) => a.position - b.position), payouts: collection('payouts').filter((item) => item.prizePoolId === pool.id).sort((a, b) => a.position - b.position), winners: collection('winners').filter((item) => item.prizePoolId === pool.id) }; }
 function list(name) { return collection(name); }
 function add(name, item) { const data = collection(name); data.push(item); save(name, data); return item; }

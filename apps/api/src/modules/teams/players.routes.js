@@ -10,5 +10,6 @@ router.get('/', controller.listPlayers);
 router.post('/', ...manager, validate(schemas.createPlayer), controller.createPlayer);
 router.get('/:id', controller.getPlayer);
 router.patch('/:id', ...manager, controller.authorizePlayerOwner, validate(schemas.updatePlayer), controller.updatePlayer);
+router.delete('/:id', authenticate, authorize('admin', 'organizer', 'captain'), controller.deletePlayer);
 
 module.exports = router;

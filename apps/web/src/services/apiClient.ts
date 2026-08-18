@@ -87,6 +87,7 @@ export const tournamentXApi = {
   player: (id: string) => useSupabaseDomainData ? supabaseRepository.player(id) : request<User>(`/players/${id}`),
   createPlayer: (data: unknown) => useSupabaseDomainData ? supabaseRepository.createPlayer(data as Partial<User>) : request<User>('/players', { method: 'POST', body: data }),
   updatePlayer: (id: string, data: unknown) => useSupabaseDomainData ? supabaseRepository.updatePlayer(id, data as Partial<User>) : request<User>(`/players/${id}`, { method: 'PATCH', body: data }),
+  deletePlayer: (id: string) => useSupabaseDomainData ? supabaseRepository.deletePlayer(id) : request<void>(`/players/${id}`, { method: 'DELETE' }),
   addRosterMember: (teamId: string, data: unknown) => useSupabaseDomainData
     ? supabaseRepository.addRosterMember(teamId, data as { playerId: string; role: string; status?: string })
     : request<{ id: string }>(`/teams/${teamId}/roster`, { method: 'POST', body: data }),

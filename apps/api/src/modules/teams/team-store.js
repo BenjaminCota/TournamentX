@@ -311,7 +311,7 @@ function serializeTeam(team) {
 
 function serializePlayer(playerId) {
   const player = players.find((entry) => entry.id === playerId);
-  if (!player) return null;
+  if (!player || player.deletedAt) return null;
 
   const history = roster
     .filter((membership) => membership.playerId === playerId)
@@ -383,7 +383,7 @@ function updateTeam(teamId, updates) {
 }
 
 function listPlayers() {
-  return players.map((player) => serializePlayer(player.id));
+  return players.map((player) => serializePlayer(player.id)).filter(Boolean);
 }
 
 function getPlayer(playerId) {
@@ -415,10 +415,31 @@ function createPlayer({ name, lastname, nickname, avatar, sport, position, natio
 
 function updatePlayer(playerId, updates) {
   const player = players.find((entry) => entry.id === playerId);
-  if (!player) return null;
+  if (!player || player.deletedAt) return null;
   Object.assign(player, updates, { updatedAt: new Date().toISOString() });
   persist();
   return serializePlayer(player.id);
+}
+
+function deletePlayer(playerId) {
+  const player = players.find((entry) => entry.id === playerId);
+  if (!player || player.deletedAt) return null;
+  const deletedAt = new Date().toISOString();
+
+  // Se conserva una lápida local para que los jugadores de catálogo no reaparezcan
+  // después de reiniciar la API. Las relaciones activas dejan de mostrarse.
+  Object.assign(player, { status: 'inactive', authUserId: null, deletedAt, updatedAt: deletedAt });
+  roster.forEach((membership) => {
+    if (membership.playerId === playerId && membership.status === 'active') {
+      membership.status = 'inactive';
+      membership.leftAt = deletedAt;
+    }
+  });
+  for (let index = joinRequests.length - 1; index >= 0; index -= 1) {
+    if (joinRequests[index].playerId === playerId) joinRequests.splice(index, 1);
+  }
+  persist();
+  return { id: playerId, deletedAt };
 }
 
 function addMemberToRoster(teamId, { playerId, role, status }) {
@@ -553,6 +574,7 @@ module.exports = {
   getPlayer,
   createPlayer,
   updatePlayer,
+  deletePlayer,
   addMemberToRoster,
   removeMemberFromRoster,
   canUserManageTeam,

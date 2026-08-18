@@ -2,6 +2,20 @@ const router = require('express').Router();
 const { z } = require('zod');
 const { authenticate, authorize } = require('../../middleware/auth');
 const service = require('./payment-settings.service');
+const env = require('../../config/env');
+
+router.get('/config', (_req, res) => {
+  const stripeTestEnabled = env.stripeMode === 'test'
+    && Boolean(env.stripePublishableKey)
+    && Boolean(env.stripeSecretKey);
+  res.json({
+    data: {
+      stripeMode: stripeTestEnabled ? 'test' : 'disabled',
+      paymentsMode: env.paymentsMode,
+      stripePublishableKey: stripeTestEnabled ? env.stripePublishableKey : null,
+    },
+  });
+});
 
 router.use(authenticate);
 

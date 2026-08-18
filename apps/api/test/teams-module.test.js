@@ -41,4 +41,20 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
   const removeMember = await request(app).delete(`/api/teams/${teamResponse.body.id}/roster/${playerResponse.body.id}`).set(authorization);
   assert.equal(removeMember.status, 200);
   assert.equal(removeMember.body.status, 'inactive');
+
+  const deletablePlayer = await request(app).post('/api/players').set(authorization).send({
+    name: 'Lucía', lastname: 'Torres', nickname: `Delete-${Date.now()}`, avatar: 'https://example.com/delete-player.png', sport: 'Valorant', position: 'Controladora', nationality: 'MX', status: 'active',
+  });
+  assert.equal(deletablePlayer.status, 201);
+  const activeMembership = await request(app).post(`/api/teams/${teamResponse.body.id}/roster`).set(authorization).send({ playerId: deletablePlayer.body.id, role: 'Jugadora', status: 'active' });
+  assert.equal(activeMembership.status, 201);
+
+  const unauthenticatedDelete = await request(app).delete(`/api/players/${deletablePlayer.body.id}`);
+  assert.equal(unauthenticatedDelete.status, 401);
+  const deleted = await request(app).delete(`/api/players/${deletablePlayer.body.id}`).set(authorization);
+  assert.equal(deleted.status, 204);
+  const deletedDetail = await request(app).get(`/api/players/${deletablePlayer.body.id}`);
+  assert.equal(deletedDetail.status, 404);
+  const teamWithoutDeletedPlayer = await request(app).get(`/api/teams/${teamResponse.body.id}`);
+  assert.equal(teamWithoutDeletedPlayer.body.roster.some((member) => member.playerId === deletablePlayer.body.id), false);
 });
