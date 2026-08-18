@@ -11,6 +11,7 @@ interface TeamsWorkspaceProps {
   teams: Team[];
   players: User[];
   currentUserRole: UserRole;
+  currentUserId?: string;
   onSelectTeam: (teamId: string) => void;
   onCreateTeam: (team: Partial<Team>) => Promise<Team> | Team;
   onCreatePlayer: (data: Partial<User>) => Promise<User>;
@@ -23,6 +24,7 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
   teams,
   players,
   currentUserRole,
+  currentUserId,
   onSelectTeam,
   onCreateTeam,
   onCreatePlayer,
@@ -52,7 +54,7 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
     {section === 'teams' ? (
       <TeamsListView teams={teams} currentUserRole={currentUserRole} onSelectTeam={onSelectTeam} onCreateTeam={onCreateTeam} />
     ) : (
-      <PlayersView currentUserRole={currentUserRole} players={players} onCreatePlayer={onCreatePlayer} onUpdatePlayer={onUpdatePlayer} />
+      <PlayersView currentUserRole={currentUserRole} currentUserId={currentUserId} players={players} onCreatePlayer={onCreatePlayer} onUpdatePlayer={onUpdatePlayer} />
     )}
   </div>
 );

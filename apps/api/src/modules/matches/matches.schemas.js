@@ -60,4 +60,21 @@ const updateMatchScore = z.object({
   }),
 });
 
-module.exports = { listMatches, matchId, createMatch, updateMatchScore };
+const workflowParams = z.object({ id: opaqueId });
+const workflow = z.object({ params: workflowParams, query: z.any(), body: z.any() });
+const checkIn = z.object({ params: workflowParams, query: z.any(), body: z.object({ teamId: opaqueId }) });
+const reportResult = z.object({
+  params: workflowParams, query: z.any(),
+  body: z.object({ teamId: opaqueId, team1Score: z.coerce.number().int().min(0), team2Score: z.coerce.number().int().min(0), evidenceUrl: z.string().url().max(1000) })
+    .refine((body) => body.team1Score !== body.team2Score, 'El resultado oficial no puede terminar empatado'),
+});
+const reportDecision = z.object({
+  params: z.object({ id: opaqueId, reportId: opaqueId }), query: z.any(),
+  body: z.object({ decision: z.enum(['approve', 'reject']), reviewNote: z.string().trim().max(500).optional() }),
+});
+const dispute = z.object({
+  params: workflowParams, query: z.any(),
+  body: z.object({ teamId: opaqueId, reason: z.string().trim().min(5).max(500), evidenceUrl: z.string().url().max(1000).optional() }),
+});
+
+module.exports = { listMatches, matchId, createMatch, updateMatchScore, workflow, checkIn, reportResult, reportDecision, dispute };

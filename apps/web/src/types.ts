@@ -2,6 +2,8 @@ export type UserRole = 'Admin' | 'Organizador' | 'Árbitro' | 'Capitán' | 'Juga
 
 export interface User {
   id: string;
+  authUserId?: string | null;
+  gameProfiles?: Record<string, string>;
   name: string;
   username: string;
   email: string;
@@ -25,6 +27,20 @@ export interface AuthUser {
   role: 'admin' | 'organizer' | 'referee' | 'captain' | 'player' | 'spectator';
   roleLabel: UserRole;
   status: 'ACTIVE' | 'OFFLINE' | 'SUSPENDED';
+}
+
+export interface OrganizerRequest {
+  id: string;
+  userId: string;
+  organizationName: string;
+  description: string;
+  logoUrl: string | null;
+  socialLinks: Record<string, string>;
+  credentialReference: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewNote: string | null;
+  createdAt: string;
+  applicant: AuthUser;
 }
 
 export interface AnalyticsOverview {
@@ -95,6 +111,8 @@ export interface PlayerProfile {
   position: string;
   nationality: string;
   status: 'active' | 'inactive' | 'suspended';
+  authUserId?: string | null;
+  gameProfiles?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
   currentTeamId?: string | null;
@@ -181,6 +199,7 @@ export interface BracketRound {
 
 export interface Team {
   id: string;
+  captainUserId?: string | null;
   name: string;
   tag: string;
   abbreviation?: string;
@@ -220,6 +239,14 @@ export interface TournamentMatch {
   streamUrl: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MatchWorkflow {
+  matchId: string;
+  match: TournamentMatch;
+  checkIns: Array<{ id: string; teamId: string; captainUserId: string; status: 'CONFIRMED'; checkedInAt: string }>;
+  reports: Array<{ id: string; submittedBy: string; submittedForTeamId: string; team1Score: number; team2Score: number; evidenceUrl: string; status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'; reviewNote?: string | null; createdAt: string }>;
+  disputes: Array<{ id: string; openedBy: string; teamId: string; reason: string; evidenceUrl?: string | null; status: 'OPEN' | 'RESOLVED'; createdAt: string }>;
 }
 
 export interface MatchScoreboard {

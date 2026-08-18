@@ -12,6 +12,7 @@ import { SedesMapView } from './features/geolocation/SedesMapView';
 import { RecompensasView } from './features/rewards/RecompensasView';
 import { LoginView } from './features/auth/LoginView';
 import { UsersView } from './features/auth/UsersView';
+import { OrganizerRequestCard } from './features/auth/OrganizerRequestCard';
 import { SplashScreen } from './features/landing/SplashScreen';
 import { AuthUser, Team, Tournament, User, UserRole } from './types';
 import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
@@ -106,6 +107,7 @@ export default function App() {
     return initial ? JSON.parse(initial) : MOCK_TOURNAMENTS;
   });
   const [selectedTeamId, setSelectedTeamId] = useState<string>('team-lnx');
+  const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>();
 
   useEffect(() => { const timer = window.setTimeout(() => setShowSplash(false), 3000); return () => window.clearTimeout(timer); }, []);
 
@@ -438,7 +440,7 @@ export default function App() {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
   };
-  const navigateToMatch = () => setActiveTab('esports');
+  const navigateToMatch = (matchId: string) => { setSelectedMatchId(matchId); setActiveTab('live_match'); };
 
   if (showSplash) return <SplashScreen />;
 
@@ -469,7 +471,7 @@ export default function App() {
           />
 
           <main className="flex-1 bg-[#0a0b0e] pb-16">
-            {activeTab === 'dashboard' && <DashboardView teams={teams} tournaments={tournaments} onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} />}
+            {activeTab === 'dashboard' && <><OrganizerRequestCard currentUserRole={currentUserRole}/><DashboardView teams={teams} tournaments={tournaments} onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} /></>}
             {activeTab === 'tournaments' && (
               <TournamentsView
                 onNavigate={navigate}
@@ -482,10 +484,12 @@ export default function App() {
                 onGenerateBracket={handleGenerateBracket}
               />
             )}
-            {(activeTab === 'calendar' || activeTab === 'esports') && (
+            {(activeTab === 'calendar' || activeTab === 'esports' || activeTab === 'live_match') && (
               <MatchesWorkspace
                 section={activeTab}
                 currentUserRole={currentUserRole}
+                currentUserId={currentUser?.id}
+                selectedMatchId={selectedMatchId}
                 onNavigate={navigate}
                 onOpenMatch={navigateToMatch}
               />
@@ -496,6 +500,7 @@ export default function App() {
                 teams={teams}
                 players={players}
                 currentUserRole={currentUserRole}
+                currentUserId={currentUser?.id}
                 onNavigate={navigate}
                 onSelectTeam={navigateToTeam}
                 onCreateTeam={handleCreateTeam}
@@ -508,6 +513,8 @@ export default function App() {
                 teamId={selectedTeam?.id || selectedTeamId}
                 teams={teams}
                 players={players}
+                currentUserRole={currentUserRole}
+                currentUserId={currentUser?.id}
                 onNavigate={navigate}
                 onSelectTeam={setSelectedTeamId}
                 onCreateTeam={handleCreateTeam}

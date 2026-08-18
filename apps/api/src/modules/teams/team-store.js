@@ -4,6 +4,7 @@ const localStore = require('../../config/local-store');
 const teamsSeed = [
   {
     id: 'team-lnx',
+    captainUserId: 'user-captain',
     name: 'LUMINEX ESPORTS',
     abbreviation: 'LNX',
     logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
@@ -35,6 +36,7 @@ const teams = localStore.collection('teams', teamsSeed);
 const playersSeed = [
   {
     id: 'player-1',
+    authUserId: 'user-captain',
     name: 'Alex',
     lastname: 'Chen',
     nickname: 'Viper',
@@ -48,6 +50,7 @@ const playersSeed = [
   },
   {
     id: 'player-2',
+    authUserId: 'user-player',
     name: 'Sarah',
     lastname: 'Jenkins',
     nickname: 'Nova',
@@ -129,10 +132,14 @@ const rosterSeed = [
 ];
 
 const roster = localStore.collection('teamRoster', rosterSeed);
+const invitations = localStore.collection('teamInvitations', []);
+const joinRequests = localStore.collection('teamJoinRequests', []);
 function persist() {
   localStore.saveCollection('teams', teams);
   localStore.saveCollection('players', players);
   localStore.saveCollection('teamRoster', roster);
+  localStore.saveCollection('teamInvitations', invitations);
+  localStore.saveCollection('teamJoinRequests', joinRequests);
 }
 
 function serializeTeam(team) {
@@ -202,11 +209,13 @@ function getTeam(teamId) {
   return serializeTeam(team);
 }
 
-function createTeam({ name, abbreviation, logo, sport, region, competitionType, description, status }) {
+function createTeam({ name, abbreviation, logo, sport, region, competitionType, description, status, captainUserId, createdBy }) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const team = {
     id,
+    captainUserId: captainUserId || null,
+    createdBy: createdBy || null,
     name,
     abbreviation,
     logo: logo || 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&auto=format&fit=crop&q=80',
@@ -239,11 +248,13 @@ function getPlayer(playerId) {
   return serializePlayer(playerId);
 }
 
-function createPlayer({ name, lastname, nickname, avatar, sport, position, nationality, status }) {
+function createPlayer({ name, lastname, nickname, avatar, sport, position, nationality, status, authUserId, gameProfiles }) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const player = {
     id,
+    authUserId: authUserId || null,
+    gameProfiles: gameProfiles || {},
     name,
     lastname,
     nickname,
@@ -277,6 +288,8 @@ function addMemberToRoster(teamId, { playerId, role, status }) {
   if (existing) {
     return { error: 'Este jugador ya pertenece a la plantilla.' };
   }
+  const activeMembership = roster.find((membership) => membership.playerId === playerId && membership.status === 'active');
+  if (activeMembership) return { error: 'Este jugador ya pertenece a otro equipo activo.' };
 
   const membership = {
     id: crypto.randomUUID(),
@@ -299,6 +312,78 @@ function addMemberToRoster(teamId, { playerId, role, status }) {
     joinedAt: membership.joinedAt,
     leftAt: membership.leftAt,
   };
+}
+
+function canUserManageTeam(teamId, userId) {
+  const team = teams.find((entry) => entry.id === teamId);
+  return Boolean(team && team.captainUserId === userId);
+}
+
+function transferCaptain(teamId, captainUserId) {
+  const team = teams.find((entry) => entry.id === teamId);
+  if (!team) return null;
+  team.captainUserId = captainUserId;
+  team.updatedAt = new Date().toISOString();
+  persist();
+  return serializeTeam(team);
+}
+
+function createInvitation(teamId, { createdBy, expiresInHours = 72, rosterRole = 'Jugador' }) {
+  const team = teams.find((entry) => entry.id === teamId);
+  if (!team) return { error: 'Equipo no encontrado', status: 404 };
+  const now = new Date();
+  const invitation = {
+    id: crypto.randomUUID(), teamId, code: crypto.randomBytes(4).toString('hex').toUpperCase(), rosterRole,
+    status: 'ACTIVE', createdBy, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + expiresInHours * 3600000).toISOString(),
+  };
+  invitations.push(invitation); persist();
+  return { invitation };
+}
+
+function listInvitations(teamId) {
+  const now = Date.now();
+  let changed = false;
+  for (const invitation of invitations) {
+    if (invitation.status === 'ACTIVE' && new Date(invitation.expiresAt).getTime() < now) { invitation.status = 'EXPIRED'; changed = true; }
+  }
+  if (changed) persist();
+  return invitations.filter((invitation) => invitation.teamId === teamId).map((invitation) => ({ ...invitation }));
+}
+
+function createJoinRequest({ code, playerId, requestedBy }) {
+  const invitation = invitations.find((entry) => entry.code === String(code).trim().toUpperCase());
+  if (!invitation || invitation.status !== 'ACTIVE' || new Date(invitation.expiresAt).getTime() < Date.now()) {
+    return { error: 'La invitaciÃ³n no existe o expirÃ³', status: 404 };
+  }
+  const player = players.find((entry) => entry.id === playerId);
+  if (!player) return { error: 'Jugador no encontrado', status: 404 };
+  if (player.authUserId !== requestedBy) return { error: 'Este perfil de jugador no estÃ¡ vinculado con tu cuenta', status: 403 };
+  if (roster.some((membership) => membership.playerId === playerId && membership.status === 'active')) return { error: 'El jugador ya pertenece a un equipo activo', status: 409 };
+  if (joinRequests.some((entry) => entry.playerId === playerId && entry.teamId === invitation.teamId && entry.status === 'PENDING')) return { error: 'Ya existe una solicitud pendiente', status: 409 };
+  const now = new Date().toISOString();
+  const request = { id: crypto.randomUUID(), teamId: invitation.teamId, invitationId: invitation.id, playerId, rosterRole: invitation.rosterRole, requestedBy, status: 'PENDING', createdAt: now, updatedAt: now };
+  joinRequests.push(request); persist();
+  return { request: { ...request } };
+}
+
+function listJoinRequests(teamId) {
+  return joinRequests.filter((request) => request.teamId === teamId).map((request) => ({ ...request, player: serializePlayer(request.playerId) }));
+}
+
+function decideJoinRequest(teamId, requestId, { decision, decidedBy }) {
+  const request = joinRequests.find((entry) => entry.id === requestId && entry.teamId === teamId);
+  if (!request) return { error: 'Solicitud no encontrada', status: 404 };
+  if (request.status !== 'PENDING') return { error: 'La solicitud ya fue revisada', status: 409 };
+  if (decision === 'approve') {
+    const membership = addMemberToRoster(teamId, { playerId: request.playerId, role: request.rosterRole, status: 'active' });
+    if (membership.error) return { error: membership.error, status: 409 };
+    request.membershipId = membership.id;
+  }
+  request.status = decision === 'approve' ? 'APPROVED' : 'REJECTED';
+  request.decidedBy = decidedBy;
+  request.updatedAt = new Date().toISOString();
+  persist();
+  return { request: { ...request } };
 }
 
 function removeMemberFromRoster(teamId, playerId) {
@@ -328,4 +413,11 @@ module.exports = {
   updatePlayer,
   addMemberToRoster,
   removeMemberFromRoster,
+  canUserManageTeam,
+  transferCaptain,
+  createInvitation,
+  listInvitations,
+  createJoinRequest,
+  listJoinRequests,
+  decideJoinRequest,
 };

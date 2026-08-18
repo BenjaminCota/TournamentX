@@ -7,17 +7,21 @@ import {
   Trash2
 } from 'lucide-react';
 import { User, UserRole } from '../../types';
+import { tournamentXApi } from '../../services/apiClient';
 
 interface PlayersViewProps {
   currentUserRole: UserRole;
+  currentUserId?: string;
   players: User[];
   onCreatePlayer: (data: Partial<User>) => Promise<User>;
   onUpdatePlayer: (id: string, data: Partial<User>) => Promise<User>;
 }
 
-export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, players, onCreatePlayer, onUpdatePlayer }) => {
+export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, currentUserId, players, onCreatePlayer, onUpdatePlayer }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -30,6 +34,13 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, playe
   const formStatus: 'ACTIVE' = 'ACTIVE';
 
   const canManage = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Capitán';
+  const ownPlayer = players.find((player) => player.authUserId === currentUserId);
+  const canRequestTeam = (currentUserRole === 'Jugador' || currentUserRole === 'Capitán') && Boolean(ownPlayer);
+  const requestTeam = async () => {
+    if (!ownPlayer) return;
+    try { await tournamentXApi.requestToJoinTeam({ code: inviteCode, playerId: ownPlayer.id }); setInviteMessage('Solicitud enviada al capitán.'); setInviteCode(''); }
+    catch (error) { setInviteMessage(error instanceof Error ? error.message : 'No se pudo enviar la solicitud'); }
+  };
 
   // Filter logic
   const filteredPlayers = players.filter((p) => {
@@ -104,6 +115,8 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, playe
           </button>
         )}
       </div>
+
+      {canRequestTeam && <section className="rounded-2xl border border-[#ff2e83]/25 bg-[#ff2e83]/[.06] p-4"><h2 className="text-sm font-bold text-white">Entrar a un equipo</h2><p className="mt-1 text-xs text-slate-400">Escribe el código que compartió el capitán.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase())} className="field font-mono uppercase tracking-widest" placeholder="CÓDIGO DE INVITACIÓN"/><button onClick={() => void requestTeam()} disabled={inviteCode.length < 6} className="rounded-xl bg-[#ff2e83] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50">SOLICITAR INGRESO</button></div>{inviteMessage && <p className="mt-2 text-xs text-slate-300">{inviteMessage}</p>}</section>}
 
       {/* FILTER CONTROLS BAR (Image 13) */}
       <div className="p-4 rounded-2xl bg-[#10121a] border border-[#1e2230] flex flex-col md:flex-row items-center justify-between gap-4">

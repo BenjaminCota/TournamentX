@@ -30,7 +30,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
 
   useEffect(() => { let active = true; tournamentXApi.competitiveOverview().then((result) => { if (active) { setFeedTeams(result.teams); setFeedIntegration(result.integration); } }).catch(() => undefined); return () => { active = false; }; }, []);
 
-  const canCreate = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
+  const canCreate = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Capitán';
   
   // Calculate statistics
   const uniqueRegions = useMemo(() => [...new Set(teams.map(t => t.region))].length, [teams]);

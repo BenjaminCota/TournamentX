@@ -1,4 +1,4 @@
-import type { AnalyticsOverview, AuthUser, CompetitiveOverview, Team, Tournament, TournamentMatch, User, Venue } from '../types';
+import type { AnalyticsOverview, AuthUser, CompetitiveOverview, MatchWorkflow, OrganizerRequest, Team, Tournament, TournamentMatch, User, Venue } from '../types';
 import type { LiveEvent, MediaStream } from '../features/media/media.types';
 import { isSupabaseConfigured } from './supabaseClient';
 import { supabaseRepository } from './supabaseRepository';
@@ -65,6 +65,12 @@ export const tournamentXApi = {
   updateUser: (id: string, data: Partial<AuthUser> & { password?: string }) => isSupabaseConfigured
     ? supabaseRepository.updateUser(id, data)
     : request<{ user: AuthUser }>(`/auth/users/${id}`, { method: 'PATCH', body: data }),
+  organizerRequests: () => request<{ data: OrganizerRequest[] }>('/auth/organizer-requests'),
+  myOrganizerRequests: () => request<{ data: OrganizerRequest[] }>('/auth/organizer-requests/me'),
+  createOrganizerRequest: (data: { organizationName: string; description?: string; logoUrl?: string; socialLinks?: Record<string, string>; credentialReference: string }) =>
+    request<{ request: OrganizerRequest }>('/auth/organizer-requests', { method: 'POST', body: data }),
+  decideOrganizerRequest: (id: string, data: { decision: 'approve' | 'reject'; reviewNote?: string }) =>
+    request<{ request: OrganizerRequest }>(`/auth/organizer-requests/${id}`, { method: 'PATCH', body: data }),
   analytics: () => request<AnalyticsOverview>('/analytics/overview'),
   competitiveOverview: () => request<CompetitiveOverview>('/competitive/overview'),
   sponsors: () => request<{ data: unknown[] }>('/sponsors'),
@@ -84,11 +90,20 @@ export const tournamentXApi = {
   removeRosterMember: (teamId: string, playerId: string) => isSupabaseConfigured
     ? supabaseRepository.removeRosterMember(teamId, playerId)
     : request(`/teams/${teamId}/roster/${playerId}`, { method: 'DELETE' }),
+  createTeamInvitation: (teamId: string, data: { expiresInHours?: number; rosterRole?: string }) => request<{ invitation: { id: string; code: string; expiresAt: string } }>(`/teams/${teamId}/invitations`, { method: 'POST', body: data }),
+  teamJoinRequests: (teamId: string) => request<{ data: Array<{ id: string; playerId: string; status: string; player?: User }> }>(`/teams/${teamId}/join-requests`),
+  requestToJoinTeam: (data: { code: string; playerId: string }) => request('/teams/join-requests', { method: 'POST', body: data }),
+  decideTeamJoinRequest: (teamId: string, requestId: string, decision: 'approve' | 'reject') => request(`/teams/${teamId}/join-requests/${requestId}`, { method: 'PATCH', body: { decision } }),
   matches: () => isSupabaseConfigured ? supabaseRepository.matches() : request<TournamentMatch[]>('/matches'),
   match: (id: string) => isSupabaseConfigured ? supabaseRepository.match(id) : request<TournamentMatch>(`/matches/${id}`),
   updateMatchScore: (id: string, data: unknown, token?: string) => isSupabaseConfigured
     ? supabaseRepository.updateMatchScore(id, data as Record<string, unknown>)
     : request(`/matches/${id}/score`, { method: 'PATCH', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: data }),
+  matchWorkflow: (id: string) => request<MatchWorkflow>(`/matches/${id}/workflow`),
+  checkInMatch: (id: string, teamId: string) => request<{ match: TournamentMatch; workflow: MatchWorkflow }>(`/matches/${id}/check-in`, { method: 'POST', body: { teamId } }),
+  reportMatchResult: (id: string, data: { teamId: string; team1Score: number; team2Score: number; evidenceUrl: string }) => request(`/matches/${id}/reports`, { method: 'POST', body: data }),
+  decideMatchReport: (id: string, reportId: string, decision: 'approve' | 'reject', reviewNote?: string) => request<{ match: TournamentMatch; workflow: MatchWorkflow }>(`/matches/${id}/reports/${reportId}`, { method: 'PATCH', body: { decision, reviewNote } }),
+  disputeMatch: (id: string, data: { teamId: string; reason: string; evidenceUrl?: string }) => request(`/matches/${id}/disputes`, { method: 'POST', body: data }),
   venues: () => isSupabaseConfigured ? supabaseRepository.venues() : request<Venue[]>('/geolocation/venues'),
   notifications: () => isSupabaseConfigured ? supabaseRepository.notifications() : request<Array<{ id: string; title: string; message: string; type: string; createdAt: string }>>('/geolocation/notifications'),
   addContribution: (prizePoolId: number, data: unknown) =>

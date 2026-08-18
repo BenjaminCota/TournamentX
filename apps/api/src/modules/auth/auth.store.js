@@ -38,7 +38,9 @@ const seedUsers = [
 ].map((user) => ({ ...user, createdAt: '2026-08-16T00:00:00.000Z', updatedAt: '2026-08-16T00:00:00.000Z' }));
 
 function users() { return localStore.collection('users', seedUsers); }
+function organizerRequests() { return localStore.collection('organizerRequests', []); }
 function persist(list) { localStore.saveCollection('users', list); }
+function persistOrganizerRequests(list) { localStore.saveCollection('organizerRequests', list); }
 function publicUser(user) {
   if (!user) return null;
   const { passwordHash: _passwordHash, ...safe } = user;
@@ -47,13 +49,64 @@ function publicUser(user) {
 function findByEmail(email) { return users().find((user) => user.email.toLowerCase() === String(email).trim().toLowerCase()); }
 function findById(id) { return users().find((user) => user.id === id); }
 function listUsers() { return users().map(publicUser); }
-function createUser({ name, username, email, password, role = 'spectator' }) {
+function createUser({ name, username, email, password, role = 'player' }) {
   const list = users();
   if (list.some((user) => user.email.toLowerCase() === email.toLowerCase())) return { error: 'El correo ya está registrado' };
   const now = new Date().toISOString();
   const user = { id: crypto.randomUUID(), name, username: username || `@${email.split('@')[0]}`, email: email.toLowerCase(), role: normalizeRole(role), passwordHash: hashPassword(password), status: 'ACTIVE', createdAt: now, updatedAt: now };
   list.push(user); persist(list);
   return { user: publicUser(user) };
+}
+
+function createOrganizerRequest(userId, input) {
+  const user = findById(userId);
+  if (!user) return { error: 'Usuario no encontrado', status: 404 };
+  if (normalizeRole(user.role) === 'organizer') return { error: 'La cuenta ya es organizador', status: 409 };
+  const list = organizerRequests();
+  if (list.some((request) => request.userId === userId && request.status === 'PENDING')) {
+    return { error: 'Ya existe una solicitud pendiente', status: 409 };
+  }
+  const now = new Date().toISOString();
+  const request = {
+    id: crypto.randomUUID(),
+    userId,
+    organizationName: input.organizationName,
+    description: input.description || '',
+    logoUrl: input.logoUrl || null,
+    socialLinks: input.socialLinks || {},
+    credentialReference: input.credentialReference,
+    status: 'PENDING',
+    reviewNote: null,
+    reviewedBy: null,
+    reviewedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  list.push(request);
+  persistOrganizerRequests(list);
+  return { request: { ...request, applicant: publicUser(user) } };
+}
+
+function listOrganizerRequests(userId) {
+  return organizerRequests()
+    .filter((request) => !userId || request.userId === userId)
+    .map((request) => ({ ...request, applicant: publicUser(findById(request.userId)) }));
+}
+
+function decideOrganizerRequest(id, { decision, reviewNote, reviewedBy }) {
+  const list = organizerRequests();
+  const request = list.find((entry) => entry.id === id);
+  if (!request) return { error: 'Solicitud no encontrada', status: 404 };
+  if (request.status !== 'PENDING') return { error: 'La solicitud ya fue revisada', status: 409 };
+  const now = new Date().toISOString();
+  request.status = decision === 'approve' ? 'APPROVED' : 'REJECTED';
+  request.reviewNote = reviewNote || null;
+  request.reviewedBy = reviewedBy;
+  request.reviewedAt = now;
+  request.updatedAt = now;
+  persistOrganizerRequests(list);
+  if (request.status === 'APPROVED') updateUser(request.userId, { role: 'organizer' });
+  return { request: { ...request, applicant: publicUser(findById(request.userId)) } };
 }
 function updateUser(id, updates) {
   const list = users();
@@ -66,4 +119,7 @@ function updateUser(id, updates) {
   return { user: publicUser(user) };
 }
 
-module.exports = { normalizeRole, displayRole, verifyPassword, publicUser, findByEmail, findById, listUsers, createUser, updateUser };
+module.exports = {
+  normalizeRole, displayRole, verifyPassword, publicUser, findByEmail, findById, listUsers, createUser, updateUser,
+  createOrganizerRequest, listOrganizerRequests, decideOrganizerRequest,
+};
