@@ -7,7 +7,9 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "node --test",
-    "db:init": "node src/scripts/init-db.js"
+    "db:init": "node src/scripts/init-db.js",
+    "db:migrate": "node src/scripts/migrate-team-roster.js",
+    "test:db": "node scripts/verify-mysql.js"
   },
   "engines": {
     "node": ">=20"

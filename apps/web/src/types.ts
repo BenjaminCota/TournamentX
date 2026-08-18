@@ -13,6 +13,76 @@ export interface User {
   lastActivity: string;
   ratingOVR?: number;
   position?: string;
+  lastname?: string;
+  nickname?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'organizer' | 'referee' | 'captain' | 'player' | 'spectator';
+  roleLabel: UserRole;
+  status: 'ACTIVE' | 'OFFLINE' | 'SUSPENDED';
+}
+
+export interface AnalyticsOverview {
+  generatedAt: string;
+  metrics: { tournaments: number; activeTournaments: number; teams: number; matches: number; completedMatches: number; liveMatches: number; completionRate: number; totalPrizeUSD: number };
+  ranking: Array<{ id: string; team: string; region: string; played: number; wins: number; losses: number; draws: number; rate: number; points: number }>;
+  recentMatches: TournamentMatch[];
+}
+
+export interface CompetitiveEvent {
+  id: string;
+  category: 'esports' | 'sports';
+  sport: string;
+  competition: string;
+  region: string;
+  status: MatchStatus;
+  startsAt: string;
+  teamA: { id: string; name: string; shortName: string; score: number };
+  teamB: { id: string; name: string; shortName: string; score: number };
+  round: string;
+  venue: string;
+  source: string;
+  dataMode: 'api' | 'simulated';
+}
+
+export interface CompetitiveStanding {
+  id: string;
+  competition: string;
+  category: 'esports' | 'sports';
+  sport: string;
+  region: string;
+  source: string;
+  dataMode: 'api' | 'simulated';
+  table: Array<{ position: number; teamId: string; team: string; played: number; wins: number; draws: number; losses: number; points: number; form: string[] }>;
+}
+
+export interface CompetitiveTeam {
+  id: string;
+  name: string;
+  shortName: string;
+  category: 'esports' | 'sports';
+  sport: string;
+  region: string;
+  country: string;
+  logo: string;
+  rank: number;
+  form: string[];
+  players: Array<{ id: string; name: string; nickname: string; role: string; nationality: string; image: string }>;
+  source: string;
+  dataMode: 'api' | 'simulated';
+}
+
+export interface CompetitiveOverview {
+  generatedAt: string;
+  integration: { esports: string; football: string };
+  events: CompetitiveEvent[];
+  standings: CompetitiveStanding[];
+  teams: CompetitiveTeam[];
 }
 
 export interface PlayerProfile {
@@ -193,6 +263,11 @@ export interface ServerLobby {
   status: 'In Game' | 'Waiting' | 'Paused';
   ping: number;
   playersCount: string;
+  name?: string;
+  team1?: string;
+  team2?: string;
+  players?: number;
+  maxPlayers?: number;
 }
 
 export interface Venue {

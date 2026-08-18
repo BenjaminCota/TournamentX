@@ -9,9 +9,7 @@ import {
   ArrowRight, 
   Download,
   Building2,
-  Gift,
-  Ticket,
-  PackageCheck
+  Gift
 } from 'lucide-react';
 import { EscrowTransaction, UserRole } from '../../types';
 import confetti from 'canvas-confetti';

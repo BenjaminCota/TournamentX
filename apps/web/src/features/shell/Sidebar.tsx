@@ -1,50 +1,100 @@
 import React from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import {
+  BarChart3,
+  CalendarDays,
+  Gift,
+  LayoutDashboard,
+  MapPin,
+  Plus,
+  ShieldCheck,
+  Trophy,
+  UsersRound,
+} from 'lucide-react';
 import { TournamentXLogo } from '../../shared/components/TournamentXLogo';
 import { UserRole } from '../../types';
 
-export type TabId = 'landing' | 'dashboard' | 'tournaments' | 'live_match' | 'teams' | 'team_detail' | 'players' | 'calendar' | 'analytics' | 'esports' | 'venues' | 'rewards' | 'create_tournament' | 'login';
+export type TabId = 'landing' | 'dashboard' | 'tournaments' | 'live_match' | 'teams' | 'team_detail' | 'players' | 'users' | 'calendar' | 'analytics' | 'esports' | 'venues' | 'rewards' | 'create_tournament' | 'login';
 
 interface SidebarProps {
   currentTab: TabId;
   setCurrentTab: (tab: TabId) => void;
   currentUserRole: UserRole;
+  currentUserName?: string;
+  isAuthenticated: boolean;
+  onOpenAuth: () => void;
+  onRequestLogout: () => void;
   onOpenCreateWizard: () => void;
 }
 
-const mainItems: Array<{ id: TabId; label: string }> = [
-  { id: 'landing', label: 'Página principal' },
-  { id: 'dashboard', label: 'Panel' },
-  { id: 'tournaments', label: 'Torneos' },
-  { id: 'live_match', label: 'Partidos' },
-  { id: 'teams', label: 'Equipos' },
-  { id: 'calendar', label: 'Calendario' },
-  { id: 'analytics', label: 'Estadísticas' },
-  { id: 'rewards', label: 'Premios' }
+const mainItems = [
+  { id: 'dashboard' as const, label: 'Panel', icon: LayoutDashboard, tabs: ['dashboard'] as TabId[] },
+  { id: 'tournaments' as const, label: 'Torneos', icon: Trophy, tabs: ['tournaments'] as TabId[] },
+  { id: 'calendar' as const, label: 'Partidos', icon: CalendarDays, tabs: ['calendar', 'live_match', 'esports'] as TabId[] },
+  { id: 'teams' as const, label: 'Equipos', icon: UsersRound, tabs: ['teams', 'players', 'team_detail'] as TabId[] },
+  { id: 'analytics' as const, label: 'Estadísticas', icon: BarChart3, tabs: ['analytics'] as TabId[] },
+  { id: 'venues' as const, label: 'Sedes', icon: MapPin, tabs: ['venues'] as TabId[] },
+  { id: 'rewards' as const, label: 'Premios', icon: Gift, tabs: ['rewards'] as TabId[] },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, onOpenCreateWizard }) => (
-  <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0c10]/95 backdrop-blur-md">
-    <div className="max-w-[1500px] mx-auto h-16 px-5 lg:px-8 flex items-center gap-6">
-      <TournamentXLogo size="sm" onClick={() => setCurrentTab('landing')} />
-      <nav className="flex-1 flex items-center gap-1 overflow-x-auto" aria-label="Menú principal">
-        {mainItems.map((item) => {
-          const active = currentTab === item.id || (item.id === 'teams' && currentTab === 'team_detail');
-          return <button key={item.id} onClick={() => setCurrentTab(item.id)} className={`whitespace-nowrap px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white'}`}>{item.label}</button>;
-        })}
-        <div className="relative group">
-          <button className="flex items-center gap-1 px-3 py-2 text-sm text-slate-400 hover:text-white">Más <ChevronDown className="w-3.5 h-3.5" /></button>
-          <div className="hidden group-hover:block absolute top-full right-0 pt-2 w-48">
-            <div className="rounded-xl border border-white/10 bg-[#12141b] p-1 shadow-xl">
-              <button onClick={() => setCurrentTab('players')} className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-white/10">Jugadores</button>
-              <button onClick={() => setCurrentTab('esports')} className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-white/10">Transmisiones</button>
-              <button onClick={() => setCurrentTab('venues')} className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-white/10">Sedes</button>
-            </div>
-          </div>
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, isAuthenticated, onOpenAuth, onRequestLogout, onOpenCreateWizard }) => {
+  const visitorItems = mainItems.filter((item) => item.id !== 'dashboard' && item.id !== 'analytics');
+  const visibleItems = isAuthenticated
+    ? (currentUserRole === 'Admin' ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }] : mainItems)
+    : visitorItems;
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
+      <div className="mx-auto flex min-h-16 max-w-[1540px] items-center gap-3 px-4 lg:gap-5 lg:px-7">
+        <div className="shrink-0 border-r border-white/[.08] pr-4">
+          <TournamentXLogo size="sm" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
         </div>
-      </nav>
-      {(currentUserRole === 'Admin' || currentUserRole === 'Organizador') && <button onClick={onOpenCreateWizard} className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-[#ff2e83] text-white text-sm font-semibold hover:bg-[#e11d48]"><Plus className="w-4 h-4" /> Crear torneo</button>}
-      <button onClick={() => setCurrentTab('login')} className="w-9 h-9 rounded-full bg-white/10 text-sm font-semibold text-white" aria-label="Abrir cuenta">{currentUserRole.charAt(0)}</button>
-    </div>
-  </header>
-);
+
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2" aria-label="Navegación principal">
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const active = item.tabs.includes(currentTab);
+            return (
+              <button
+                type="button"
+                key={item.id}
+                onClick={() => setCurrentTab(item.id)}
+                aria-current={active ? 'page' : undefined}
+                className={`group relative inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition-all ${active ? 'bg-[#ff2e83]/12 text-white ring-1 ring-[#ff2e83]/25' : 'text-slate-400 hover:bg-white/[.05] hover:text-white'}`}
+              >
+                <Icon className={`h-4 w-4 ${active ? 'text-[#ff4b94]' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                <span>{item.label}</span>
+                {active && <span className="absolute inset-x-3 -bottom-2 h-0.5 rounded-full bg-[#ff2e83]" />}
+              </button>
+            );
+          })}
+        </nav>
+
+        {(currentUserRole === 'Admin' || currentUserRole === 'Organizador') && (
+          <button
+            type="button"
+            onClick={onOpenCreateWizard}
+            className="hidden h-10 shrink-0 items-center gap-2 rounded-xl bg-[#ff2e83] px-4 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 hover:-translate-y-0.5 hover:bg-[#ef2778] xl:flex"
+          >
+            <Plus className="h-4 w-4" /> Crear torneo
+          </button>
+        )}
+
+        {isAuthenticated ? (
+          <button
+            type="button"
+            onClick={onRequestLogout}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
+            aria-label="Cerrar sesión"
+            title={currentUserName ? `Cerrar sesión de ${currentUserName}` : 'Cerrar sesión'}
+          >
+            {(currentUserName || currentUserRole).charAt(0)}
+          </button>
+        ) : (
+          <button type="button" onClick={onOpenAuth} className="h-10 shrink-0 rounded-xl bg-[#ff2e83] px-4 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778]">
+            Iniciar sesión
+          </button>
+        )}
+      </div>
+    </header>
+  );
+};

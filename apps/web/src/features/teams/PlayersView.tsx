@@ -7,14 +7,15 @@ import {
   Trash2
 } from 'lucide-react';
 import { User, UserRole } from '../../types';
-import { INITIAL_USERS } from '../../data/mockData';
 
 interface PlayersViewProps {
   currentUserRole: UserRole;
+  players: User[];
+  onCreatePlayer: (data: Partial<User>) => Promise<User>;
+  onUpdatePlayer: (id: string, data: Partial<User>) => Promise<User>;
 }
 
-export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole }) => {
-  const [players, setPlayers] = useState<User[]>(INITIAL_USERS);
+export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, players, onCreatePlayer, onUpdatePlayer }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -43,7 +44,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole }) => 
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const handleAddPlayerSubmit = (e: React.FormEvent) => {
+  const handleAddPlayerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newPlayer: User = {
       id: `usr-${Date.now()}`,
@@ -58,7 +59,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole }) => 
       ratingOVR: 85
     };
 
-    setPlayers([newPlayer, ...players]);
+    await onCreatePlayer(newPlayer);
     setShowAddModal(false);
     // Reset form
     setFormName('');
@@ -66,21 +67,16 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole }) => 
     setFormEmail('');
   };
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleStatus = async (id: string) => {
     if (!canManage) return;
-    setPlayers(players.map(p => {
-      if (p.id === id) {
-        const nextStatus = p.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-        return { ...p, status: nextStatus };
-      }
-      return p;
-    }));
+    const player = players.find((entry) => entry.id === id);
+    if (player) await onUpdatePlayer(id, { status: player.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' });
   };
 
-  const handleDeletePlayer = (id: string) => {
+  const handleDeletePlayer = async (id: string) => {
     if (!canManage) return;
     if (confirm('¿Estás seguro de eliminar este jugador del roster oficial?')) {
-      setPlayers(players.filter(p => p.id !== id));
+      await onUpdatePlayer(id, { status: 'SUSPENDED', teamId: undefined, teamName: undefined });
     }
   };
 

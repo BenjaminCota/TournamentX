@@ -1,3 +1,111 @@
+CREATE TABLE IF NOT EXISTS users (
+  id CHAR(36) PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  username VARCHAR(60) NOT NULL UNIQUE,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin', 'organizer', 'referee', 'captain', 'player', 'spectator') NOT NULL DEFAULT 'spectator',
+  status ENUM('ACTIVE', 'OFFLINE', 'SUSPENDED') NOT NULL DEFAULT 'ACTIVE',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_users_role_status (role, status)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS teams (
+  id CHAR(36) PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  abbreviation VARCHAR(8) NOT NULL UNIQUE,
+  logo_url TEXT,
+  sport VARCHAR(80) NOT NULL,
+  region VARCHAR(80) NOT NULL,
+  competition_type VARCHAR(80) NOT NULL,
+  description VARCHAR(500),
+  status ENUM('active', 'inactive', 'draft') NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS players (
+  id CHAR(36) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  lastname VARCHAR(100),
+  nickname VARCHAR(60) NOT NULL UNIQUE,
+  avatar_url TEXT,
+  sport VARCHAR(80) NOT NULL,
+  position_name VARCHAR(80) NOT NULL,
+  nationality VARCHAR(60) NOT NULL,
+  status ENUM('active', 'inactive', 'suspended') NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS team_roster (
+  id CHAR(36) PRIMARY KEY,
+  team_id CHAR(36) NOT NULL,
+  player_id CHAR(36) NOT NULL,
+  role_name VARCHAR(80) NOT NULL,
+  status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  active_member TINYINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN status = 'active' THEN 1 ELSE NULL END) STORED,
+  joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  left_at TIMESTAMP NULL,
+  CONSTRAINT fk_roster_team FOREIGN KEY (team_id) REFERENCES teams(id),
+  CONSTRAINT fk_roster_player FOREIGN KEY (player_id) REFERENCES players(id),
+  UNIQUE KEY uq_team_roster_active_member (team_id, player_id, active_member),
+  INDEX idx_roster_current (team_id, status),
+  INDEX idx_roster_history (player_id, joined_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS tournaments (
+  id CHAR(36) PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  description VARCHAR(1000),
+  game VARCHAR(100) NOT NULL,
+  category VARCHAR(40) NOT NULL,
+  format VARCHAR(40) NOT NULL,
+  status ENUM('OPEN', 'IN_PROGRESS', 'COMPLETED', 'UPCOMING') NOT NULL DEFAULT 'OPEN',
+  max_teams INT UNSIGNED NOT NULL,
+  prize_amount_usd DECIMAL(14,2) NOT NULL DEFAULT 0,
+  organizer_id CHAR(36),
+  venue_id CHAR(36),
+  starts_at DATETIME NULL,
+  ends_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_tournaments_status (status),
+  INDEX idx_tournaments_game (game)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS venues (
+  id CHAR(36) PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  city VARCHAR(100) NOT NULL,
+  country VARCHAR(100) NOT NULL,
+  address VARCHAR(255) NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  longitude DECIMAL(10,7) NOT NULL,
+  capacity INT UNSIGNED NOT NULL DEFAULT 0,
+  features JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_venues_coordinates (latitude, longitude)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS media_lobbies (
+  id CHAR(36) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  game VARCHAR(60) NOT NULL,
+  server_region VARCHAR(80) NOT NULL,
+  map_name VARCHAR(80) NOT NULL,
+  team1_id VARCHAR(120) NOT NULL,
+  team2_id VARCHAR(120) NOT NULL,
+  status ENUM('In Game', 'Waiting', 'Paused') NOT NULL DEFAULT 'Waiting',
+  players_count INT UNSIGNED NOT NULL DEFAULT 0,
+  max_players INT UNSIGNED NOT NULL,
+  ping_ms INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_lobbies_game_status (game, status)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS sponsors (
   id CHAR(36) PRIMARY KEY,
   name VARCHAR(120) NOT NULL,

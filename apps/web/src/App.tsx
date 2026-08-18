@@ -5,18 +5,20 @@ import { DashboardView } from './features/analytics/DashboardView';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { TournamentsView } from './features/tournaments/TournamentsView';
 import { TournamentCreateWizard } from './features/tournaments/TournamentCreateWizard';
-import { LiveMatchView } from './features/matches/LiveMatchView';
-import { CalendarView } from './features/matches/CalendarView';
-import { PlayersView } from './features/teams/PlayersView';
 import { TeamDetailView } from './features/teams/TeamDetailView';
-import { TeamsListView } from './features/teams/TeamsListView';
-import { EsportsArenaView } from './features/media/EsportsArenaView';
+import { TeamsWorkspace } from './features/teams/TeamsWorkspace';
+import { MatchesWorkspace } from './features/matches/MatchesWorkspace';
 import { SedesMapView } from './features/geolocation/SedesMapView';
 import { RecompensasView } from './features/rewards/RecompensasView';
 import { LoginView } from './features/auth/LoginView';
-import { Team, Tournament, User, UserRole } from './types';
+import { UsersView } from './features/auth/UsersView';
+import { SplashScreen } from './features/landing/SplashScreen';
+import { AuthUser, Team, Tournament, User, UserRole } from './types';
 import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
+import { supabase } from './services/supabaseClient';
+import { FeedbackToaster } from './shared/components/FeedbackToaster';
+import { notify } from './shared/feedback';
 
 const TEAM_STORAGE_KEY = 'tournamentx-dev3-teams';
 const PLAYER_STORAGE_KEY = 'tournamentx-dev3-players';
@@ -64,11 +66,14 @@ function normalizeTeam(team: Team | Record<string, unknown>): Team {
 function normalizePlayer(player: Partial<User> | Record<string, unknown>): User {
   const name = String((player as Partial<User>).name || 'Jugador');
   const lastName = String((player as Partial<User>).lastname || '');
+  const nickname = String((player as Partial<User>).nickname || (player as Partial<User>).username || name);
   return {
     ...(player as User),
     id: String((player as Partial<User>).id || `usr-${Date.now()}`),
-    name,
-    username: String((player as Partial<User>).username || `@${(player as Partial<User>).nickname || name.toLowerCase().replace(/\s+/g, '_')}`),
+    name: `${name} ${lastName}`.trim(),
+    lastname: lastName,
+    nickname,
+    username: String((player as Partial<User>).username || `@${nickname.toLowerCase().replace(/\s+/g, '_')}`),
     email: String((player as Partial<User>).email || `${name.toLowerCase().replace(/\s+/g, '.')}@tournamentx.gg`),
     role: (player as Partial<User>).role ?? 'Jugador',
     avatar: String((player as Partial<User>).avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'),
@@ -82,9 +87,12 @@ function normalizePlayer(player: Partial<User> | Record<string, unknown>): User 
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('landing');
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Admin');
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Espectador');
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [teams, setTeams] = useState<Team[]>(() => {
     const initial = typeof window !== 'undefined' ? localStorage.getItem(TEAM_STORAGE_KEY) : null;
     return initial ? JSON.parse(initial).map(normalizeTeam) : MOCK_TEAMS;
@@ -98,7 +106,31 @@ export default function App() {
     return initial ? JSON.parse(initial) : MOCK_TOURNAMENTS;
   });
   const [selectedTeamId, setSelectedTeamId] = useState<string>('team-lnx');
-  const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>();
+
+  useEffect(() => { const timer = window.setTimeout(() => setShowSplash(false), 3000); return () => window.clearTimeout(timer); }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [activeTab]);
+
+  useEffect(() => {
+    const restoreUser = () => tournamentXApi.me()
+      .then(({ user }) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); })
+      .catch(() => {
+        if (!supabase) localStorage.removeItem('tournamentx_token');
+      });
+
+    if (supabase) {
+      void supabase.auth.getSession().then(({ data }) => { if (data.session) void restoreUser(); });
+      const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_OUT') { setCurrentUser(null); setCurrentUserRole('Espectador'); }
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') void restoreUser();
+      });
+      return () => authListener.subscription.unsubscribe();
+    }
+
+    if (localStorage.getItem('tournamentx_token')) void restoreUser();
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -125,6 +157,16 @@ export default function App() {
       }
     };
     loadData();
+
+    if (!supabase) return;
+    const channel = supabase
+      .channel('tournamentx-core-data')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => void loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => void loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_roster' }, () => void loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => void loadData())
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -189,7 +231,7 @@ export default function App() {
     const payload = normalizePlayer({
       ...data,
       id: `usr-${Date.now()}`,
-      username: data.username || `@${(data as Partial<User>).nickname || data.name || 'player'}`,
+      username: data.username || `@${data.nickname || data.name || 'player'}`,
       role: data.role || 'Jugador',
       status: data.status || 'ACTIVE',
       lastActivity: 'Just now',
@@ -380,33 +422,54 @@ export default function App() {
   };
 
   const openTournamentWizard = () => setShowCreateWizard(true);
-  const navigate = (tab: TabId) => setActiveTab(tab);
+  const navigate = (tab: TabId) => setActiveTab(tab === 'live_match' ? 'esports' : tab);
+  const enterFromLanding = (tab: TabId = 'dashboard') => navigate(tab);
+  const logout = async () => {
+    if (supabase) await supabase.auth.signOut();
+    localStorage.removeItem('tournamentx_token');
+    localStorage.removeItem('tournamentx_user');
+    setCurrentUser(null);
+    setCurrentUserRole('Espectador');
+    navigate('landing');
+    setShowLogoutConfirmation(false);
+    notify('success', 'Sesión cerrada. Ahora estás explorando como visitante.');
+  };
   const navigateToTeam = (teamId: string) => {
     setSelectedTeamId(teamId);
     setActiveTab('team_detail');
   };
-  const navigateToMatch = (matchId: string) => {
-    setSelectedMatchId(matchId);
-    setActiveTab('live_match');
-  };
+  const navigateToMatch = () => setActiveTab('esports');
+
+  if (showSplash) return <SplashScreen />;
 
   return (
     <div id="tournamentx-app-root" className="min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
       {activeTab === 'landing' ? (
-        <LandingView onEnterApp={navigate} onOpenCreateWizard={openTournamentWizard} onOpenAuth={() => navigate('login')} />
+        <LandingView
+          onEnterApp={enterFromLanding}
+          onOpenCreateWizard={() => currentUser ? openTournamentWizard() : navigate('login')}
+          onOpenAuth={() => navigate('login')}
+        />
       ) : activeTab === 'login' ? (
-        <LoginView currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} onLoginSuccess={() => navigate('dashboard')} />
+        <LoginView
+          onAuthenticated={(user) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); navigate('dashboard'); notify('success', `Bienvenido, ${user.name}.`); }}
+          onBackToHome={() => navigate('landing')}
+        />
       ) : (
         <>
           <Sidebar
             currentTab={activeTab}
             setCurrentTab={navigate}
             currentUserRole={currentUserRole}
+            currentUserName={currentUser?.name}
+            isAuthenticated={Boolean(currentUser)}
+            onOpenAuth={() => navigate('login')}
+            onRequestLogout={() => setShowLogoutConfirmation(true)}
             onOpenCreateWizard={openTournamentWizard}
           />
 
           <main className="flex-1 bg-[#0a0b0e] pb-16">
-            {activeTab === 'dashboard' && <DashboardView onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} />}
+            {activeTab === 'dashboard' && <DashboardView teams={teams} tournaments={tournaments} onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} />}
             {activeTab === 'tournaments' && (
               <TournamentsView
                 onNavigate={navigate}
@@ -419,21 +482,25 @@ export default function App() {
                 onGenerateBracket={handleGenerateBracket}
               />
             )}
-            {activeTab === 'live_match' && <LiveMatchView currentUserRole={currentUserRole} matchId={selectedMatchId} />}
-            {activeTab === 'players' && (
-              <PlayersView
+            {(activeTab === 'calendar' || activeTab === 'esports') && (
+              <MatchesWorkspace
+                section={activeTab}
                 currentUserRole={currentUserRole}
-                players={players}
-                onCreatePlayer={handleCreatePlayer}
-                onUpdatePlayer={handleUpdatePlayer}
+                onNavigate={navigate}
+                onOpenMatch={navigateToMatch}
               />
             )}
-            {activeTab === 'teams' && (
-              <TeamsListView
+            {(activeTab === 'teams' || activeTab === 'players') && (
+              <TeamsWorkspace
+                section={activeTab}
                 teams={teams}
+                players={players}
                 currentUserRole={currentUserRole}
+                onNavigate={navigate}
                 onSelectTeam={navigateToTeam}
                 onCreateTeam={handleCreateTeam}
+                onCreatePlayer={handleCreatePlayer}
+                onUpdatePlayer={handleUpdatePlayer}
               />
             )}
             {activeTab === 'team_detail' && (
@@ -449,10 +516,9 @@ export default function App() {
                 onRemoveRosterMember={handleRemoveRosterMember}
               />
             )}
-            {activeTab === 'calendar' && <CalendarView onOpenMatch={navigateToMatch} />}
             {activeTab === 'analytics' && <AnalyticsView />}
-            {activeTab === 'esports' && <EsportsArenaView onWatchLiveMatch={() => navigate('live_match')} />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
+            {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} />}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} />}
           </main>
         </>
@@ -468,6 +534,19 @@ export default function App() {
           }}
         />
       )}
+      {showLogoutConfirmation && (
+        <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="logout-confirmation-title">
+          <section className="w-full max-w-md rounded-2xl border border-white/10 bg-[#11131d] p-6 shadow-2xl">
+            <h2 id="logout-confirmation-title" className="text-xl font-bold text-white">¿Cerrar sesión?</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Dejarás de administrar la plataforma y volverás a la vista de visitante.</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setShowLogoutConfirmation(false)} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/[.06] hover:text-white">Cancelar</button>
+              <button type="button" onClick={() => { void logout(); }} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#ff2e83]/20 hover:bg-[#ef2778]">Cerrar sesión</button>
+            </div>
+          </section>
+        </div>
+      )}
+      <FeedbackToaster />
     </div>
   );
 }

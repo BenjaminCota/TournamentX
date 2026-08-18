@@ -3,8 +3,11 @@ const HttpError = require('../../utils/http-error');
 const { generateGroups, generateRoundRobinMatches } = require('./group-generator');
 const { generateSingleEliminationBracket } = require('./bracket-generator');
 const { computeGroupStandings } = require('./standings');
+const localStore = require('../../config/local-store');
+const { getActiveTeam } = require('../teams/teams.public');
 
-const tournaments = [];
+const tournaments = localStore.collection('tournaments', []);
+function persist() { localStore.saveCollection('tournaments', tournaments); }
 
 function findTournament(tournamentId) {
   const tournament = tournaments.find((entry) => entry.id === tournamentId);
@@ -117,7 +120,9 @@ function getTournament(tournamentId) {
 function createTournament(input) {
   const now = new Date().toISOString();
   const tournament = {
-    id: crypto.randomUUID(),
+    // Permite que la capa Supabase conserve el mismo identificador al crear
+    // una copia local para ejecutar los algoritmos de grupos y brackets.
+    id: input.id || crypto.randomUUID(),
     name: input.name,
     description: input.description || '',
     game: input.game,
@@ -144,6 +149,7 @@ function createTournament(input) {
     championId: null,
   };
   tournaments.push(tournament);
+  persist();
   return serializeTournament(tournament);
 }
 
@@ -154,23 +160,26 @@ function listParticipants(tournamentId) {
 
 function registerParticipant(tournamentId, { teamId, teamName, seed }) {
   const tournament = findTournament(tournamentId);
-  if (!teamName) throw new HttpError(400, 'El nombre del equipo/jugador es obligatorio');
+  if (!teamId) throw new HttpError(400, 'El equipo es obligatorio');
+  const team = getActiveTeam(teamId);
+  if (!team) throw new HttpError(404, 'El equipo no existe o no está activo');
   if (tournament.maxTeams && tournament.participants.length >= tournament.maxTeams) {
     throw new HttpError(409, 'El torneo alcanzó el cupo máximo de participantes');
   }
 
-  const id = teamId || crypto.randomUUID();
+  const id = teamId;
   if (tournament.participants.some((participant) => participant.id === id)) {
     throw new HttpError(409, 'Este equipo ya está inscrito en el torneo');
   }
 
   const participant = {
     id,
-    name: teamName,
+    name: team.name,
     seed: Number.isInteger(seed) ? seed : tournament.participants.length + 1,
   };
   tournament.participants.push(participant);
   tournament.updatedAt = new Date().toISOString();
+  persist();
   return { ...participant };
 }
 
@@ -209,6 +218,7 @@ function generateGroupsForTournament(tournamentId, groupCount) {
 
   tournament.status = 'IN_PROGRESS';
   tournament.updatedAt = new Date().toISOString();
+  persist();
   return getGroups(tournamentId);
 }
 
@@ -250,6 +260,7 @@ function reportGroupMatchResult(tournamentId, matchId, { score1, score2 }) {
   else match.winnerParticipantId = null;
 
   tournament.updatedAt = new Date().toISOString();
+  persist();
   const byId = participantsById(tournament);
   return serializeGroupMatch(match, byId);
 }
@@ -325,6 +336,7 @@ function generateBracket(tournamentId) {
   tournament.matches.push(...knockoutMatchList);
   tournament.status = 'IN_PROGRESS';
   tournament.updatedAt = new Date().toISOString();
+  persist();
   return serializeRounds(tournament);
 }
 
@@ -349,6 +361,7 @@ function reportBracketMatchResult(tournamentId, matchId, { score1, score2 }) {
   match.status = 'completed';
   match.winnerParticipantId = score1 > score2 ? match.participant1Id : match.participant2Id;
   tournament.updatedAt = new Date().toISOString();
+  persist();
 
   if (match.nextMatchId) {
     const next = tournament.matches.find((entry) => entry.id === match.nextMatchId);
@@ -410,8 +423,6 @@ function seed() {
   [
     { teamId: 'team-lnx', teamName: 'LUMINEX ESPORTS', seed: 1 },
     { teamId: 'team-titans', teamName: 'Titans', seed: 2 },
-    { teamId: 'team-nova', teamName: 'Team Nova', seed: 3 },
-    { teamId: 'team-raven', teamName: 'Team Raven', seed: 4 },
   ].forEach((participant) => registerParticipant(community.id, participant));
   generateBracket(community.id);
 
@@ -433,7 +444,7 @@ function seed() {
   });
 }
 
-seed();
+if (tournaments.length === 0) seed();
 
 module.exports = {
   listTournaments,

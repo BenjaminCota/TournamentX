@@ -1,5 +1,6 @@
 const HttpError = require('../../utils/http-error');
 const store = require('./tournament-store');
+const { publishTournamentChampion } = require('../geolocation/notifications.service');
 
 async function listTournaments(_req, res, next) {
   try {
@@ -90,7 +91,14 @@ async function reportBracketMatchResult(req, res, next) {
   try {
     const score1 = Number(req.body.score1);
     const score2 = Number(req.body.score2);
-    res.json(store.reportBracketMatchResult(req.params.id, req.params.matchId, { score1, score2 }));
+    const result = store.reportBracketMatchResult(req.params.id, req.params.matchId, { score1, score2 });
+    const status = store.getStatus(req.params.id);
+    if (status.status === 'COMPLETED') {
+      const tournament = store.getTournament(req.params.id);
+      const champion = [result.team1, result.team2].find((team) => team.winner);
+      publishTournamentChampion(req.app, tournament, champion?.name || status.championId);
+    }
+    res.json(result);
   } catch (error) {
     next(error);
   }

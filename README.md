@@ -6,9 +6,11 @@ TournamentX es una plataforma para administrar torneos de deportes tradicionales
 
 - Web: React 19, TypeScript, Vite, Tailwind CSS y Leaflet.
 - API: Node.js, Express, Zod y JWT.
-- Base de datos: MySQL 8.
-- Tiempo real previsto: Socket.IO.
-- Pagos del MVP: simulaciones locales de Stripe y Binance Pay.
+- Persistencia local automática en JSON y esquema MySQL 8 opcional.
+- Tiempo real: Socket.IO para marcadores, alertas y lobbies.
+- Streaming: reproductores oficiales de Twitch y YouTube con fuentes reales opcionales y demo local.
+- Datos competitivos: feed normalizado para partidos, clasificaciones, forma, equipos y plantillas; adaptadores opcionales de PandaScore y football-data.org.
+- Pagos: flujo local completo y adaptadores opcionales de Stripe/Binance Pay.
 
 No existe una integración de inteligencia artificial ni se cargan recursos de fuentes externas para la tipografía.
 
@@ -66,13 +68,13 @@ Las rutas de frontend parten de `apps/web/src/` y las de backend de `apps/api/sr
 
 ## Instalación
 
-Requisitos: Node.js 20 o posterior y MySQL 8.
+Requisito: Node.js 20 o posterior. MySQL 8 es opcional.
 
 ```bash
 npm install
 ```
 
-Crea la configuración local de la API:
+La aplicación inicia sin archivo `.env`. Para personalizarla, crea la configuración local de la API:
 
 ```powershell
 Copy-Item apps/api/.env.example apps/api/.env
@@ -83,14 +85,21 @@ Ejemplo seguro:
 ```env
 PORT=3000
 NODE_ENV=development
-DATABASE_URL=mysql://root:password@localhost:3306/tournamentx
 JWT_SECRET=replace-with-a-long-random-secret
 PAYMENTS_MODE=simulated
 ```
 
 No se deben subir archivos `.env`, contraseñas ni llaves privadas.
 
-## Inicializar MySQL
+Consulta la [matriz de variables de entorno](docs/ENVIRONMENT.md) para saber qué
+valores requiere cada entorno, qué proveedores usan fallback de demostración y
+cuáles nunca deben exponerse en el frontend.
+
+## Persistencia local y MySQL opcional
+
+Sin `DATABASE_URL`, TournamentX guarda la información en `apps/api/data/tournamentx.local.json`.
+
+Para utilizar MySQL, crea una base llamada `tournamentx`, configura `DATABASE_URL` y ejecuta:
 
 Crea primero una base llamada `tournamentx` y ejecuta:
 
@@ -177,9 +186,4 @@ docs(core): documentar contrato de autenticación
 
 ## Estado actual
 
-- Estructura preparada para ocho módulos.
-- Web compilando correctamente.
-- API del módulo 8 conectada a MySQL.
-- Stripe y Binance Pay verificados en modo simulado.
-- Pruebas unitarias y transaccionales disponibles.
-- Integraciones definitivas con autenticación, torneos, equipos y jugadores pendientes de los contratos de los demás desarrolladores.
+Los ocho módulos cuentan con una ruta funcional local: autenticación y roles, torneos/brackets, equipos/rosters, calendario en vivo, analítica calculada, streams/lobbies, sedes/notificaciones y premios/pagos. Consulta `docs/GUIA_LOCAL_COMPLETA.md` para cuentas de prueba, proveedores opcionales y reinicio de datos.

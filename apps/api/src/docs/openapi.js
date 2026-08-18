@@ -1,9 +1,9 @@
 module.exports = {
   openapi: '3.0.3',
   info: {
-    title: 'TournamentX — Rewards & Payments API',
-    version: '1.0.0',
-    description: 'API financiera de Dev 8. Soporta simulación, Stripe Test con captura manual y preparación segura de Binance Pay C2B.',
+    title: 'TournamentX API',
+    version: '2.0.0',
+    description: 'API local de los ocho módulos y su feed competitivo normalizado: identidad, torneos, equipos, partidos, analítica, media, geolocalización y premios.',
   },
   servers: [{ url: 'http://localhost:3000', description: 'Servidor local' }],
   components: {
@@ -34,6 +34,20 @@ module.exports = {
   security: [{ bearerAuth: [] }],
   paths: {
     '/api/health': { get: { security: [], summary: 'Comprueba el estado de la API', responses: { 200: { description: 'API activa' } } } },
+    '/api/auth/login': { post: { security: [], summary: 'Inicia una sesión local y devuelve un JWT de ocho horas', responses: { 200: { description: 'Sesión creada' }, 401: { description: 'Credenciales incorrectas' } } } },
+    '/api/auth/register': { post: { security: [], summary: 'Registra una cuenta con rol Espectador', responses: { 201: { description: 'Cuenta creada' }, 409: { description: 'Correo duplicado' } } } },
+    '/api/auth/me': { get: { summary: 'Devuelve la identidad de la sesión', responses: { 200: { description: 'Usuario autenticado' } } } },
+    '/api/auth/users': { get: { summary: 'Lista cuentas; requiere rol administrador', responses: { 200: { description: 'Usuarios obtenidos' }, 403: { description: 'Rol insuficiente' } } } },
+    '/api/analytics/overview': { get: { security: [], summary: 'Calcula métricas, ranking y resultados recientes', responses: { 200: { description: 'Analítica calculada' } } } },
+    '/api/media/streams': { get: { security: [], summary: 'Lista streams de Twitch/YouTube o el modo local', responses: { 200: { description: 'Streams obtenidos' } } } },
+    '/api/media/lobbies': { get: { security: [], summary: 'Lista lobbies persistentes', responses: { 200: { description: 'Lobbies obtenidos' } } }, post: { summary: 'Crea un lobby', responses: { 201: { description: 'Lobby creado' } } } },
+    '/api/media/metrics': { get: { security: [], summary: 'Calcula jugadores, salas y audiencia por videojuego', responses: { 200: { description: 'Métricas obtenidas' } } } },
+    '/api/competitive/overview': { get: { security: [], summary: 'Normaliza partidos, clasificaciones, forma, equipos y plantillas de PandaScore y football-data.org con fallback regional', responses: { 200: { description: 'Feed competitivo obtenido' } } } },
+    '/api/geolocation/venues': { get: { security: [], summary: 'Lista sedes disponibles', responses: { 200: { description: 'Sedes obtenidas' } } } },
+    '/api/geolocation/nearby': { get: { security: [], summary: 'Busca sedes dentro de un radio mediante Haversine', responses: { 200: { description: 'Sedes cercanas ordenadas' }, 400: { description: 'Coordenadas no válidas' } } } },
+    '/api/teams': { get: { security: [], summary: 'Lista equipos y plantillas', responses: { 200: { description: 'Equipos obtenidos' } } }, post: { security: [], summary: 'Registra un equipo validado', responses: { 201: { description: 'Equipo creado' }, 400: { description: 'Datos no válidos' } } } },
+    '/api/players': { get: { security: [], summary: 'Lista perfiles e historial de jugadores', responses: { 200: { description: 'Jugadores obtenidos' } } }, post: { security: [], summary: 'Registra un jugador validado', responses: { 201: { description: 'Jugador creado' } } } },
+    '/api/tournaments': { get: { security: [], summary: 'Lista torneos y sus rondas', responses: { 200: { description: 'Torneos obtenidos' } } }, post: { security: [], summary: 'Crea un torneo', responses: { 201: { description: 'Torneo creado' } } } },
     '/api/sponsors': {
       get: { summary: 'Lista patrocinadores', responses: { 200: { description: 'Lista obtenida' } } },
       post: { summary: 'Crea un patrocinador', requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/SponsorInput' } } } }, responses: { 201: { description: 'Patrocinador creado' } } },

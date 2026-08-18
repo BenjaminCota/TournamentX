@@ -2,8 +2,9 @@ const crypto = require('node:crypto');
 const database = require('../../config/database');
 const env = require('../../config/env');
 const HttpError = require('../../utils/http-error');
+const localStore = require('../../config/local-store');
 
-const matches = [
+const matchesSeed = [
   {
     id: 'match-201', scheduleId: 'schedule-01', tournamentId: 'tour-1', roundId: 'round-2',
     team1Id: 'team-lnx', team2Id: 'team-titans', scheduledAt: '2026-08-20T18:00:00.000Z',
@@ -11,6 +12,8 @@ const matches = [
     streamUrl: null, createdAt: '2026-08-15T18:00:00.000Z', updatedAt: '2026-08-15T18:00:00.000Z',
   },
 ];
+const matches = localStore.collection('matches', matchesSeed);
+function persist() { localStore.saveCollection('matches', matches); }
 
 const selectMatch = `SELECT id, schedule_id AS "scheduleId", tournament_id AS "tournamentId", round_id AS "roundId",
   team1_id AS "team1Id", team2_id AS "team2Id", scheduled_at AS "scheduledAt", venue, mode, status,
@@ -62,7 +65,7 @@ async function createMatch({ scheduleId, tournamentId, roundId, team1Id, team2Id
     team1Id, team2Id, scheduledAt: scheduledAt.toISOString(), venue: venue || null, mode: mode || 'best_of_1',
     status: 'scheduled', score: { team1: 0, team2: 0 }, streamUrl: streamUrl || null, createdAt: now, updatedAt: now,
   };
-  if (!databaseEnabled()) { matches.push(match); return serialize(match); }
+  if (!databaseEnabled()) { matches.push(match); persist(); return serialize(match); }
 
   const executor = client || database;
   await executor.query(
@@ -107,6 +110,7 @@ async function updateMatchScore(matchId, { team1Score, team2Score, status }) {
   if (!databaseEnabled()) {
     const match = matches.find((entry) => entry.id === matchId);
     Object.assign(match, { status: nextStatus, score, updatedAt: new Date().toISOString() });
+    persist();
     return serialize(match);
   }
 
