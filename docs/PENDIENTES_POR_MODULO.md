@@ -143,20 +143,19 @@ programado llega al público correcto y no depende de los datos de demostración
 Responsable de `apps/web/src/features/rewards` y la API de premios en
 `apps/api/src`.
 
-- [ ] **P0:** registrar la cuenta bancaria o wallet receptora del capitán con los
+- [x] **P0:** registrar la cuenta receptora del capitán con Stripe Connect y los
   controles de seguridad correspondientes.
-- [ ] **P0:** conectar el pago de inscripción del equipo con su confirmación en el
+- [x] **P0:** conectar el pago de inscripción del equipo con su confirmación en el
   torneo.
-- [ ] **P0:** implementar transferencias salientes en modo de prueba mediante
-  Stripe Connect o el proveedor aprobado; un registro `released` por sí solo no
-  representa una transferencia real.
-- [ ] **P1:** distribuir automáticamente todas las posiciones configuradas, no
+- [x] **P0:** implementar transferencias salientes mediante Stripe Connect Test y
+  guardar la referencia verificable de cada operación.
+- [x] **P1:** distribuir automáticamente todas las posiciones configuradas, no
   solamente el premio del campeón.
-- [ ] **P1:** permitir al administrador configurar la comisión de TournamentX.
-- [ ] **P1:** mostrar al equipo su estado pagado/confirmado y publicar el total de
+- [x] **P1:** permitir al administrador configurar la comisión de TournamentX.
+- [x] **P1:** mostrar al equipo su estado pagado/confirmado y publicar el total de
   la bolsa en la vista pública.
-- [ ] **P1:** completar reembolsos, conciliación, controles de fraude y auditoría
-  de webhooks de Stripe y Binance Pay.
+- [x] **P1:** completar reembolsos, conciliación, controles de fraude y auditoría
+  de webhooks de Stripe.
 
 Terminado cuando el pago de entrada confirma la inscripción, el resultado final
 prepara todos los payouts, el responsable autoriza la operación requerida y los

@@ -32,6 +32,11 @@ const teamsSeed = [
 ];
 
 const teams = localStore.collection('teams', teamsSeed);
+const legacyCaptainTeam = teams.find((team) => team.id === 'team-lnx');
+if (legacyCaptainTeam && !legacyCaptainTeam.captainUserId) {
+  legacyCaptainTeam.captainUserId = 'user-captain';
+  localStore.saveCollection('teams', teams);
+}
 
 const playersSeed = [
   {

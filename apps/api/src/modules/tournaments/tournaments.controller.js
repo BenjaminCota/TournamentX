@@ -21,7 +21,7 @@ async function getTournament(req, res, next) {
 async function createTournament(req, res, next) {
   try {
     if (!req.body.name || !req.body.game) throw new HttpError(400, 'El nombre y el juego/deporte son obligatorios');
-    res.status(201).json(store.createTournament(req.body));
+    res.status(201).json(store.createTournament({ ...req.body, createdBy: req.user.sub }));
   } catch (error) {
     next(error);
   }

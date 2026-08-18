@@ -9,6 +9,8 @@
     "build": "npm run build --workspace @tournamentx/web",
     "test": "npm run test --workspace @tournamentx/api",
     "check": "npm run lint --workspace @tournamentx/web && npm run test --workspace @tournamentx/api",
-    "db:init": "npm run db:init --workspace @tournamentx/api"
+    "db:init": "npm run db:init --workspace @tournamentx/api",
+    "db:seed:dev8": "npm run db:seed:dev8 --workspace @tournamentx/api",
+    "db:reset:dev8": "npm run db:reset:dev8 --workspace @tournamentx/api"
   }
 }

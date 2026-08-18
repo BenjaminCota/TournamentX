@@ -94,6 +94,8 @@ function serializeTournament(tournament) {
     banner: tournament.banner,
     prizePool: tournament.prizePool,
     prizeAmountUSD: tournament.prizeAmountUSD,
+    entryFee: Math.max(0, Number(tournament.entryFee ?? 10) || 0),
+    entryCurrency: String(tournament.entryCurrency || 'USD').toUpperCase(),
     status: tournament.status,
     format: tournament.format,
     dates: tournament.dates,
@@ -117,6 +119,11 @@ function getTournament(tournamentId) {
   return serializeTournament(findTournament(tournamentId));
 }
 
+function canUserManageTournament(tournamentId, userId) {
+  const tournament = findTournament(tournamentId);
+  return Boolean(tournament.createdBy && tournament.createdBy === userId);
+}
+
 function createTournament(input) {
   const now = new Date().toISOString();
   const tournament = {
@@ -130,6 +137,8 @@ function createTournament(input) {
     banner: input.banner || '',
     prizePool: input.prizePool || '',
     prizeAmountUSD: Number(input.prizeAmountUSD) || 0,
+    entryFee: Math.max(0, Number(input.entryFee ?? 10) || 0),
+    entryCurrency: String(input.entryCurrency || 'USD').toUpperCase(),
     status: 'OPEN',
     format: input.format || 'SINGLE_ELIMINATION',
     dates: input.dates || '',
@@ -449,6 +458,7 @@ if (tournaments.length === 0) seed();
 module.exports = {
   listTournaments,
   getTournament,
+  canUserManageTournament,
   createTournament,
   listParticipants,
   registerParticipant,

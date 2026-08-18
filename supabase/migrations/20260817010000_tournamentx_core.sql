@@ -232,7 +232,7 @@ create table public.contributions (
   created_by uuid references public.profiles(id) on delete set null default auth.uid(),
   payer_name text not null,
   amount numeric(14,2) not null check (amount > 0),
-  provider text not null check (provider in ('stripe','binance_pay')),
+  provider text not null check (provider in ('stripe')),
   status text not null default 'pending' check (status in ('pending','authorized','paid','failed','cancelled','refunded')),
   provider_reference text,
   created_at timestamptz not null default now(),

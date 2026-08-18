@@ -14,7 +14,7 @@ const prizePool = z.object({
   params: z.any(), query: z.any(),
 });
 const contribution = z.object({
-  body: z.object({ sponsorId: uuid, amount: money, provider: z.enum(['stripe', 'binance_pay']), idempotencyKey: z.string().trim().min(8).max(100).optional() }),
+  body: z.object({ sponsorId: uuid, amount: money, provider: z.literal('stripe'), idempotencyKey: z.string().trim().min(8).max(100).optional() }),
   params: z.object({ id: uuid }), query: z.any(),
 });
 const distribution = z.object({
@@ -22,15 +22,11 @@ const distribution = z.object({
   params: z.object({ id: uuid }), query: z.any(),
 });
 const payout = z.object({
-  body: z.object({ recipientId: uuid, position: z.coerce.number().int().positive(), destination: z.string().trim().min(3).max(200) }),
+  body: z.object({ recipientId: z.string().trim().min(1).max(120), position: z.coerce.number().int().positive() }),
   params: z.object({ id: uuid }), query: z.any(),
 });
 const paymentStatus = z.object({
   body: z.object({ status: z.enum(['authorized', 'paid', 'failed', 'cancelled', 'refunded']), notes: z.string().trim().max(255).optional() }),
-  params: z.object({ id: uuid }), query: z.any(),
-});
-const binanceSimulation = z.object({
-  body: z.object({ status: z.enum(['paid', 'failed', 'cancelled']) }),
   params: z.object({ id: uuid }), query: z.any(),
 });
 const sponsorUpdate = z.object({
@@ -61,9 +57,8 @@ const tournamentResults = z.object({
       recipientId: uuid,
       recipientType: z.enum(['team', 'player']),
       position: z.coerce.number().int().positive(),
-      destination: z.string().trim().min(3).max(200).optional(),
     })).min(1).refine((winners) => new Set(winners.map((winner) => winner.position)).size === winners.length, 'Las posiciones no pueden repetirse'),
   }), params: z.object({ id: uuid }), query: z.any(),
 });
 
-module.exports = { idParams, sponsor, sponsorUpdate, prizePool, contribution, distribution, payout, paymentStatus, binanceSimulation, reward, rewardAssignment, rewardAssignmentStatus, tournamentResults };
+module.exports = { idParams, sponsor, sponsorUpdate, prizePool, contribution, distribution, payout, paymentStatus, reward, rewardAssignment, rewardAssignmentStatus, tournamentResults };

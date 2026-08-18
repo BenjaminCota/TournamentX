@@ -5,6 +5,7 @@ const validate = require('../middleware/validate');
 const schemas = require('../validators/schemas');
 const resultsController = require('../controllers/results.controller');
 
+router.get('/public', controller.listPublic);
 router.use(authenticate);
 router.get('/', controller.list);
 router.get('/:id', validate(schemas.idParams), controller.getById);
@@ -12,6 +13,7 @@ router.post('/', authorize('admin', 'organizer'), validate(schemas.prizePool), c
 router.post('/:id/contributions', authorize('admin', 'organizer'), validate(schemas.contribution), controller.contribute);
 router.put('/:id/distribution', authorize('admin', 'organizer'), validate(schemas.distribution), controller.defineDistribution);
 router.post('/:id/payouts', authorize('admin', 'organizer'), validate(schemas.payout), controller.releasePayout);
+router.get('/:id/reconciliation', authorize('admin', 'organizer'), validate(schemas.idParams), controller.reconciliation);
 router.post('/:id/cancel', authorize('admin', 'organizer'), validate(schemas.idParams), controller.cancel);
 router.post('/:id/results', authorize('admin', 'organizer'), validate(schemas.tournamentResults), resultsController.importResults);
 

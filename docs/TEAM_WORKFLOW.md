@@ -42,11 +42,11 @@
 
 **Alcance de dos días:** mapa de sedes mediante Leaflet/Mapbox; búsqueda de torneos cercanos; alertas y notificaciones en tiempo real mediante WebSockets.
 
-## Dev 8 — Recompensas y pasarela dual
+## Dev 8 — Recompensas y Stripe
 
 **Rama:** `dev-8/rewards-payments`
 
-**Alcance de dos días:** patrocinadores; bolsas de premios; integración inicial de Stripe y Binance Pay para pagos.
+**Alcance de dos días:** patrocinadores, bolsas de premios e integración de Stripe para pagos.
 
 ## Convención de trabajo
 

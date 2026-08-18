@@ -2,8 +2,8 @@ const crypto = require('node:crypto');
 const db = require('../config/database');
 const HttpError = require('../utils/http-error');
 const stripeGateway = require('../services/stripe-gateway');
-const binanceSimulator = require('../services/binance-pay-simulator');
 const env = require('../config/env');
+const { assertOrganizerOwnership, isOrganizer } = require('../utils/resource-ownership');
 
 const allowedTransitions = {
   pending: ['authorized', 'paid', 'failed', 'cancelled'],
@@ -42,11 +42,14 @@ async function list(req, res, next) {
     const params = [];
     if (req.query.prizePoolId) { params.push(req.query.prizePoolId); conditions.push(`c.prize_pool_id = $${params.length}`); }
     if (req.query.status) { params.push(req.query.status); conditions.push(`c.status = $${params.length}`); }
+    if (isOrganizer(req)) { params.push(req.user.sub); conditions.push(`pp.created_by = $${params.length}`); }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(
       `SELECT c.id, c.prize_pool_id AS "prizePoolId", c.sponsor_id AS "sponsorId", s.name AS "sponsorName",
        c.amount, c.currency, c.provider, c.provider_reference AS "providerReference", c.status,
+       c.provider_refund_reference AS "providerRefundReference", c.refunded_at AS "refundedAt",
        c.created_at AS "createdAt" FROM contributions c JOIN sponsors s ON s.id = c.sponsor_id
+       JOIN prize_pools pp ON pp.id = c.prize_pool_id
        ${where} ORDER BY c.created_at DESC`,
       params,
     );
@@ -58,15 +61,20 @@ async function changeStatus(req, res, next) {
   try {
     const { id } = req.validated.params;
     const { status, notes } = req.validated.body;
+    if (status === 'refunded') return refundStripe(req, res, next);
+    if (!env.isTestRun && ['authorized', 'paid'].includes(status)) {
+      throw new HttpError(409, 'La autorización y captura deben confirmarse mediante Stripe');
+    }
     const updated = await db.transaction(async (client) => {
       const result = await client.query(
-        `SELECT c.*, pp.status AS pool_status FROM contributions c
+        `SELECT c.*, pp.status AS "poolStatus", pp.created_by AS "poolCreatedBy" FROM contributions c
          JOIN prize_pools pp ON pp.id = c.prize_pool_id WHERE c.id = $1 FOR UPDATE`,
         [id],
       );
       const contribution = result.rows[0];
       if (!contribution) throw new HttpError(404, 'Aportación no encontrada');
-      if (status === 'refunded' && contribution.pool_status !== 'funding') {
+      assertOrganizerOwnership(req, contribution.poolCreatedBy);
+      if (status === 'refunded' && contribution.poolStatus !== 'funding') {
         throw new HttpError(409, 'No se puede reembolsar una aportación después de bloquear la bolsa');
       }
 
@@ -76,11 +84,53 @@ async function changeStatus(req, res, next) {
   } catch (error) { next(error); }
 }
 
+async function refundStripe(req, res, next) {
+  try {
+    const result = await db.transaction(async (client) => {
+      const selected = await client.query(
+        `SELECT c.*, pp.status AS "poolStatus", pp.created_by AS "poolCreatedBy" FROM contributions c
+         JOIN prize_pools pp ON pp.id = c.prize_pool_id WHERE c.id = $1 FOR UPDATE`,
+        [req.validated.params.id],
+      );
+      const contribution = selected.rows[0];
+      if (!contribution) throw new HttpError(404, 'Aportación no encontrada');
+      assertOrganizerOwnership(req, contribution.poolCreatedBy);
+      if (contribution.status === 'refunded') return { contribution, reused: true, providerStatus: 'succeeded' };
+      if (contribution.status !== 'paid') throw new HttpError(409, 'Solo se puede reembolsar una aportación pagada');
+      if (contribution.poolStatus !== 'funding') throw new HttpError(409, 'La bolsa ya está cerrada y no permite reembolsos');
+      if (contribution.provider !== 'stripe') throw new HttpError(409, 'La aportación no pertenece a Stripe');
+
+      let refund;
+      if (env.stripeMode === 'test') {
+        refund = await stripeGateway.refundPayment(contribution.provider_reference);
+      } else if (env.isTestRun) {
+        refund = { providerReference: `refund_test_${Date.now()}`, providerStatus: 'succeeded' };
+      } else {
+        throw new HttpError(503, 'Stripe no está configurado para reembolsar la aportación');
+      }
+      await transitionContribution(client, contribution, 'refunded', req.user.sub, req.validated.body?.notes || 'Reembolso solicitado');
+      await client.query(
+        'UPDATE contributions SET provider_refund_reference = $1, refunded_at = NOW() WHERE id = $2',
+        [refund.providerReference, contribution.id],
+      );
+      const updated = await client.query(
+        `SELECT id, prize_pool_id AS "prizePoolId", sponsor_id AS "sponsorId", amount, currency, provider,
+         provider_reference AS "providerReference", provider_refund_reference AS "providerRefundReference",
+         status, refunded_at AS "refundedAt", created_at AS "createdAt" FROM contributions WHERE id = $1`,
+        [contribution.id],
+      );
+      return { contribution: updated.rows[0], reused: false, providerStatus: refund.providerStatus };
+    });
+    return res.json({ data: result.contribution, reused: result.reused, providerStatus: result.providerStatus });
+  } catch (error) { return next(error); }
+}
+
 async function captureStripe(req, res, next) {
   try {
-    const result = await db.query('SELECT * FROM contributions WHERE id = $1', [req.validated.params.id]);
+    const result = await db.query('SELECT c.*, pp.created_by AS "poolCreatedBy" FROM contributions c JOIN prize_pools pp ON pp.id = c.prize_pool_id WHERE c.id = $1', [req.validated.params.id]);
     const contribution = result.rows[0];
     if (!contribution) throw new HttpError(404, 'Aportación no encontrada');
+    assertOrganizerOwnership(req, contribution.poolCreatedBy);
     if (contribution.provider !== 'stripe') throw new HttpError(409, 'La aportación no pertenece a Stripe');
     if (contribution.status !== 'authorized') throw new HttpError(409, 'La autorización de Stripe todavía no está lista para captura');
     const stripeResult = await stripeGateway.capturePayment(contribution.provider_reference);
@@ -91,10 +141,11 @@ async function captureStripe(req, res, next) {
 
 async function authorizeStripeTest(req, res, next) {
   try {
-    if (env.nodeEnv === 'production' || env.stripeMode !== 'test') throw new HttpError(404, 'Demostración Stripe no disponible');
-    const result = await db.query('SELECT * FROM contributions WHERE id = $1', [req.validated.params.id]);
+    if (env.nodeEnv === 'production' || env.stripeMode !== 'test') throw new HttpError(404, 'Confirmación Stripe Test no disponible');
+    const result = await db.query('SELECT c.*, pp.created_by AS "poolCreatedBy" FROM contributions c JOIN prize_pools pp ON pp.id = c.prize_pool_id WHERE c.id = $1', [req.validated.params.id]);
     const contribution = result.rows[0];
     if (!contribution) throw new HttpError(404, 'Aportación no encontrada');
+    assertOrganizerOwnership(req, contribution.poolCreatedBy);
     if (contribution.provider !== 'stripe' || contribution.status !== 'pending') throw new HttpError(409, 'La aportación Stripe no está pendiente');
     const stripeResult = await stripeGateway.confirmTestPayment(contribution.provider_reference);
     res.json({ providerStatus: stripeResult.providerStatus, awaitingWebhook: true });
@@ -103,9 +154,10 @@ async function authorizeStripeTest(req, res, next) {
 
 async function cancelStripe(req, res, next) {
   try {
-    const result = await db.query('SELECT * FROM contributions WHERE id = $1', [req.validated.params.id]);
+    const result = await db.query('SELECT c.*, pp.created_by AS "poolCreatedBy" FROM contributions c JOIN prize_pools pp ON pp.id = c.prize_pool_id WHERE c.id = $1', [req.validated.params.id]);
     const contribution = result.rows[0];
     if (!contribution) throw new HttpError(404, 'Aportación no encontrada');
+    assertOrganizerOwnership(req, contribution.poolCreatedBy);
     if (contribution.provider !== 'stripe') throw new HttpError(409, 'La aportación no pertenece a Stripe');
     if (!['pending', 'authorized'].includes(contribution.status)) throw new HttpError(409, 'La autorización de Stripe ya no puede cancelarse');
     const stripeResult = await stripeGateway.cancelPayment(contribution.provider_reference);
@@ -114,27 +166,11 @@ async function cancelStripe(req, res, next) {
   } catch (error) { next(error); }
 }
 
-async function simulateBinance(req, res, next) {
-  try {
-    if (env.nodeEnv === 'production' || env.binancePayMode !== 'simulated') throw new HttpError(404, 'Simulador no disponible');
-    const result = await db.query('SELECT * FROM contributions WHERE id = $1', [req.validated.params.id]);
-    const contribution = result.rows[0];
-    if (!contribution) throw new HttpError(404, 'Aportación no encontrada');
-    if (contribution.provider !== 'binance_pay') throw new HttpError(409, 'La aportación no pertenece a Binance Pay');
-    const requested = req.validated.body.status;
-    const status = requested === 'paid' ? 'paid' : requested;
-    const notification = binanceSimulator.signNotification({
-      bizType: 'PAY', bizStatus: status === 'paid' ? 'PAY_SUCCESS' : status.toUpperCase(),
-      data: JSON.stringify({ merchantTradeNo: contribution.id, prepayId: contribution.provider_reference }),
-    });
-    if (!binanceSimulator.verifyNotification(notification.rawBody, notification.headers)) throw new HttpError(400, 'Firma Binance simulada inválida');
-    const updated = await db.transaction((client) => transitionContribution(client, contribution, status, 'binance-simulator', `Webhook RSA-SHA256 ${status}`));
-    res.json({ data: updated, webhookVerified: true, simulated: true });
-  } catch (error) { next(error); }
-}
-
 async function history(req, res, next) {
   try {
+    const ownership = await db.query('SELECT pp.created_by AS "createdBy" FROM contributions c JOIN prize_pools pp ON pp.id = c.prize_pool_id WHERE c.id = $1', [req.validated.params.id]);
+    if (!ownership.rows[0]) throw new HttpError(404, 'Aportación no encontrada');
+    assertOrganizerOwnership(req, ownership.rows[0].createdBy);
     const { rows } = await db.query(
       `SELECT pe.id, pe.contribution_id AS "contributionId", pe.event_type AS "eventType",
        pe.previous_status AS "previousStatus", pe.new_status AS "newStatus", pe.performed_by AS "performedBy",
@@ -147,4 +183,4 @@ async function history(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { list, changeStatus, history, captureStripe, cancelStripe, authorizeStripeTest, simulateBinance, transitionContribution };
+module.exports = { list, changeStatus, history, captureStripe, cancelStripe, authorizeStripeTest, refundStripe, transitionContribution };

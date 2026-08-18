@@ -26,6 +26,6 @@ test('la final oficial de un torneo libera el premio del campeón local', async 
   assert.equal(imported.status, 201);
   assert.equal(imported.body.data.payout.recipientId, 'team-lnx');
   assert.equal(imported.body.data.payout.amount, 100);
-  const receipt = await request(app).get(`/api/receipts/${imported.body.data.payout.receiptCode}`);
+  const receipt = await request(app).get(`/api/receipts/${imported.body.data.payout.receiptCode}`).set(authorization);
   assert.equal(receipt.status, 200);
 });

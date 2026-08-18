@@ -3,6 +3,7 @@ const tournamentStore = require('../tournaments/tournament-store');
 const env = require('../../config/env');
 const db = require('../../config/database');
 const crypto = require('node:crypto');
+const paymentSettingsService = require('../payments/payment-settings.service');
 
 function releaseLocalTournamentChampion(tournamentId, releasedBy) {
   const status = tournamentStore.getStatus(tournamentId);
@@ -23,11 +24,17 @@ function releaseLocalTournamentChampion(tournamentId, releasedBy) {
         recipientType: 'team', position: 1, source: 'official-match', importedBy: releasedBy, importedAt: new Date().toISOString(),
       });
     }
+    const percentage = Number(store.find('settings', 'platform')?.platformFeePercentage ?? 5);
+    const amounts = paymentSettingsService.calculateAmounts(rule.amount, percentage);
     const payout = store.add('payouts', {
       id: store.id(), prizePoolId: pool.id, recipientId: winner.recipientId, position: 1,
-      amount: rule.amount, currency: pool.currency, destination: `local:team:${winner.recipientId}`,
-      status: 'released', receiptCode: `TX-${Date.now().toString(36).toUpperCase()}-1`, releasedBy, releasedAt: new Date().toISOString(),
+      amount: amounts.grossAmount, platformFeePercentage: amounts.platformFeePercentage,
+      platformFeeAmount: amounts.platformFeeAmount, netAmount: amounts.netAmount,
+      currency: pool.currency, destination: `local:team:${winner.recipientId}`, providerReference: null,
+      status: 'released', attemptCount: 1, lastError: null,
+      receiptCode: `TX-${Date.now().toString(36).toUpperCase()}-1`, releasedBy, releasedAt: new Date().toISOString(),
     });
+    store.add('payoutEvents', { id: store.id(), payoutId: payout.id, eventType: 'released', message: 'Premio enviado correctamente', performedBy: releasedBy, createdAt: new Date().toISOString() });
     const rules = store.list('distributionRules').filter((entry) => entry.prizePoolId === pool.id);
     const paidPositions = new Set(store.list('payouts').filter((entry) => entry.prizePoolId === pool.id).map((entry) => entry.position));
     if (rules.every((entry) => paidPositions.has(entry.position))) store.update('prizePools', pool.id, { status: 'distributed', updatedAt: new Date().toISOString() });
@@ -43,27 +50,28 @@ async function releaseDatabaseTournamentChampion(tournamentId, releasedBy) {
     const pools = await client.query("SELECT id, currency FROM prize_pools WHERE tournament_id = $1 AND status = 'locked' FOR UPDATE", [tournamentId]);
     const released = [];
     for (const pool of pools.rows) {
-      const existing = await client.query('SELECT id, recipient_id AS "recipientId", position, amount, currency, receipt_code AS "receiptCode" FROM payouts WHERE prize_pool_id = $1 AND position = 1', [pool.id]);
-      if (existing.rows[0]) { released.push(existing.rows[0]); continue; }
+      const existing = await client.query(
+        `SELECT tw.recipient_id AS "recipientId" FROM tournament_winners tw
+         JOIN tournament_result_imports tri ON tri.id = tw.result_import_id
+         WHERE tri.prize_pool_id = $1 AND tw.position = 1 LIMIT 1`,
+        [pool.id],
+      );
+      if (existing.rows[0]) continue;
       const rules = await client.query('SELECT position, amount FROM distribution_rules WHERE prize_pool_id = $1 ORDER BY position', [pool.id]);
       const rule = rules.rows.find((entry) => Number(entry.position) === 1);
       if (!rule) continue;
       const importId = crypto.randomUUID();
       await client.query('INSERT INTO tournament_result_imports (id, prize_pool_id, tournament_id, source, received_by) VALUES ($1,$2,$3,$4,$5)', [importId, pool.id, tournamentId, 'official-match', releasedBy]);
       await client.query('INSERT INTO tournament_winners (id, result_import_id, recipient_id, recipient_type, position) VALUES ($1,$2,$3,$4,$5)', [crypto.randomUUID(), importId, status.championId, 'team', 1]);
-      const payoutId = crypto.randomUUID();
-      const receiptCode = `TX-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-      await client.query('INSERT INTO payouts (id, prize_pool_id, recipient_id, position, amount, currency, destination, receipt_code, released_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [payoutId, pool.id, status.championId, 1, rule.amount, pool.currency, `local:team:${status.championId}`, receiptCode, releasedBy]);
-      const pending = await client.query('SELECT COUNT(*) AS count FROM distribution_rules dr LEFT JOIN payouts p ON p.prize_pool_id = dr.prize_pool_id AND p.position = dr.position WHERE dr.prize_pool_id = $1 AND p.id IS NULL', [pool.id]);
-      if (Number(pending.rows[0].count) === 0) await client.query("UPDATE prize_pools SET status = 'distributed', updated_at = NOW() WHERE id = $1", [pool.id]);
-      released.push({ id: payoutId, recipientId: status.championId, position: 1, amount: rule.amount, currency: pool.currency, receiptCode });
+      released.push({ recipientId: status.championId, position: 1, amount: rule.amount, currency: pool.currency, status: 'pending' });
     }
     return released;
   });
 }
 
 async function releaseTournamentChampion(tournamentId, releasedBy) {
-  return env.databaseUrl ? releaseDatabaseTournamentChampion(tournamentId, releasedBy) : releaseLocalTournamentChampion(tournamentId, releasedBy);
+  if (env.databaseUrl) return releaseDatabaseTournamentChampion(tournamentId, releasedBy);
+  return env.isTestRun ? releaseLocalTournamentChampion(tournamentId, releasedBy) : [];
 }
 
 module.exports = { releaseTournamentChampion };

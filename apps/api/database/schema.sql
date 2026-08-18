@@ -137,10 +137,12 @@ CREATE TABLE IF NOT EXISTS contributions (
   sponsor_id CHAR(36) NOT NULL,
   amount DECIMAL(14,2) NOT NULL,
   currency VARCHAR(10) NOT NULL,
-  provider ENUM('stripe', 'binance_pay') NOT NULL,
+  provider ENUM('stripe') NOT NULL,
   provider_reference VARCHAR(255) NOT NULL UNIQUE,
+  provider_refund_reference VARCHAR(255) NULL UNIQUE,
   status ENUM('pending', 'paid', 'failed', 'refunded') NOT NULL DEFAULT 'pending',
   metadata JSON NOT NULL,
+  refunded_at TIMESTAMP NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chk_contribution_amount CHECK (amount > 0),
   CONSTRAINT fk_contribution_pool FOREIGN KEY (prize_pool_id) REFERENCES prize_pools(id),
@@ -169,12 +171,18 @@ CREATE TABLE IF NOT EXISTS payouts (
   recipient_id CHAR(36) NOT NULL,
   position INT NOT NULL,
   amount DECIMAL(14,2) NOT NULL,
+  platform_fee_percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
+  platform_fee_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  net_amount DECIMAL(14,2) NOT NULL,
   currency VARCHAR(10) NOT NULL,
   destination VARCHAR(255) NOT NULL,
+  provider_reference VARCHAR(255) NULL UNIQUE,
   status ENUM('pending', 'released', 'failed') NOT NULL DEFAULT 'released',
+  attempt_count INT NOT NULL DEFAULT 0,
+  last_error VARCHAR(255),
   receipt_code VARCHAR(40) NOT NULL UNIQUE,
   released_by CHAR(36) NOT NULL,
-  released_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  released_at TIMESTAMP NULL DEFAULT NULL,
   CONSTRAINT chk_payout_amount CHECK (amount > 0),
   CONSTRAINT fk_payout_pool FOREIGN KEY (prize_pool_id) REFERENCES prize_pools(id),
   UNIQUE KEY uq_payout_position (prize_pool_id, position),
@@ -193,6 +201,28 @@ CREATE TABLE IF NOT EXISTS payment_events (
   CONSTRAINT fk_payment_event_contribution FOREIGN KEY (contribution_id) REFERENCES contributions(id),
   INDEX idx_payment_events_contribution (contribution_id),
   INDEX idx_payment_events_created (created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS platform_payment_settings (
+  id VARCHAR(30) PRIMARY KEY,
+  platform_fee_percentage DECIMAL(5,2) NOT NULL DEFAULT 5,
+  updated_by CHAR(36),
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT chk_platform_fee_percentage CHECK (platform_fee_percentage >= 0 AND platform_fee_percentage <= 30)
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO platform_payment_settings (id, platform_fee_percentage) VALUES ('platform', 5);
+
+CREATE TABLE IF NOT EXISTS payout_events (
+  id CHAR(36) PRIMARY KEY,
+  payout_id CHAR(36) NOT NULL,
+  event_type ENUM('created', 'retried', 'released', 'failed') NOT NULL,
+  message VARCHAR(255),
+  performed_by CHAR(36) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_payout_event_payout FOREIGN KEY (payout_id) REFERENCES payouts(id) ON DELETE CASCADE,
+  INDEX idx_payout_events_payout (payout_id),
+  INDEX idx_payout_events_created (created_at)
 ) ENGINE=InnoDB;
 
 ALTER TABLE payment_events MODIFY COLUMN event_type ENUM('created', 'authorized', 'approved', 'captured', 'failed', 'cancelled', 'refunded') NOT NULL;

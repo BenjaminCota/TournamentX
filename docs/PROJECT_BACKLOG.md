@@ -48,7 +48,7 @@ en [`PENDIENTES_POR_MODULO.md`](./PENDIENTES_POR_MODULO.md).
 | Dev 5 — analítica | Consume el feed competitivo regional y expone métricas locales. | Definir métricas derivadas de resultados oficiales, no solo del feed demo. | P1 | Dashboard distingue datos oficiales, API externa y demostración. |
 | Dev 6 — streams y lobbies | Lobbies, eventos y métricas tienen prueba API; proveedores externos caen a demo. | Probar credenciales de Twitch/YouTube en entorno de prueba y manejo de cuota/error. | P2 | La UI informa fuente, última actualización y fallback sin romper la vista. |
 | Dev 7 — geolocalización y notificaciones | Búsqueda por cercanía y emisión en tiempo real tienen pruebas. | Validar permisos de ubicación y entrega de notificaciones con eventos reales. | P1 | Un resultado o cambio de sede genera una notificación para el público correcto. |
-| Dev 8 — recompensas y pagos | Flujo simulado funciona; la integración Stripe/MySQL está preparada y omitida sin credenciales. | Ejecutar Stripe Test + MySQL y formalizar conciliación de payouts. | P0 | Webhook verificado actualiza una contribución una vez y produce recibo trazable. |
+| Dev 8 — recompensas y pagos | Stripe Test y MySQL cubren aportaciones, inscripciones, Connect Express, transferencias, reembolsos y conciliación. Sin credenciales, el pago se deshabilita. | Validar la configuración del alojamiento y repetir la prueba con sus secretos administrados. | P0 | Webhook verificado actualiza una operación una vez y produce recibo trazable. |
 
 ## Bloqueos externos conocidos
 
@@ -59,8 +59,8 @@ en [`PENDIENTES_POR_MODULO.md`](./PENDIENTES_POR_MODULO.md).
 - Credenciales de PandaScore, football-data.org, Twitch y YouTube para sustituir
   los datos de demostración de los módulos 4, 5 y 6. El modo demo debe conservarse
   como fallback explícito.
-- La integración productiva de Binance Pay permanece bloqueada hasta contar con
-  cuenta merchant y autorización del responsable financiero.
+- Stripe es la única pasarela aceptada por el módulo financiero. Las claves de
+  prueba y el listener de webhooks siguen siendo dependencias externas.
 
 ## Orden de ejecución sugerido
 

@@ -1,15 +1,17 @@
 const crypto = require('node:crypto');
 const db = require('../config/database');
 const HttpError = require('../utils/http-error');
+const { assertOrganizerOwnership } = require('../utils/resource-ownership');
 
 async function importResults(req, res, next) {
   try {
     const { id: prizePoolId } = req.validated.params;
     const { tournamentId, source, winners } = req.validated.body;
-    const payouts = await db.transaction(async (client) => {
+    const recordedWinners = await db.transaction(async (client) => {
       const poolResult = await client.query('SELECT * FROM prize_pools WHERE id = $1 FOR UPDATE', [prizePoolId]);
       const prizePool = poolResult.rows[0];
       if (!prizePool) throw new HttpError(404, 'Bolsa de premios no encontrada');
+      assertOrganizerOwnership(req, prizePool.created_by);
       if (prizePool.tournament_id !== tournamentId) throw new HttpError(409, 'El resultado no pertenece al torneo de esta bolsa');
       if (prizePool.status !== 'locked') throw new HttpError(409, 'La bolsa debe estar bloqueada antes de importar ganadores');
 
@@ -37,20 +39,11 @@ async function importResults(req, res, next) {
            VALUES ($1,$2,$3,$4,$5)`,
           [crypto.randomUUID(), importId, winner.recipientId, winner.recipientType, winner.position],
         );
-        const payoutId = crypto.randomUUID();
-        const receiptCode = `TX-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-        await client.query(
-          `INSERT INTO payouts (id, prize_pool_id, recipient_id, position, amount, currency, destination, receipt_code, released_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-          [payoutId, prizePoolId, winner.recipientId, winner.position, rule.amount, prizePool.currency,
-            winner.destination || `simulated:${winner.recipientType}:${winner.recipientId}`, receiptCode, req.user.sub],
-        );
-        created.push({ payoutId, recipientId: winner.recipientId, recipientType: winner.recipientType, position: winner.position, amount: rule.amount, currency: prizePool.currency, receiptCode });
+        created.push({ recipientId: winner.recipientId, recipientType: winner.recipientType, position: winner.position, amount: rule.amount, currency: prizePool.currency });
       }
-      await client.query("UPDATE prize_pools SET status = 'distributed' WHERE id = $1", [prizePoolId]);
       return created;
     });
-    res.status(201).json({ data: { tournamentId, payouts }, simulated: true });
+    res.status(201).json({ data: { tournamentId, winners: recordedWinners }, payoutsPending: true });
   } catch (error) { next(error); }
 }
 

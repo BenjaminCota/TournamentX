@@ -36,7 +36,6 @@ const protectedMutations = [
   ['post', '/api/prize-pools/unknown-pool/payouts'],
   ['post', '/api/contributions/unknown-contribution/stripe/test-authorize'],
   ['post', '/api/contributions/unknown-contribution/stripe/capture'],
-  ['post', '/api/contributions/unknown-contribution/binance/simulate'],
   ['post', '/api/rewards'],
   ['post', '/api/rewards/unknown-reward/assignments'],
   ['patch', '/api/auth/users/unknown-user'],

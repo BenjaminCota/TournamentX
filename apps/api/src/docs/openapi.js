@@ -19,7 +19,7 @@ module.exports = {
       },
       ContributionInput: {
         type: 'object', required: ['sponsorId', 'amount', 'provider'],
-        properties: { sponsorId: { type: 'string', format: 'uuid' }, amount: { type: 'number' }, provider: { type: 'string', enum: ['stripe', 'binance_pay'] } },
+        properties: { sponsorId: { type: 'string', format: 'uuid' }, amount: { type: 'number' }, provider: { type: 'string', enum: ['stripe'] } },
       },
       RewardInput: {
         type: 'object', required: ['rewardType', 'name'],
@@ -62,7 +62,7 @@ module.exports = {
     },
     '/api/prize-pools/{id}/contributions': {
       post: {
-        summary: 'Crea una aportación simulada o una autorización de prueba', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
+        summary: 'Crea una aportación mediante Stripe Test', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/ContributionInput' } } } }, responses: { 201: { description: 'Orden pendiente creada' } },
       },
     },
@@ -70,28 +70,49 @@ module.exports = {
       put: { summary: 'Define la distribución porcentual y bloquea la bolsa', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Distribución calculada' } } },
     },
     '/api/prize-pools/{id}/payouts': {
-      post: { summary: 'Simula la entrega de un premio y genera recibo', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 201: { description: 'Premio entregado' } } },
+      post: {
+        summary: 'Transfiere un premio con Stripe Test a la cuenta Express del capitán',
+        parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['recipientId', 'position'], properties: { recipientId: { type: 'string' }, position: { type: 'integer' } } } } } },
+        responses: { 201: { description: 'Transferencia creada y recibo generado' }, 409: { description: 'Cuenta no habilitada, premio duplicado o saldo todavía pendiente' } },
+      },
+    },
+    '/api/prize-pools/{id}/reconciliation': {
+      get: { summary: 'Resume aportaciones, reembolsos, comisiones, transferencias y operaciones fallidas', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Conciliación obtenida' }, 403: { description: 'El organizador no administra esta bolsa' } } },
+    },
+    '/api/payment-settings': {
+      get: { summary: 'Consulta la comisión vigente de la plataforma', responses: { 200: { description: 'Configuración obtenida' } } },
+      put: { summary: 'Actualiza la comisión; requiere rol administrador', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['platformFeePercentage'], properties: { platformFeePercentage: { type: 'number', minimum: 0, maximum: 30 } } } } } }, responses: { 200: { description: 'Comisión actualizada' }, 403: { description: 'Disponible únicamente para administradores' } } },
     },
     '/api/prize-pools/{id}/cancel': {
       post: { summary: 'Cancela una bolsa sin fondos pendientes', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Bolsa cancelada' } } },
     },
     '/api/prize-pools/{id}/results': {
       post: {
-        summary: 'Importa ganadores oficiales y crea pagos simulados',
+        summary: 'Importa ganadores oficiales y deja sus transferencias pendientes de autorización',
         parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['tournamentId', 'winners'], properties: {
           tournamentId: { type: 'string', format: 'uuid' }, source: { type: 'string', default: 'api' },
           winners: { type: 'array', items: { type: 'object', required: ['recipientId', 'recipientType', 'position'], properties: {
-            recipientId: { type: 'string', format: 'uuid' }, recipientType: { type: 'string', enum: ['team', 'player'] }, position: { type: 'integer' }, destination: { type: 'string' },
+            recipientId: { type: 'string', format: 'uuid' }, recipientType: { type: 'string', enum: ['team', 'player'] }, position: { type: 'integer' },
           } } },
         } } } } },
-        responses: { 201: { description: 'Resultados importados y pagos creados' }, 409: { description: 'La bolsa no está lista o ya tiene pagos' } },
+        responses: { 201: { description: 'Resultados importados; transferencias pendientes' }, 409: { description: 'La bolsa no está lista o ya tiene pagos' } },
       },
+    },
+    '/api/stripe/connect/status': {
+      get: { summary: 'Consulta el estado de la cuenta Express del capitán', responses: { 200: { description: 'Estado actualizado desde Stripe' }, 403: { description: 'Disponible únicamente para capitanes' } } },
+    },
+    '/api/stripe/connect/onboarding-link': {
+      post: { summary: 'Crea un enlace alojado para incorporar la cuenta Express del capitán', responses: { 201: { description: 'Enlace temporal creado' } } },
+    },
+    '/api/stripe/connect/dashboard-link': {
+      post: { summary: 'Crea un acceso temporal al Panel Express', responses: { 200: { description: 'Enlace temporal creado' } } },
     },
     '/api/contributions': { get: { summary: 'Consulta el historial de aportaciones', responses: { 200: { description: 'Lista obtenida' } } } },
     '/api/contributions/{id}/status': {
       patch: {
-        summary: 'Aprueba, rechaza o reembolsa una aportación simulada', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
+        summary: 'Captura, rechaza o reembolsa una aportación Stripe Test', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['authorized', 'paid', 'failed', 'cancelled', 'refunded'] }, notes: { type: 'string' } } } } } },
         responses: { 200: { description: 'Estado actualizado' } },
       },
@@ -104,6 +125,12 @@ module.exports = {
     },
     '/api/contributions/{id}/stripe/cancel': {
       post: { summary: 'Cancela una autorización Stripe Test', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Autorización cancelada' }, 409: { description: 'La aportación ya no puede cancelarse' } } },
+    },
+    '/api/contributions/{id}/stripe/refund': {
+      post: { summary: 'Reembolsa una aportación pagada mientras la bolsa siga abierta', parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { 200: { description: 'Reembolso completado' }, 409: { description: 'La aportación o la bolsa ya no permiten reembolso' } } },
+    },
+    '/api/tournaments/{tournamentId}/registrations/status': {
+      get: { summary: 'Consulta el estado de inscripción de los equipos del capitán o jugador', parameters: [{ in: 'path', name: 'tournamentId', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Estado de inscripción obtenido' }, 403: { description: 'Disponible únicamente para capitanes y jugadores' } } },
     },
     '/api/webhooks/stripe': {
       post: { security: [], summary: 'Recibe eventos firmados de Stripe', responses: { 200: { description: 'Evento procesado' }, 400: { description: 'Firma inválida' } } },

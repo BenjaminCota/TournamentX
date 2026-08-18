@@ -153,6 +153,8 @@ export interface Tournament {
   banner: string;
   prizePool: string;
   prizeAmountUSD: number;
+  entryFee?: number;
+  entryCurrency?: string;
   status: TournamentStatus;
   format: TournamentFormat;
   dates: string;
@@ -316,7 +318,7 @@ export interface EscrowTransaction {
   tournamentId: string;
   tournamentName: string;
   amountUSD: number;
-  gateway: 'STRIPE' | 'BINANCE_PAY';
+  gateway: 'STRIPE';
   status: 'LOCKED' | 'RELEASED' | 'PENDING';
   date: string;
   payer: string;

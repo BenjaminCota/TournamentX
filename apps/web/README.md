@@ -1,6 +1,6 @@
 # TournamentX — Plantilla web
 
-Plantilla visual en React para integrar los ocho módulos de TournamentX. Utiliza datos simulados y no requiere claves de servicios externos.
+Aplicación React que integra los ocho módulos de TournamentX. Algunos módulos conservan datos de demostración; los pagos requieren Stripe Test.
 
 ## Tecnologías
 
@@ -35,11 +35,11 @@ La URL del backend se configura copiando `.env.example` como `.env.local`. No de
 5. Estadísticas y rankings.
 6. Esports, streams y lobbies.
 7. Sedes, mapas y notificaciones.
-8. Patrocinadores, premios y pagos simulados.
+8. Patrocinadores, premios y pagos con Stripe Test.
 
 ## Estado
 
-Esta carpeta es una plantilla de frontend. Los datos y respuestas del Developer Hub son demostrativos hasta conectarse con cada backend. Stripe y Binance Pay deben permanecer simulados.
+Esta carpeta integra los módulos con la API local. El pago con tarjeta requiere `VITE_STRIPE_PUBLISHABLE_KEY` y la configuración Stripe Test correspondiente en la API; sin ellas, la opción de pago permanece deshabilitada.
 
 ## Verificación
 

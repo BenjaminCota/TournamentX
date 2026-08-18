@@ -1,9 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const jwt = require('jsonwebtoken');
+const request = require('supertest');
 const Stripe = require('stripe');
 const env = require('../src/config/env');
 const { pool } = require('../src/config/database');
+const app = require('../src/app');
 
 const enabled = process.env.RUN_STRIPE_TESTS === '1';
 
@@ -29,6 +32,7 @@ test('procesa autorización, captura y cancelación reales de Stripe Test', { sk
   const prizePoolId = crypto.randomUUID();
   const captureContributionId = crypto.randomUUID();
   const cancelContributionId = crypto.randomUUID();
+  const contributionIds = [captureContributionId, cancelContributionId];
   const paymentIntents = [];
 
   try {
@@ -68,8 +72,41 @@ test('procesa autorización, captura y cancelación reales de Stripe Test', { sk
     await stripe.paymentIntents.cancel(paymentIntents[1]);
     await waitForStatus(connection, cancelContributionId, 'cancelled');
 
+    const token = jwt.sign(
+      { sub: crypto.randomUUID(), role: 'admin', email: 'stripe-route-test@localhost' },
+      env.jwtSecret,
+      { expiresIn: '5m' },
+    );
+    const routeResponse = await request(app)
+      .post(`/api/prize-pools/${prizePoolId}/contributions`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        sponsorId,
+        amount: 12.34,
+        provider: 'stripe',
+        idempotencyKey: crypto.randomUUID(),
+      })
+      .expect(201);
+
+    const routeContributionId = routeResponse.body.data.id;
+    const routePaymentIntentId = routeResponse.body.data.provider_reference;
+    contributionIds.push(routeContributionId);
+    paymentIntents.push(routePaymentIntentId);
+    assert.equal(routeResponse.body.payment.simulated, false);
+    assert.match(routeResponse.body.payment.clientSecret || '', /^pi_.*_secret_/);
+
+    await stripe.paymentIntents.confirm(routePaymentIntentId, { payment_method: 'pm_card_visa' });
+    await waitForStatus(connection, routeContributionId, 'authorized');
+
+    const captureResponse = await request(app)
+      .post(`/api/contributions/${routeContributionId}/stripe/capture`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    assert.equal(captureResponse.body.providerStatus, 'succeeded');
+    await waitForStatus(connection, routeContributionId, 'paid');
+
     const [poolRows] = await connection.execute('SELECT funded_amount FROM prize_pools WHERE id = ?', [prizePoolId]);
-    assert.equal(Number(poolRows[0].funded_amount), 12.34);
+    assert.equal(Number(poolRows[0].funded_amount), 24.68);
   } finally {
     for (const paymentIntentId of paymentIntents) {
       try {
@@ -77,14 +114,10 @@ test('procesa autorización, captura y cancelación reales de Stripe Test', { sk
         if (intent.status === 'requires_capture') await stripe.paymentIntents.cancel(paymentIntentId);
       } catch {}
     }
-    await connection.execute(
-      'DELETE FROM payment_events WHERE contribution_id IN (?,?)',
-      [captureContributionId, cancelContributionId],
-    );
-    await connection.execute(
-      'DELETE FROM contributions WHERE id IN (?,?)',
-      [captureContributionId, cancelContributionId],
-    );
+    const placeholders = contributionIds.map(() => '?').join(',');
+    await connection.execute(`DELETE FROM payment_idempotency WHERE contribution_id IN (${placeholders})`, contributionIds);
+    await connection.execute(`DELETE FROM payment_events WHERE contribution_id IN (${placeholders})`, contributionIds);
+    await connection.execute(`DELETE FROM contributions WHERE id IN (${placeholders})`, contributionIds);
     await connection.execute('DELETE FROM prize_pools WHERE id = ?', [prizePoolId]);
     await connection.execute('DELETE FROM sponsors WHERE id = ?', [sponsorId]);
     connection.release();

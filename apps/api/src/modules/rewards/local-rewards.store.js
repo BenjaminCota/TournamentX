@@ -4,9 +4,10 @@ const localStore = require('../../config/local-store');
 const now = '2026-08-16T00:00:00.000Z';
 const seed = {
   sponsors: [{ id: 'sponsor-local-01', name: 'TournamentX Labs', contactEmail: 'sponsor@tournamentx.local', logoUrl: null, active: true, createdAt: now }],
-  prizePools: [{ id: 'pool-local-01', tournamentId: 'tour-community', name: 'Bolsa Community Cup', currency: 'USD', targetAmount: 10000, fundedAmount: 2500, status: 'funding', createdBy: 'user-admin', createdAt: now, updatedAt: now }],
-  contributions: [{ id: 'contribution-local-01', prizePoolId: 'pool-local-01', sponsorId: 'sponsor-local-01', amount: 2500, currency: 'USD', provider: 'stripe', providerReference: 'local_seed_payment', status: 'paid', metadata: { mode: 'local' }, createdAt: now }],
-  distributionRules: [], payouts: [], paymentEvents: [],
+  prizePools: [{ id: 'pool-local-01', tournamentId: 'tour-community', name: 'Bolsa Community Cup', currency: 'USD', targetAmount: 1000, fundedAmount: 0, status: 'funding', createdBy: 'user-admin', createdAt: now, updatedAt: now }],
+  contributions: [],
+  distributionRules: [], payouts: [], paymentEvents: [], payoutEvents: [],
+  settings: [{ id: 'platform', platformFeePercentage: 5, updatedBy: null, updatedAt: now }],
   rewards: [{ id: 'reward-local-01', sponsorId: 'sponsor-local-01', prizePoolId: 'pool-local-01', rewardType: 'coupon', name: 'Gift card TournamentX', description: 'Premio digital local', quantity: 10, milestone: 'Top 8', active: true, createdBy: 'user-admin', createdAt: now }],
   rewardAssignments: [], winners: [], idempotency: [],
 };

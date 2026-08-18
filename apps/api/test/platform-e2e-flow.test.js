@@ -65,5 +65,5 @@ test('recorrido E2E: equipos, torneo, calendario, resultado, notificación y pre
   assert.equal(reward.status, 201);
   assert.equal(reward.body.data.payout.recipientId, teamIds[0]);
   assert.equal(reward.body.data.payout.amount, 250);
-  assert.equal((await request(app).get(`/api/receipts/${reward.body.data.payout.receiptCode}`)).status, 200);
+  assert.equal((await request(app).get(`/api/receipts/${reward.body.data.payout.receiptCode}`).set(organizer)).status, 200);
 });
