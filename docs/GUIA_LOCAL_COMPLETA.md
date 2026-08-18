@@ -32,12 +32,14 @@ Las cuentas nuevas se crean con rol Espectador. Solo el administrador puede camb
 
 ## Persistencia
 
-- Con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`: usuarios, roles, equipos, jugadores, plantillas, torneos, partidos, sedes, notificaciones y lobbies se leen y escriben en Supabase.
-- Sin Supabase: almacenamiento JSON local automático.
+- Con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`: el registro y el inicio de sesión utilizan Supabase Auth.
+- Por defecto, la API local coordina equipos, jugadores, torneos, brackets, calendarios, resultados, notificaciones y premios en una sola fuente de datos. Esta es la configuración recomendada para demostrar el flujo completo.
+- `VITE_DATA_SOURCE=supabase-direct` conserva el modo directo anterior para los módulos compatibles. No se recomienda mezclarlo con el flujo local mientras Supabase no contenga todos los datos relacionados.
+- Sin Supabase: autenticación y almacenamiento JSON local automáticos.
 - Con `DATABASE_URL`: partidos, calendario y pagos pueden utilizar MySQL.
 - `npm run db:init` aplica `apps/api/database/schema.sql` sin eliminar información existente.
 
-Para reiniciar exclusivamente los datos locales, detén la API y mueve `apps/api/data/tournamentx.local.json` a otra ubicación. Al iniciar nuevamente se generan datos de demostración limpios.
+Para reiniciar exclusivamente los datos locales, detén la API y mueve `apps/api/data/tournamentx.local.json` a otra ubicación. Al iniciar nuevamente se genera el catálogo operativo inicial de TournamentX.
 
 ### Supabase conectado
 
@@ -45,9 +47,23 @@ El proyecto remoto activo es `fhjaqzexiwgjkvqvnydm`. La configuración real de e
 
 Las migraciones reproducibles están en `supabase/migrations/` e incluyen el esquema, datos iniciales, Row Level Security, Realtime, funciones administrativas y el bucket privado `tournamentx-media`. No vuelvas a pegar la llave `service_role` en el frontend: el navegador únicamente debe utilizar la llave publicable.
 
-La primera cuenta creada en un proyecto vacío recibe el rol Administrador; las siguientes nacen como Espectador. Si la confirmación de correo está habilitada en Supabase, hay que confirmar el mensaje antes de iniciar sesión. Los accesos terminados en `.local` siguen siendo cuentas de demostración y no sincronizan cambios protegidos con Supabase.
+La primera cuenta creada en un proyecto vacío recibe el rol Administrador; las siguientes nacen como Jugador. Si la confirmación de correo está habilitada en Supabase, hay que confirmar el mensaje antes de iniciar sesión. Los accesos terminados en `.local` son cuentas internas de desarrollo emitidas por la API y no representan usuarios de Supabase.
 
-El motor probado de grupos y brackets continúa ejecutándose en la API local. La aplicación crea una copia de trabajo con el mismo ID y vuelve a persistir en Supabase el estado, marcador y rondas del torneo. Por eso deben estar encendidas tanto la API (`npm run dev:api`) como la web (`npm run dev:web`).
+El motor probado de grupos, brackets y calendarios continúa ejecutándose en la API local. La API también acepta el token de Supabase y crea una identidad local vinculada para aplicar los mismos permisos sin duplicar el inicio de sesión. Por eso deben estar encendidas tanto la API (`npm run dev:api`) como la web (`npm run dev:web`).
+
+## Flujo principal entregable
+
+Inicia sesión como Administrador u Organizador y sigue este recorrido:
+
+1. En **Equipos**, crea al menos dos equipos y completa sus jugadores/plantillas.
+2. En **Torneos**, crea o selecciona un torneo.
+3. Inscribe los equipos desde el selector de participantes. El formulario guarda el ID real del equipo, no solo su nombre.
+4. Genera el bracket o los grupos según el formato del torneo.
+5. En el panel **Flujo principal**, define fecha, sede y modalidad y pulsa **Programar partidos**.
+6. Abre **Partidos**, realiza el check-in cuando corresponda y captura/aprueba el resultado.
+7. Consulta el avance en **Torneos**, las métricas en **Estadísticas** y las alertas en **Notificaciones**. Al terminar la final, el campeón puede conectarse con el flujo de premios.
+
+Cada paso muestra el siguiente pendiente y reutiliza los módulos existentes; no es necesario volver a capturar equipos o torneos en pantallas separadas.
 
 ## Integraciones opcionales
 
@@ -70,12 +86,12 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 ```
 
-Sin claves, Twitch y YouTube conservan sus fuentes de demostración. Los pagos
+Sin claves, Twitch y YouTube conservan enlaces curados a canales o grabaciones oficiales. Los pagos
 Stripe permanecen deshabilitados y no generan operaciones ficticias.
 
 ### Centro de transmisión
 
-En **Más → Transmisiones** se cargan los reproductores oficiales de Twitch y YouTube. Los controles propios permiten reproducir, pausar, cambiar volumen, silenciar, buscar ±10 segundos y entrar a pantalla completa. Twitch no admite búsqueda temporal en señales en vivo; sí la admite en VOD.
+En **Partidos → Transmisiones** se cargan los reproductores oficiales de Twitch y YouTube. Los controles propios permiten reproducir, pausar, cambiar volumen, silenciar, buscar ±10 segundos y entrar a pantalla completa. Twitch no admite búsqueda temporal en señales en vivo; sí la admite en VOD.
 
 - `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET` activan la consulta de directos mediante Twitch Helix.
 - `YOUTUBE_API_KEY` activa la búsqueda de directos y el conteo concurrente mediante YouTube Data API v3.
@@ -94,7 +110,7 @@ La API local expone `GET /api/media/streams`, `GET /api/media/events`, `GET /api
 - `PANDASCORE_API_TOKEN` activa partidos, torneos, equipos y jugadores de League of Legends, Valorant, Dota 2 y otros esports.
 - `FOOTBALL_DATA_API_KEY` activa calendarios, resultados, tablas, forma y plantillas de fútbol.
 - `FOOTBALL_COMPETITIONS` recibe códigos separados por comas; el ejemplo incluye Premier League, Champions League, Brasileirão y MLS.
-- Sin credenciales se muestran datos regionales de demostración para LATAM, Estados Unidos y Europa, siempre marcados como `DEMO`.
+- Sin credenciales se muestran únicamente encuentros y resultados registrados en TournamentX; la integración externa aparece como `not_configured`.
 
 Nunca coloques estas llaves en `apps/web/.env`: deben permanecer exclusivamente en `apps/api/.env`.
 

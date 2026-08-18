@@ -27,7 +27,7 @@ Responsable de `apps/web/src/features/auth` y `apps/api/src/modules/auth`.
 - [ ] **P1:** agregar recuperación de contraseña e inicio con Google y Discord.
 - [ ] **P1:** permitir subir y revisar documentos básicos de verificación KYC.
 - [ ] **P1:** crear el perfil de organización con logo y redes sociales.
-- [ ] **P2:** avisar al administrador cuando llegue una solicitud nueva.
+- [x] **P2:** avisar al administrador cuando llegue una solicitud nueva.
 
 Terminado cuando los roles persisten en la base compartida, el KYC tiene un
 historial de revisión y las pruebas demuestran que cada rol solo accede a sus
@@ -38,8 +38,8 @@ acciones autorizadas.
 Responsable de `apps/web/src/features/tournaments` y
 `apps/api/src/modules/tournaments`.
 
-- [ ] **P0:** implementar los estados `DRAFT`, `OPEN`, `CLOSED` y `PUBLISHED`.
-- [ ] **P0:** permitir que el capitán inscriba su propio equipo y validar que el
+- [x] **P0:** implementar los estados `DRAFT`, `OPEN`, `CLOSED` y `PUBLISHED`.
+- [x] **P0:** permitir que el capitán inscriba su propio equipo y validar que el
   equipo esté activo, completo y, cuando aplique, con la cuota pagada.
 - [ ] **P1:** limitar y validar brackets de 8, 16 y 32 lugares.
 - [ ] **P1:** agregar edición visual del seeding antes de publicar el bracket.
@@ -60,7 +60,7 @@ Responsable de `apps/web/src/features/teams` y `apps/api/src/modules/teams`.
 - [ ] **P1:** subir logos y avatares a almacenamiento, en lugar de pedir una URL.
 - [ ] **P1:** permitir al organizador revisar requisitos y aprobar el roster de
   un torneo.
-- [ ] **P1:** generar un enlace de invitación además del código.
+- [x] **P1:** generar un enlace de invitación además del código.
 - [ ] **P1:** completar la moderación de equipos con motivo, bloqueo, reactivación
   y bitácora administrativa.
 
@@ -72,11 +72,11 @@ equipos activos y el roster aprobado queda enlazado al torneo correspondiente.
 Responsable de `apps/web/src/features/matches` y
 `apps/api/src/modules/matches`.
 
-- [ ] **P0:** permitir subir la captura de evidencia y guardar su referencia de
+- [x] **P0:** permitir subir la captura de evidencia y guardar su referencia de
   manera segura.
-- [ ] **P0:** comparar los reportes de ambos capitanes y bloquear el partido si
+- [x] **P0:** comparar los reportes de ambos capitanes y bloquear el partido si
   los marcadores no coinciden.
-- [ ] **P0:** agregar la decisión y cierre de una disputa por el organizador.
+- [x] **P0:** agregar la decisión y cierre de una disputa por el organizador.
 - [ ] **P1:** crear la vista `Mi calendario`, filtrada por el equipo del usuario.
 - [ ] **P1:** completar la programación automática de las rondas posteriores.
 - [ ] **P2:** crear la vista pública de partidos de hoy con marcador en tiempo
@@ -94,7 +94,7 @@ Responsable de `apps/web/src/features/analytics` y
 - [ ] **P0:** calcular estadísticas individuales desde resultados oficiales:
   Winrate, KDA, goles, asistencias u otras métricas según el juego.
 - [ ] **P1:** generar rankings de MVP y rankings regionales con fuente visible.
-- [ ] **P1:** agregar exportación de posiciones en CSV y PDF.
+- [ ] **P1:** completar exportación PDF; la exportación CSV de posiciones ya está disponible.
 - [ ] **P1:** mostrar métricas mensuales de usuarios activos y torneos terminados.
 - [ ] **P1:** adaptar el dashboard para administrador, organizador, capitán y
   jugador.
@@ -107,7 +107,7 @@ datos oficiales de datos demo y los archivos exportados coinciden con la vista.
 Responsable de `apps/web/src/features/media` y `apps/api/src/modules/media`.
 
 - [ ] **P0:** relacionar cada transmisión y lobby con un partido de TournamentX.
-- [ ] **P0:** guardar nombre y contraseña de sala cifrados y mostrarlos solamente
+- [x] **P0:** guardar nombre y contraseña de sala cifrados y mostrarlos solamente
   a los capitanes que completaron el check-in.
 - [ ] **P1:** integrar la creación de salas con proveedores o servidores reales
   cuando el videojuego lo permita.
@@ -127,7 +127,7 @@ Responsable de `apps/web/src/features/geolocation` y
 
 - [ ] **P0:** agregar CRUD de sedes y permitir que el organizador coloque el PIN
   del torneo desde el mapa.
-- [ ] **P0:** dirigir las notificaciones solamente a los usuarios y equipos
+- [x] **P0:** dirigir las notificaciones solamente a los usuarios y equipos
   relacionados con el evento.
 - [ ] **P1:** programar el aviso automático de partido próximo, por ejemplo a los
   15 minutos.

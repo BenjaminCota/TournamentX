@@ -15,7 +15,9 @@ const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json', limit: '100kb' }), stripeWebhookController.handle);
-app.use(express.json({ limit: '100kb' }));
+// Las evidencias se envían temporalmente como data URL. En el VPS conviene
+// reemplazar este transporte por carga directa a almacenamiento privado.
+app.use(express.json({ limit: '7mb' }));
 app.use(requestContext);
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, '../public')));

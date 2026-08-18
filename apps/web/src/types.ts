@@ -47,6 +47,7 @@ export interface AnalyticsOverview {
   generatedAt: string;
   metrics: { tournaments: number; activeTournaments: number; teams: number; matches: number; completedMatches: number; liveMatches: number; completionRate: number; totalPrizeUSD: number };
   ranking: Array<{ id: string; team: string; region: string; played: number; wins: number; losses: number; draws: number; rate: number; points: number }>;
+  playerRanking: Array<{ id: string; player: string; teamId: string | null; team: string; role: string; played: number; wins: number; losses: number; winRate: number; rating: number }>;
   recentMatches: TournamentMatch[];
 }
 
@@ -63,7 +64,7 @@ export interface CompetitiveEvent {
   round: string;
   venue: string;
   source: string;
-  dataMode: 'api' | 'simulated';
+  dataMode: 'api' | 'platform';
 }
 
 export interface CompetitiveStanding {
@@ -73,7 +74,7 @@ export interface CompetitiveStanding {
   sport: string;
   region: string;
   source: string;
-  dataMode: 'api' | 'simulated';
+  dataMode: 'api' | 'platform';
   table: Array<{ position: number; teamId: string; team: string; played: number; wins: number; draws: number; losses: number; points: number; form: string[] }>;
 }
 
@@ -90,7 +91,7 @@ export interface CompetitiveTeam {
   form: string[];
   players: Array<{ id: string; name: string; nickname: string; role: string; nationality: string; image: string }>;
   source: string;
-  dataMode: 'api' | 'simulated';
+  dataMode: 'api' | 'platform';
 }
 
 export interface CompetitiveOverview {
@@ -141,7 +142,7 @@ export interface TeamMember {
   status: 'active' | 'inactive';
 }
 
-export type TournamentStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'UPCOMING';
+export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'UPCOMING';
 export type TournamentFormat = 'SINGLE_ELIMINATION' | 'DOUBLE_ELIMINATION' | 'GROUP_STAGE_PLAYOFFS' | 'ROUND_ROBIN' | 'SWISS';
 
 export interface Tournament {
@@ -247,8 +248,8 @@ export interface MatchWorkflow {
   matchId: string;
   match: TournamentMatch;
   checkIns: Array<{ id: string; teamId: string; captainUserId: string; status: 'CONFIRMED'; checkedInAt: string }>;
-  reports: Array<{ id: string; submittedBy: string; submittedForTeamId: string; team1Score: number; team2Score: number; evidenceUrl: string; status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'; reviewNote?: string | null; createdAt: string }>;
-  disputes: Array<{ id: string; openedBy: string; teamId: string; reason: string; evidenceUrl?: string | null; status: 'OPEN' | 'RESOLVED'; createdAt: string }>;
+  reports: Array<{ id: string; submittedBy: string; submittedForTeamId: string; team1Score: number; team2Score: number; evidenceUrl: string; comparisonStatus?: 'WAITING_OPPONENT' | 'MATCHED' | 'CONFLICT'; status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'; reviewNote?: string | null; createdAt: string }>;
+  disputes: Array<{ id: string; openedBy: string; teamId: string | null; reason: string; evidenceUrl?: string | null; status: 'OPEN' | 'RESOLVED'; resolution?: string | null; createdAt: string }>;
 }
 
 export interface MatchScoreboard {

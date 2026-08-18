@@ -48,3 +48,17 @@ test('Dev 7 emite notificaciones en tiempo real a los suscriptores', async () =>
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('Dev 7 conserva el estado leído por usuario', async () => {
+  const userId = `notification-reader-${Date.now()}`;
+  const token = jwt.sign({ sub: userId, role: 'player' }, process.env.JWT_SECRET || 'development-only-secret');
+  const before = await request(app).get('/api/geolocation/notifications/me').set('Authorization', `Bearer ${token}`);
+  assert.equal(before.status, 200);
+  assert.ok(before.body.length > 0);
+  const target = before.body[0];
+  const marked = await request(app).patch(`/api/geolocation/notifications/${target.id}/read`).set('Authorization', `Bearer ${token}`);
+  assert.equal(marked.status, 200);
+  assert.equal(marked.body.read, true);
+  const after = await request(app).get('/api/geolocation/notifications/me').set('Authorization', `Bearer ${token}`);
+  assert.equal(after.body.find((item) => item.id === target.id).read, true);
+});

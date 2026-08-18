@@ -21,7 +21,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
   const [filter, setFilter] = useState<'TODOS' | 'ESPORTS' | 'PRESENCIAL'>('TODOS');
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [feedEvents, setFeedEvents] = useState<CompetitiveEvent[]>([]);
-  const [integration, setIntegration] = useState({ esports: 'demo', football: 'demo' });
+  const [integration, setIntegration] = useState({ esports: 'not_configured', football: 'not_configured' });
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -70,8 +70,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <h1 className="font-brand font-black text-4xl text-white uppercase italic flex items-center gap-3"><CalendarDays className="w-8 h-8 text-[#ff2e83]" /> Calendario de partidos</h1>
-          <p className="text-sm text-slate-400 mt-2">Agenda unificada de encuentros locales y feeds regionales de esports y deportes.</p>
-          <div className="mt-3 flex flex-wrap gap-2"><span className="status-chip text-slate-400">Esports: {integration.esports === 'configured' ? 'PandaScore' : 'demo regional'}</span><span className="status-chip text-slate-400">Fútbol: {integration.football === 'configured' ? 'football-data.org' : 'demo regional'}</span></div>
+          <p className="text-sm text-slate-400 mt-2">Agenda unificada de encuentros registrados y proveedores oficiales disponibles.</p>
+          <div className="mt-3 flex flex-wrap gap-2"><span className="status-chip text-slate-400">Esports: {integration.esports === 'configured' ? 'PandaScore' : 'TournamentX'}</span><span className="status-chip text-slate-400">Fútbol: {integration.football === 'configured' ? 'football-data.org' : 'TournamentX'}</span></div>
         </div>
         <div className="relative w-full lg:w-80"><Search className="absolute left-3 top-3 w-4 h-4 text-slate-500" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar torneo, equipo o sede" className="w-full bg-[#141724] border border-[#252a3d] rounded-xl py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#ff2e83]" /></div>
       </div>
@@ -105,7 +105,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
           return <article key={event.id} className="grid grid-cols-[88px_1fr] lg:grid-cols-[88px_120px_1fr_220px_120px] items-center gap-4 bg-[#11131c] border border-[#222638] rounded-2xl p-4 hover:border-[#d6b15e]/50 transition-colors">
             <div className="text-center border-r border-[#292e42] pr-4"><div className="text-xs text-[#d6b15e] font-bold">{date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }).toUpperCase()}</div><div className="text-xl font-black text-white">{date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}</div></div>
             <div className="hidden lg:flex items-center gap-2 text-xs text-slate-400">{event.category === 'esports' ? <Gamepad2 className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}{event.sport}</div>
-            <div><div className="flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{event.competition} · {event.region}</span><span className={`rounded px-1.5 py-0.5 text-[8px] font-bold ${event.dataMode === 'api' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{event.dataMode === 'api' ? 'API' : 'DEMO'}</span></div><div className="font-bold text-white mt-1">{event.teamA.name} <span className="text-slate-500">{event.teamA.score} — {event.teamB.score}</span> {event.teamB.name}</div></div>
+            <div><div className="flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{event.competition} · {event.region}</span><span className={`rounded px-1.5 py-0.5 text-[8px] font-bold ${event.dataMode === 'api' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-[#ff2e83]/10 text-[#ff69a8]'}`}>{event.source}</span></div><div className="font-bold text-white mt-1">{event.teamA.name} <span className="text-slate-500">{event.teamA.score} — {event.teamB.score}</span> {event.teamB.name}</div></div>
             <div className="hidden lg:flex items-center gap-2 text-sm text-slate-300"><MapPin className="w-4 h-4 text-slate-500" />{event.venue || event.round}</div>
             <span className={`rounded-xl px-3 py-2 text-center text-xs font-bold ${isLive ? 'bg-red-500/15 text-red-400 border border-red-500/30' : 'bg-[#1a1d2a] text-slate-300'}`}>{isLive ? '● EN VIVO' : statusLabel(event.status)}</span>
           </article>;

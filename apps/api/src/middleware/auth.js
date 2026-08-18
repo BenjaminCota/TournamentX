@@ -1,16 +1,29 @@
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const HttpError = require('../utils/http-error');
+const supabaseAuth = require('../services/supabase-auth');
 
-function authenticate(req, _res, next) {
+async function authenticate(req, _res, next) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return next(new HttpError(401, 'Token de acceso requerido'));
 
+  const token = header.slice(7);
+
   try {
-    req.user = jwt.verify(header.slice(7), env.jwtSecret);
+    req.user = jwt.verify(token, env.jwtSecret);
+    req.authProvider = 'local';
     return next();
-  } catch (_error) {
-    return next(new HttpError(401, 'Token inválido o expirado'));
+  } catch (_localError) {
+    try {
+      const user = await supabaseAuth.resolveUser(token);
+      if (!user || user.status === 'SUSPENDED') return next(new HttpError(401, 'Token inválido o cuenta suspendida'));
+      req.user = user;
+      req.authProvider = 'supabase';
+      req.supabaseAccessToken = token;
+      return next();
+    } catch (_supabaseError) {
+      return next(new HttpError(401, 'Token inválido o expirado'));
+    }
   }
 }
 

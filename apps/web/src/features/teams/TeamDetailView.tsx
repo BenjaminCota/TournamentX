@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Copy, Link2, Pencil, Plus, Share2, Star, Swords, Trash2, Users } from 'lucide-react';
 import { Team, User, UserRole } from '../../types';
-import { MOCK_TEAMS } from '../../data/mockData';
 import { TabId } from '../shell/Sidebar';
 import { tournamentXApi } from '../../services/apiClient';
 
@@ -20,8 +19,8 @@ interface TeamDetailViewProps {
 }
 
 export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
-  teamId = 'team-lnx',
-  teams = MOCK_TEAMS,
+  teamId = '',
+  teams = [],
   players = [],
   currentUserRole,
   currentUserId,
@@ -32,7 +31,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   onAddRosterMember,
   onRemoveRosterMember,
 }) => {
-  const [activeTab, setActiveTab] = useState<'RESUMEN' | 'ROSTER' | 'PARTIDOS' | 'ESTADÍSTICAS' | 'HISTORIAL'>('ROSTER');
+  const [activeTab, setActiveTab] = useState<'RESUMEN' | 'ROSTER' | 'PARTIDOS' | 'ESTADÍSTICAS' | 'HISTORIAL'>('RESUMEN');
   const [isFollowing, setIsFollowing] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showRosterModal, setShowRosterModal] = useState(false);
@@ -41,10 +40,17 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   const [selectedRole, setSelectedRole] = useState('Capitán');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
   const [invitationCode, setInvitationCode] = useState('');
+  const [invitationUrl, setInvitationUrl] = useState('');
   const [joinRequests, setJoinRequests] = useState<Array<{ id: string; playerId: string; status: string; player?: User }>>([]);
   const [teamFlowMessage, setTeamFlowMessage] = useState('');
 
-  const currentTeam = useMemo(() => teams.find((team) => team.id === teamId) || teams[0] || MOCK_TEAMS[0], [teamId, teams]);
+  const persistedTeam = useMemo(() => teams.find((team) => team.id === teamId) || teams[0], [teamId, teams]);
+  const currentTeam: Team = persistedTeam ?? {
+    id: '', name: '', tag: '', abbreviation: '', logo: '', tier: '', globalRank: 0,
+    winRate: 0, matchesPlayed: 0, record: { wins: 0, losses: 0, ties: 0 }, points: 0,
+    trend: 'EQUAL', region: '', bio: '', description: '', sport: '', competitionType: '',
+    status: 'inactive', roster: [],
+  };
   const canManage = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || (currentUserRole === 'Capitán' && currentTeam.captainUserId === currentUserId);
 
   useEffect(() => {
@@ -53,7 +59,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   }, [canManage, currentTeam.id]);
 
   const createInvitation = async () => {
-    try { const result = await tournamentXApi.createTeamInvitation(currentTeam.id, { expiresInHours: 72, rosterRole: 'Jugador' }); setInvitationCode(result.invitation.code); setTeamFlowMessage('Invitación creada. Comparte el código con el jugador.'); }
+    try { const result = await tournamentXApi.createTeamInvitation(currentTeam.id, { expiresInHours: 72, rosterRole: 'Jugador' }); setInvitationCode(result.invitation.code); setInvitationUrl(result.invitation.inviteUrl); setTeamFlowMessage('Invitación creada. El enlace caduca en 72 horas.'); }
     catch (error) { setTeamFlowMessage(error instanceof Error ? error.message : 'No se pudo crear la invitación'); }
   };
   const decideJoinRequest = async (requestId: string, decision: 'approve' | 'reject') => {
@@ -142,6 +148,29 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
     await onRemoveRosterMember(currentTeam.id, playerId);
   };
 
+  const shareTeam = async () => {
+    const shareData = { title: `${currentTeam.name} · TournamentX`, text: `Consulta el perfil competitivo de ${currentTeam.name} en TournamentX.`, url: window.location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else { await navigator.clipboard.writeText(window.location.href); setTeamFlowMessage('Enlace del equipo copiado.'); }
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') setTeamFlowMessage('No se pudo compartir el equipo desde este navegador.');
+    }
+  };
+
+  if (!persistedTeam) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center p-6">
+        <section className="surface max-w-xl p-10 text-center">
+          <Users className="mx-auto h-10 w-10 text-[#ff2e83]" />
+          <h1 className="mt-4 text-2xl font-black text-white">No hay un equipo disponible</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Crea o registra un equipo para consultar su plantilla, historial y rendimiento competitivo.</p>
+          <button onClick={() => onNavigate('teams')} className="mt-6 rounded-xl bg-[#ff2e83] px-5 py-3 text-xs font-bold text-white">IR A EQUIPOS</button>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div id="team-profile-detail-view" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
       <button onClick={() => onNavigate('teams')} className="inline-flex items-center gap-2 text-xs font-mono-code font-bold uppercase text-slate-400 hover:text-white transition-colors cursor-pointer">
@@ -173,7 +202,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
               <Star className="w-4 h-4" />
               <span>{isFollowing ? 'SIGUIENDO' : '＋ SEGUIR'}</span>
             </button>
-            <button className="p-2.5 rounded-xl bg-[#181b28] hover:bg-[#222638] text-slate-300 border border-[#282d42]"><Share2 className="w-4 h-4" /></button>
+            <button onClick={() => void shareTeam()} aria-label="Compartir equipo" title="Compartir equipo" className="p-2.5 rounded-xl bg-[#181b28] hover:bg-[#222638] text-slate-300 border border-[#282d42]"><Share2 className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -193,7 +222,23 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
         </div>
       </div>
 
-      {canManage && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[#10121a] p-5 space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold text-white"><Link2 className="h-5 w-5 text-[#ff2e83]"/> Invitaciones del equipo</h2><p className="mt-1 text-xs text-slate-400">El capitán comparte un código y aprueba la entrada al roster.</p></div><button onClick={() => void createInvitation()} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white">CREAR CÓDIGO</button></div>{invitationCode && <button onClick={() => void navigator.clipboard?.writeText(invitationCode)} className="flex w-full items-center justify-between rounded-xl border border-emerald-500/25 bg-emerald-500/[.06] px-4 py-3 text-left"><span className="font-mono text-lg font-black tracking-[.25em] text-emerald-300">{invitationCode}</span><Copy className="h-4 w-4 text-emerald-300"/></button>}{joinRequests.filter((item) => item.status === 'PENDING').map((item) => <div key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 p-3"><span className="text-sm text-slate-300">{item.player?.name || item.playerId} quiere entrar</span><span className="flex gap-2"><button onClick={() => void decideJoinRequest(item.id, 'reject')} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300">Rechazar</button><button onClick={() => void decideJoinRequest(item.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Aceptar</button></span></div>)}{teamFlowMessage && <p className="text-xs text-slate-300">{teamFlowMessage}</p>}</section>}
+      {canManage && activeTab === 'ROSTER' && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[#10121a] p-5 space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold text-white"><Link2 className="h-5 w-5 text-[#ff2e83]"/> Invitaciones del equipo</h2><p className="mt-1 text-xs text-slate-400">El capitán comparte un enlace temporal y aprueba la entrada al roster.</p></div><button onClick={() => void createInvitation()} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white">CREAR INVITACIÓN</button></div>{invitationCode && <div className="grid gap-2 sm:grid-cols-[.45fr_1fr]"><button onClick={() => void navigator.clipboard?.writeText(invitationCode)} className="flex items-center justify-between rounded-xl border border-emerald-500/25 bg-emerald-500/[.06] px-4 py-3 text-left"><span className="font-mono text-lg font-black tracking-[.25em] text-emerald-300">{invitationCode}</span><Copy className="h-4 w-4 text-emerald-300"/></button><button onClick={() => void navigator.clipboard?.writeText(invitationUrl)} className="flex min-w-0 items-center justify-between rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/[.06] px-4 py-3 text-left"><span className="truncate text-xs text-[#ff69a8]">{invitationUrl}</span><Copy className="ml-3 h-4 w-4 shrink-0 text-[#ff69a8]"/></button></div>}{joinRequests.filter((item) => item.status === 'PENDING').map((item) => <div key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 p-3"><span className="text-sm text-slate-300">{item.player?.name || item.playerId} quiere entrar</span><span className="flex gap-2"><button onClick={() => void decideJoinRequest(item.id, 'reject')} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300">Rechazar</button><button onClick={() => void decideJoinRequest(item.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Aceptar</button></span></div>)}{teamFlowMessage && <p className="text-xs text-slate-300">{teamFlowMessage}</p>}</section>}
+
+      {activeTab === 'RESUMEN' && <section className="grid gap-6 lg:grid-cols-[1.35fr_.65fr]">
+        <article className="surface p-6 lg:p-8"><span className="text-[10px] font-black uppercase tracking-[.22em] text-[#ff69a8]">Identidad competitiva</span><h2 className="mt-2 text-2xl font-black text-white">{currentTeam.name}</h2><p className="mt-4 max-w-3xl text-sm leading-7 text-slate-400">{currentTeam.bio || currentTeam.description || 'Este equipo todavía no ha publicado una descripción.'}</p><div className="mt-6 flex flex-wrap gap-2">{[currentTeam.sport || 'Multideporte', currentTeam.region, currentTeam.competitionType || 'Competencia abierta', currentTeam.tier].map((item) => <span key={item} className="status-chip text-slate-300">{item}</span>)}</div></article>
+        <article className="surface p-6"><h2 className="text-sm font-black uppercase tracking-wider text-white">Estado de plantilla</h2><strong className="mt-5 block text-5xl font-black text-[#ff2e83]">{currentTeam.roster.length}</strong><p className="mt-1 text-xs text-slate-500">integrantes activos</p><button onClick={() => setActiveTab('ROSTER')} className="mt-6 w-full rounded-xl border border-[#ff2e83]/30 bg-[#ff2e83]/10 py-3 text-xs font-bold text-[#ff69a8]">ABRIR PLANTILLA</button></article>
+      </section>}
+
+      {activeTab === 'PARTIDOS' && <section className="surface grid min-h-64 place-items-center p-8 text-center"><div><Swords className="mx-auto h-9 w-9 text-[#ff2e83]"/><h2 className="mt-4 text-xl font-black text-white">Agenda compartida del equipo</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-400">Los partidos oficiales se consultan desde la agenda para conservar un único marcador y evitar encuentros duplicados.</p><button onClick={() => onNavigate('calendar')} className="mt-6 rounded-xl bg-[#ff2e83] px-5 py-3 text-xs font-bold text-white">CONSULTAR AGENDA</button></div></section>}
+
+      {activeTab === 'ESTADÍSTICAS' && <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[
+        ['Puntos competitivos', currentTeam.points.toLocaleString(), 'Acumulado del ranking'],
+        ['Victorias', currentTeam.record.wins, `${currentTeam.record.losses} derrotas`],
+        ['Rendimiento', `${currentTeam.winRate}%`, `${currentTeam.matchesPlayed} partidos`],
+        ['Posición global', currentTeam.globalRank ? `#${currentTeam.globalRank}` : 'Sin rango', currentTeam.trend === 'UP' ? 'Tendencia ascendente' : currentTeam.trend === 'DOWN' ? 'Tendencia descendente' : 'Tendencia estable'],
+      ].map(([label, value, detail]) => <article key={label} className="surface p-6"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p><strong className="mt-3 block text-3xl font-black text-white">{value}</strong><p className="mt-2 text-xs text-slate-500">{detail}</p></article>)}</section>}
+
+      {activeTab === 'HISTORIAL' && <section className="surface p-6"><h2 className="text-lg font-black text-white">Historial del perfil</h2><div className="mt-6 space-y-4 border-l border-[#ff2e83]/30 pl-5"><div><p className="text-xs font-bold text-white">Perfil actualizado</p><time className="text-[11px] text-slate-500">{currentTeam.updatedAt ? new Date(currentTeam.updatedAt).toLocaleString('es-MX') : 'Sin fecha registrada'}</time></div><div><p className="text-xs font-bold text-white">Equipo incorporado a TournamentX</p><time className="text-[11px] text-slate-500">{currentTeam.createdAt ? new Date(currentTeam.createdAt).toLocaleDateString('es-MX', { dateStyle: 'long' }) : 'Registro histórico no disponible'}</time></div></div></section>}
 
       {activeTab === 'ROSTER' && (
         <div className="space-y-6">
@@ -225,24 +270,25 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
                 </div>
 
                 <div className="pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs font-mono-code">
-                  <span className="text-slate-500">K/D Ratio:</span>
-                  <span className="font-bold text-emerald-400">{player.kda}</span>
+                  <span className="text-slate-500">Valoración OVR:</span>
+                  <span className="font-bold text-emerald-400">{player.ovr}</span>
                 </div>
               </div>
             ))}
+            {currentTeam.roster.length === 0 && <div className="sm:col-span-2 lg:col-span-4 rounded-3xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">La plantilla todavía no tiene integrantes activos.</div>}
           </div>
 
           <div className="p-6 rounded-3xl bg-gradient-to-r from-[#141724] to-[#1a1224] border border-[#282d42] flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-[#23283d] flex items-center justify-center text-[#ff2e83]"><Swords className="w-6 h-6" /></div>
               <div>
-                <span className="text-[10px] font-mono-code uppercase font-bold text-red-400 animate-pulse">● PRÓXIMO PARTIDO • HOY 20:00 EST</span>
-                <h4 className="font-display font-bold text-lg text-white">{currentTeam.name.toUpperCase()} [LNX] VS AERO CLAN [AER]</h4>
-                <p className="text-xs text-slate-400">Pro League S5 • Semifinales (BO3)</p>
+                <span className="text-[10px] font-mono-code uppercase font-bold text-[#ff69a8]">AGENDA CENTRALIZADA</span>
+                <h4 className="font-display font-bold text-lg text-white">Partidos de {currentTeam.name}</h4>
+                <p className="text-xs text-slate-400">Consulta horarios, rivales y resultados confirmados en un solo lugar.</p>
               </div>
             </div>
 
-            <button onClick={() => onNavigate('live_match')} className="px-6 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-bold text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 transition-all cursor-pointer whitespace-nowrap">VER DETALLES →</button>
+            <button onClick={() => onNavigate('calendar')} className="px-6 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-bold text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 transition-all cursor-pointer whitespace-nowrap">ABRIR AGENDA →</button>
           </div>
         </div>
       )}

@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Radio, 
-  Play, 
-  Pause, 
-  Volume2, 
-  VolumeX, 
-  Maximize, 
   Swords, 
   Plus,
   Minus,
@@ -13,10 +8,11 @@ import {
   FileCheck2,
   AlertTriangle
 } from 'lucide-react';
-import { MOCK_LIVE_MATCH } from '../../data/mockData';
 import { MatchWorkflow, Team, TournamentMatch, UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
 import { io } from 'socket.io-client';
+import { OfficialStreamPlayer } from '../media/OfficialStreamPlayer';
+import type { MediaStream } from '../media/media.types';
 
 interface LiveMatchViewProps {
   currentUserRole: UserRole;
@@ -24,21 +20,75 @@ interface LiveMatchViewProps {
   matchId?: string;
 }
 
+function createEmbeddedStream(streamUrl: string, title: string): MediaStream | null {
+  try {
+    const parsed = new URL(streamUrl);
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    const path = parsed.pathname.split('/').filter(Boolean);
+
+    if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+      const isVideo = path[0] === 'videos' && Boolean(path[1]);
+      const embedId = isVideo ? `v${path[1].replace(/^v/, '')}` : path[0];
+      if (!embedId) return null;
+      return {
+        id: `match-twitch-${embedId}`,
+        eventId: null,
+        platform: 'Twitch',
+        title,
+        channel: isVideo ? 'Twitch' : embedId,
+        channelHandle: isVideo ? null : embedId,
+        embedId,
+        mediaKind: isVideo ? 'video' : 'channel',
+        game: 'Competencia oficial',
+        viewers: 0,
+        live: !isVideo,
+        thumbnail: '',
+        url: streamUrl,
+        source: 'curated',
+      };
+    }
+
+    if (host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com')) {
+      const embedId = host === 'youtu.be'
+        ? path[0]
+        : parsed.searchParams.get('v') || (['live', 'embed', 'shorts'].includes(path[0]) ? path[1] : '');
+      if (!embedId) return null;
+      return {
+        id: `match-youtube-${embedId}`,
+        eventId: null,
+        platform: 'YouTube',
+        title,
+        channel: 'YouTube',
+        embedId,
+        mediaKind: 'video',
+        game: 'Competencia oficial',
+        viewers: 0,
+        live: false,
+        thumbnail: '',
+        url: streamUrl,
+        source: 'curated',
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, currentUserId, matchId }) => {
-  const [matchData] = useState(MOCK_LIVE_MATCH);
   const [apiMatch, setApiMatch] = useState<TournamentMatch | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoadingMatch, setIsLoadingMatch] = useState(true);
   const [scoreError, setScoreError] = useState('');
   const [isSavingScore, setIsSavingScore] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
-  const [seconds, setSeconds] = useState(45 * 60 + 12);
-  const [feed, setFeed] = useState(matchData.killFeed);
   const [workflow, setWorkflow] = useState<MatchWorkflow | null>(null);
-  const [evidenceUrl, setEvidenceUrl] = useState('https://example.test/evidencias/resultado.png');
+  const [evidenceUrl, setEvidenceUrl] = useState('');
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const [reportedScore, setReportedScore] = useState({ team1: 0, team2: 0 });
   const [workflowMessage, setWorkflowMessage] = useState('');
+  const embeddedStream = apiMatch?.streamUrl
+    ? createEmbeddedStream(apiMatch.streamUrl, `Transmisión · ${apiMatch.id}`)
+    : null;
 
   const canControlScore = (currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro')
     && Boolean(apiMatch) && !['completed', 'cancelled'].includes(apiMatch.status);
@@ -113,6 +163,24 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
     } catch (error) { setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo enviar el resultado'); }
   };
 
+  const handleEvidenceFile = async (file?: File) => {
+    if (!file || !apiMatch) return;
+    try {
+      setIsUploadingEvidence(true);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('No fue posible leer el archivo'));
+        reader.readAsDataURL(file);
+      });
+      const result = await tournamentXApi.uploadPrivateAsset({ dataUrl, fileName: file.name, purpose: 'match-evidence', matchId: apiMatch.id });
+      setEvidenceUrl(result.asset.accessUrl);
+      setWorkflowMessage('Evidencia privada cargada correctamente.');
+    } catch (error) {
+      setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo cargar la evidencia');
+    } finally { setIsUploadingEvidence(false); }
+  };
+
   const handleDecision = async (reportId: string, decision: 'approve' | 'reject') => {
     if (!apiMatch) return;
     try { await tournamentXApi.decideMatchReport(apiMatch.id, reportId, decision, decision === 'approve' ? 'Evidencia revisada' : 'La evidencia no coincide'); await refreshWorkflow(); setWorkflowMessage(decision === 'approve' ? 'Resultado oficial aprobado y sincronizado.' : 'Reporte rechazado.'); }
@@ -127,52 +195,12 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
     catch (error) { setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo abrir la disputa'); }
   };
 
-  // Live timer simulator
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setSeconds(s => s + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
-
-  // Periodic random kill feed simulator
-  useEffect(() => {
-    if (!isPlaying) return;
-    const killInterval = setInterval(() => {
-      const killers = ['Nova.Zero', 'Nova.Apex', 'Raven.Night', 'Raven.Shadow', 'Nova.Pulse'];
-      const victims = ['Raven.Kage', 'Nova.Echo', 'Raven.Claw', 'Nova.Vortex', 'Raven.Viper'];
-      const weapons = ['Vandal', 'Phantom', 'Operator', 'Sheriff', 'Spectre'];
-      const icons: ('sword' | 'crosshair' | 'gear' | 'skull')[] = ['sword', 'crosshair', 'skull'];
-
-      const randomKiller = killers[Math.floor(Math.random() * killers.length)];
-      const randomVictim = victims[Math.floor(Math.random() * victims.length)];
-      const randomWeapon = weapons[Math.floor(Math.random() * weapons.length)];
-      const randomIcon = icons[Math.floor(Math.random() * icons.length)];
-
-      const min = Math.floor(seconds / 60);
-      const sec = seconds % 60;
-      const formattedTime = `${min}:${sec < 10 ? '0' : ''}${sec}`;
-
-      const newEvent = {
-        id: `kf-${Date.now()}`,
-        killer: randomKiller,
-        weapon: randomWeapon,
-        iconType: randomIcon,
-        victim: randomVictim,
-        time: formattedTime
-      };
-
-      setFeed(prev => [newEvent, ...prev.slice(0, 6)]);
-    }, 8000);
-
-    return () => clearInterval(killInterval);
-  }, [isPlaying, seconds]);
-
-  const formatTimer = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  const handleDisputeDecision = async (disputeId: string, decision: 'resolve' | 'dismiss') => {
+    if (!apiMatch) return;
+    const resolution = window.prompt(decision === 'resolve' ? 'Escribe la resolución oficial' : 'Explica por qué se descarta la disputa');
+    if (!resolution) return;
+    try { await tournamentXApi.decideMatchDispute(apiMatch.id, disputeId, decision, resolution); await refreshWorkflow(); setWorkflowMessage('Disputa cerrada; ya puedes revisar el resultado.'); }
+    catch (error) { setWorkflowMessage(error instanceof Error ? error.message : 'No se pudo resolver la disputa'); }
   };
 
   const handleAdjustScore = async (team: 1 | 2, delta: number) => {
@@ -205,14 +233,11 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
               ● {apiMatch?.status === 'live' ? 'EN VIVO' : (apiMatch?.status || 'CARGANDO').toUpperCase()} | {apiMatch?.roundId || 'Partido'}
             </span>
             <span className="text-xs font-mono-code text-slate-400 bg-[#161926] px-3 py-1 rounded-full border border-[#232738]">
-              {apiMatch?.mode || matchData.bestOf}
+              {apiMatch?.mode?.replaceAll('_', ' ') || 'Formato por confirmar'}
             </span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-mono-code text-slate-400">
-            <span>TIEMPO: <strong className="text-white">{formatTimer(seconds)}</strong></span>
-            <span>AUDIENCIA: <strong className="text-[#ff2e83]">{matchData.viewers}</strong></span>
-          </div>
+          <div className="text-right text-xs font-mono-code text-slate-400"><span className="block">{apiMatch ? new Date(apiMatch.scheduledAt).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : 'Horario por confirmar'}</span><strong className="text-white">{apiMatch?.venue || 'Sede por confirmar'}</strong></div>
         </div>
 
         {/* Big Teams Scoreboard (Image 9) */}
@@ -220,12 +245,12 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
           {/* Team 1: NOVA */}
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#202438] border border-[#2e344e] flex items-center justify-center font-brand font-black text-2xl text-white shadow-inner">
-              NOVA
+              {teamName(apiMatch?.team1Id, 'TBD').slice(0, 3).toUpperCase()}
             </div>
             <div>
               <div className="text-[11px] font-tech text-[#ff2e83] font-bold uppercase tracking-wider">EQUIPO 1</div>
               <h2 className="font-brand font-black text-3xl sm:text-5xl text-white uppercase tracking-tight italic">
-                {teamName(apiMatch?.team1Id, matchData.team1.name)}
+                {teamName(apiMatch?.team1Id, 'Por definir')}
               </h2>
             </div>
           </div>
@@ -245,15 +270,15 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
               )}
 
               <span className="font-brand font-black text-5xl sm:text-6xl text-white">
-                {apiMatch?.score.team1 ?? matchData.team1.score}
+                {apiMatch?.score.team1 ?? 0}
               </span>
 
               <span className="font-tech text-xs font-bold text-slate-500 px-1 uppercase">
-                {apiMatch?.mode || matchData.bestOf}
+                {apiMatch?.mode?.replace('best_of_', 'BO') || 'VS'}
               </span>
 
               <span className="font-brand font-black text-5xl sm:text-6xl text-[#ff2e83]">
-                {apiMatch?.score.team2 ?? matchData.team2.score}
+                {apiMatch?.score.team2 ?? 0}
               </span>
 
               {canControlScore && (
@@ -280,11 +305,11 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
             <div>
               <div className="text-[11px] font-tech text-slate-400 font-bold uppercase tracking-wider">EQUIPO 2</div>
               <h2 className="font-brand font-black text-3xl sm:text-5xl text-white uppercase tracking-tight italic">
-                {teamName(apiMatch?.team2Id, matchData.team2.name)}
+                {teamName(apiMatch?.team2Id, 'Por definir')}
               </h2>
             </div>
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#202438] border border-[#2e344e] flex items-center justify-center font-brand font-black text-2xl text-white shadow-inner">
-              RVN
+              {teamName(apiMatch?.team2Id, 'TBD').slice(0, 3).toUpperCase()}
             </div>
           </div>
         </div>
@@ -297,173 +322,46 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
         <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold text-white"><ClipboardCheck className="h-5 w-5 text-[#ff2e83]"/> Flujo oficial por rol</h2><p className="mt-1 text-xs text-slate-400">Check-in del capitán, evidencia y aprobación conectada con bracket, alertas y premios.</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">{confirmedTeams.size}/2 equipos listos</span></div>
         {captainTeamId && <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto]">
           <button onClick={() => void handleCheckIn()} disabled={confirmedTeams.has(captainTeamId) || apiMatch.status === 'completed'} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{confirmedTeams.has(captainTeamId) ? 'CHECK-IN CONFIRMADO' : 'HACER CHECK-IN'}</button>
-          <div className="grid grid-cols-[80px_80px_1fr] gap-2"><input type="number" min={0} value={reportedScore.team1} onChange={(event) => setReportedScore((current) => ({ ...current, team1: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 1"/><input type="number" min={0} value={reportedScore.team2} onChange={(event) => setReportedScore((current) => ({ ...current, team2: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 2"/><input type="url" value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} className="field" placeholder="URL de la captura de evidencia"/></div>
-          <div className="flex gap-2"><button onClick={() => void handleReport()} disabled={confirmedTeams.size < 2 || apiMatch.status !== 'live'} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><FileCheck2 className="mr-1 inline h-4 w-4"/> REPORTAR</button><button onClick={() => void handleDispute()} className="rounded-xl border border-amber-500/30 px-3 py-2.5 text-xs font-bold text-amber-300"><AlertTriangle className="h-4 w-4"/></button></div>
+          <div className="grid grid-cols-[80px_80px_1fr] gap-2"><input type="number" min={0} value={reportedScore.team1} onChange={(event) => setReportedScore((current) => ({ ...current, team1: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 1"/><input type="number" min={0} value={reportedScore.team2} onChange={(event) => setReportedScore((current) => ({ ...current, team2: Number(event.target.value) }))} className="field" aria-label="Marcador equipo 2"/><label className="field flex cursor-pointer items-center text-xs text-slate-400"><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={(event) => void handleEvidenceFile(event.target.files?.[0])}/>{isUploadingEvidence ? 'Cargando evidencia…' : evidenceUrl ? 'Evidencia privada lista ✓' : 'Adjuntar captura o PDF'}</label></div>
+          <div className="flex gap-2"><button onClick={() => void handleReport()} disabled={confirmedTeams.size < 2 || apiMatch.status !== 'live' || !evidenceUrl || isUploadingEvidence} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><FileCheck2 className="mr-1 inline h-4 w-4"/> REPORTAR</button><button onClick={() => void handleDispute()} disabled={!evidenceUrl} className="rounded-xl border border-amber-500/30 px-3 py-2.5 text-xs font-bold text-amber-300 disabled:opacity-40"><AlertTriangle className="h-4 w-4"/></button></div>
         </div>}
-        {canReviewReports && workflow?.reports.filter((report) => report.status === 'PENDING_REVIEW').map((report) => <div key={report.id} className="flex flex-col gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[.06] p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong className="text-sm text-white">Marcador propuesto: {report.team1Score} - {report.team2Score}</strong><a href={report.evidenceUrl} target="_blank" rel="noreferrer" className="ml-3 text-xs text-[#ff69a8] underline">Ver evidencia</a></div><div className="flex gap-2"><button onClick={() => void handleDecision(report.id, 'reject')} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300">Rechazar</button><button onClick={() => void handleDecision(report.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Aprobar resultado</button></div></div>)}
+        {canReviewReports && workflow?.disputes.filter((dispute) => dispute.status === 'OPEN').map((dispute) => <div key={dispute.id} className="flex flex-col gap-3 rounded-2xl border border-red-500/30 bg-red-500/[.06] p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong className="text-sm text-red-200">Disputa abierta</strong><p className="mt-1 text-xs text-slate-300">{dispute.reason}</p>{dispute.evidenceUrl && <a href={dispute.evidenceUrl} target="_blank" rel="noreferrer" className="text-xs text-[#ff69a8] underline">Ver evidencia</a>}</div><div className="flex gap-2"><button onClick={() => void handleDisputeDecision(dispute.id, 'dismiss')} className="rounded-lg border border-white/15 px-3 py-2 text-xs text-slate-300">Descartar</button><button onClick={() => void handleDisputeDecision(dispute.id, 'resolve')} className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black">Resolver</button></div></div>)}
+        {canReviewReports && workflow?.reports.filter((report) => report.status === 'PENDING_REVIEW').map((report) => <div key={report.id} className="flex flex-col gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[.06] p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong className="text-sm text-white">Marcador propuesto: {report.team1Score} - {report.team2Score}</strong><span className="ml-2 rounded bg-white/10 px-2 py-1 text-[10px] text-slate-300">{report.comparisonStatus === 'MATCHED' ? 'COINCIDE' : report.comparisonStatus === 'CONFLICT' ? 'CONFLICTO' : 'ESPERANDO RIVAL'}</span><a href={report.evidenceUrl} target="_blank" rel="noreferrer" className="ml-3 text-xs text-[#ff69a8] underline">Ver evidencia</a></div><div className="flex gap-2"><button onClick={() => void handleDecision(report.id, 'reject')} className="rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300">Rechazar</button><button onClick={() => void handleDecision(report.id, 'approve')} disabled={Boolean(workflow.disputes.some((dispute) => dispute.status === 'OPEN'))} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Aprobar resultado</button></div></div>)}
         {workflowMessage && <p className="text-xs text-slate-300">{workflowMessage}</p>}
       </section>}
 
-      {/* 2-COLUMN: STREAM PLAYER & LIVE KILL FEED */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Cols: Video Stream Stage */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="relative rounded-3xl overflow-hidden bg-black border border-[#1e2230] shadow-2xl aspect-video group">
-            {/* Stream Image / Canvas Simulation */}
-            <img
-              src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1400&auto=format&fit=crop&q=80"
-              alt="Cyber Stage Sector 7"
-              className="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700"
-            />
-
-            {/* Overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none"></div>
-
-            {/* Top Stream Badges */}
-            <div className="absolute top-4 left-4 flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-md bg-red-600 font-mono-code font-bold text-xs text-white">
-                LIVE 1080p60
-              </span>
-              <span className="px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md text-xs font-mono-code text-slate-300">
-                SERVER US-EAST #1
-              </span>
-            </div>
-
-            {/* Stream Play/Pause Big Center Overlay */}
-            {!isPlaying && (
-              <div 
-                onClick={() => setIsPlaying(true)}
-                className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer"
-              >
-                <div className="w-20 h-20 rounded-full bg-[#ff2e83] flex items-center justify-center text-white shadow-2xl shadow-[#ff2e83]/60 hover:scale-110 transition-all">
-                  <Play className="w-8 h-8 fill-current ml-1" />
-                </div>
-              </div>
-            )}
-
-            {/* Bottom Stream Player Control Bar */}
-            <div className="absolute bottom-4 left-4 right-4 bg-[#0d0e14]/90 backdrop-blur-md border border-[#232738] rounded-2xl px-4 py-2.5 flex items-center justify-between text-slate-300 text-xs">
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="hover:text-white transition-colors cursor-pointer"
-                >
-                  {isPlaying ? <Pause className="w-4 h-4 text-[#ff2e83]" /> : <Play className="w-4 h-4" />}
-                </button>
-                <button 
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="hover:text-white transition-colors cursor-pointer"
-                >
-                  {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-                <span className="font-mono-code text-xs text-slate-400">
-                  {formatTimer(seconds)} / 90:00
-                </span>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <span className="font-mono-code text-[11px] text-[#ff2e83] font-bold">
-                  PRO AUDIO 5.1
-                </span>
-                <Maximize className="w-4 h-4 hover:text-white cursor-pointer" />
-              </div>
-            </div>
+      <section className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
+        <article className="rounded-3xl border border-[#1e2230] bg-[#10121a] p-6">
+          <div className="flex items-center justify-between border-b border-[#1e2230] pb-4">
+            <div><p className="text-[10px] font-black uppercase tracking-[.2em] text-[#ff69a8]">Registro oficial</p><h2 className="mt-1 text-xl font-black text-white">Información del encuentro</h2></div>
+            <Swords className="h-6 w-6 text-[#ff2e83]" />
           </div>
-        </div>
+          {apiMatch ? <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+            {[
+              ['Identificador', apiMatch.id],
+              ['Ronda', apiMatch.roundId || 'Sin ronda asignada'],
+              ['Sede', apiMatch.venue || 'Por confirmar'],
+              ['Formato', apiMatch.mode.replaceAll('_', ' ')],
+              ['Programado', new Date(apiMatch.scheduledAt).toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })],
+              ['Actualizado', new Date(apiMatch.updatedAt).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })],
+            ].map(([label, value]) => <div key={label} className="rounded-2xl border border-white/[.07] bg-black/20 p-4"><dt className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</dt><dd className="mt-1 break-words text-sm font-semibold text-slate-200">{value}</dd></div>)}
+          </dl> : <p className="mt-6 text-sm text-slate-400">Selecciona un partido de la agenda para abrir su registro.</p>}
+        </article>
 
-        {/* Right Col: Live Kill Feed & Match Events (Image 9) */}
-        <div className="p-6 rounded-3xl bg-[#10121a] border border-[#1e2230] flex flex-col justify-between space-y-4">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[#1e2230] pb-3">
-              <h3 className="font-display font-bold text-base text-white uppercase flex items-center gap-2">
-                <Swords className="w-4 h-4 text-[#ff2e83]" />
-                FEED DE ACCIÓN EN VIVO
-              </h3>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            </div>
-
-            {/* Feed List */}
-            <div className="space-y-2.5 max-h-[340px] overflow-y-auto">
-              {feed.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-2.5 rounded-xl bg-[#141724] border border-[#1e2230] flex items-center justify-between text-xs animate-in fade-in slide-in-from-right-3 duration-200"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white text-xs">{item.killer}</span>
-                    <span className="text-[10px] font-mono-code text-slate-500 bg-[#1f2438] px-1.5 py-0.5 rounded">
-                      {item.weapon}
-                    </span>
-                    <span className="text-[#ff2e83] font-bold">⚔️</span>
-                    <span className="text-slate-400 text-xs line-through">{item.victim}</span>
-                  </div>
-                  <span className="text-[10px] font-mono-code text-slate-500">{item.time}</span>
-                </div>
-              ))}
-            </div>
+        <article className="rounded-3xl border border-[#1e2230] bg-[#10121a] p-6">
+          <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#ff69a8]">Plantillas registradas</p>
+          <h2 className="mt-1 text-xl font-black text-white">Jugadores convocables</h2>
+          <div className="mt-5 space-y-4">
+            {[apiMatch?.team1Id, apiMatch?.team2Id].map((teamId, index) => {
+              const team = teams.find((entry) => entry.id === teamId);
+              return <div key={teamId || index} className="rounded-2xl border border-white/[.07] bg-black/20 p-4"><div className="flex items-center justify-between"><strong className="text-sm text-white">{team?.name || 'Equipo por definir'}</strong><span className="text-[10px] font-bold text-slate-500">{team?.roster.length || 0} integrantes</span></div><div className="mt-3 flex flex-wrap gap-2">{team?.roster.length ? team.roster.map((player) => <span key={player.playerId || player.id} className="rounded-lg border border-[#ff2e83]/20 bg-[#ff2e83]/[.06] px-2.5 py-1 text-[11px] text-slate-300">{player.nickname} · {player.role}</span>) : <span className="text-xs text-slate-500">No hay integrantes registrados.</span>}</div></div>;
+            })}
           </div>
-
-          <div className="pt-3 border-t border-[#1e2230] text-[11px] font-mono-code text-slate-500 flex items-center justify-between">
-            <span>Servidor: Riot Direct Connect</span>
-            <span className="text-emerald-400">Ping: 14ms</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ROSTER PLAYER KDA STATS TABLE (Image 9) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Team Nova Stats */}
-        <div className="p-6 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-4">
-          <div className="flex items-center justify-between border-b border-[#1e2230] pb-3">
-            <h3 className="font-display font-bold text-lg text-white">TEAM NOVA • ROSTER KDA</h3>
-            <span className="text-xs font-mono-code text-emerald-400 font-bold">1.34 Team K/D</span>
-          </div>
-
-          <div className="space-y-2">
-            {matchData.team1.players.map((p, idx) => (
-              <div
-                key={p.name}
-                className="p-2.5 rounded-xl bg-[#141724] flex items-center justify-between text-xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[10px] font-mono-code text-slate-500">#{idx + 1}</span>
-                  <span className="font-bold text-white">{p.name}</span>
-                </div>
-                <div className="flex items-center gap-4 font-mono-code">
-                  <span className="text-emerald-400 font-bold">{p.kda}</span>
-                  <span className="text-slate-500 text-[11px]">({p.kills}K / {p.deaths}D)</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Team Raven Stats */}
-        <div className="p-6 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-4">
-          <div className="flex items-center justify-between border-b border-[#1e2230] pb-3">
-            <h3 className="font-display font-bold text-lg text-white">TEAM RAVEN • ROSTER KDA</h3>
-            <span className="text-xs font-mono-code text-[#ff2e83] font-bold">1.12 Team K/D</span>
-          </div>
-
-          <div className="space-y-2">
-            {matchData.team2.players.map((p, idx) => (
-              <div
-                key={p.name}
-                className="p-2.5 rounded-xl bg-[#141724] flex items-center justify-between text-xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[10px] font-mono-code text-slate-500">#{idx + 1}</span>
-                  <span className="font-bold text-white">{p.name}</span>
-                </div>
-                <div className="flex items-center gap-4 font-mono-code">
-                  <span className="text-slate-300 font-bold">{p.kda}</span>
-                  <span className="text-slate-500 text-[11px]">({p.kills}K / {p.deaths}D)</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+          {embeddedStream && <div className="mt-5"><OfficialStreamPlayer stream={embeddedStream} /></div>}
+          {apiMatch?.streamUrl && !embeddedStream && <p className="mt-5 rounded-xl border border-red-500/20 bg-red-500/[.06] px-4 py-3 text-xs text-red-200">La dirección vinculada no corresponde a un video compatible de Twitch o YouTube.</p>}
+          {!apiMatch?.streamUrl && <p className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/[.06] px-4 py-3 text-xs text-amber-200">Este partido todavía no tiene una transmisión vinculada.</p>}
+        </article>
+      </section>
     </div>
   );
 };

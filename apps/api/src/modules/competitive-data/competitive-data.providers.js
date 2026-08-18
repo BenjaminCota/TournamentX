@@ -1,4 +1,6 @@
-const { eventSeed, standingSeed, teamSeed } = require('./competitive-data.store');
+const teamStore = require('../teams/team-store');
+const tournamentStore = require('../tournaments/tournament-store');
+const matchStore = require('../matches/match-store');
 
 let cache = { expiresAt: 0, payload: null };
 const isoDay = (date) => date.toISOString().slice(0, 10);
@@ -18,7 +20,7 @@ function pandaStatus(status) {
 }
 
 async function pandaScoreData() {
-  if (!process.env.PANDASCORE_API_TOKEN) return { status: 'demo', events: [], standings: [], teams: [] };
+  if (!process.env.PANDASCORE_API_TOKEN) return { status: 'not_configured', events: [], standings: [], teams: [] };
   const headers = { Authorization: `Bearer ${process.env.PANDASCORE_API_TOKEN}` };
   const calls = await Promise.allSettled([
     fetchJson('https://api.pandascore.co/matches/running?page[size]=20', { headers }),
@@ -73,7 +75,7 @@ function footballStatus(status) {
 }
 
 async function footballData() {
-  if (!process.env.FOOTBALL_DATA_API_KEY) return { status: 'demo', events: [], standings: [], teams: [] };
+  if (!process.env.FOOTBALL_DATA_API_KEY) return { status: 'not_configured', events: [], standings: [], teams: [] };
   const headers = { 'X-Auth-Token': process.env.FOOTBALL_DATA_API_KEY };
   const codes = list(process.env.FOOTBALL_COMPETITIONS, 'PL,CL,BSA,MLS').slice(0, 4);
   const today = new Date();
@@ -121,17 +123,102 @@ function mergeById(primary, fallback) {
   return result;
 }
 
+function isTraditionalSport(value = '') {
+  return /f[uú]tbol|basket|baloncesto|mma|box|tenis|b[eé]isbol|voleibol/i.test(value);
+}
+
+function shortName(team) {
+  return String(team.abbreviation || team.tag || team.name || 'TBD').slice(0, 5).toUpperCase();
+}
+
+function regionalZone(value = '') {
+  if (/latam|m[eé]xico|brasil|argentina|chile|colombia|per[uú]|ecuador|uruguay/i.test(value)) return 'LATAM';
+  if (/europa|espa[nñ]a|francia|alemania|italia|reino unido/i.test(value)) return 'Europa';
+  if (/norteam[eé]rica|estados unidos|canad[aá]|usa/i.test(value)) return 'Norteamérica';
+  return value || 'Internacional';
+}
+
+async function platformData() {
+  const [matches, teams, tournaments] = await Promise.all([
+    matchStore.listMatches(),
+    Promise.resolve(teamStore.listTeams()),
+    Promise.resolve(tournamentStore.listTournaments()),
+  ]);
+  const byTeam = new Map(teams.map((team) => [team.id, team]));
+  const byTournament = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
+  const eventRows = matches.map((match) => {
+    const tournament = byTournament.get(match.tournamentId);
+    const first = byTeam.get(match.team1Id);
+    const second = byTeam.get(match.team2Id);
+    const sport = tournament?.game || first?.sport || second?.sport || 'Competencia';
+    return {
+      id: `platform-${match.id}`,
+      category: isTraditionalSport(sport) ? 'sports' : 'esports',
+      sport,
+      competition: tournament?.name || 'Circuito TournamentX',
+      region: regionalZone(first?.region || second?.region),
+      status: match.status,
+      startsAt: match.scheduledAt,
+      teamA: { id: match.team1Id, name: first?.name || 'Equipo por confirmar', shortName: first ? shortName(first) : 'TBD', score: Number(match.score?.team1 || 0) },
+      teamB: { id: match.team2Id, name: second?.name || 'Equipo por confirmar', shortName: second ? shortName(second) : 'TBD', score: Number(match.score?.team2 || 0) },
+      round: match.roundId || match.mode || 'Partido oficial',
+      venue: match.venue || 'En línea',
+      source: 'TournamentX',
+      dataMode: 'platform',
+    };
+  });
+
+  const rows = teams.map((team) => {
+    const completed = matches.filter((match) => match.status === 'completed' && [match.team1Id, match.team2Id].includes(team.id));
+    let wins = 0; let draws = 0; let losses = 0;
+    const form = completed.slice(-5).map((match) => {
+      const own = match.team1Id === team.id ? match.score.team1 : match.score.team2;
+      const rival = match.team1Id === team.id ? match.score.team2 : match.score.team1;
+      if (own > rival) { wins += 1; return 'W'; }
+      if (own < rival) { losses += 1; return 'L'; }
+      draws += 1; return 'D';
+    });
+    return { team, completed, wins, draws, losses, points: wins * 3 + draws, form };
+  });
+  const grouped = new Map();
+  for (const row of rows) {
+    const sport = row.team.sport || 'Esports';
+    const key = `${isTraditionalSport(sport) ? 'sports' : 'esports'}:${sport}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  }
+  const standings = [...grouped.entries()].map(([key, entries]) => {
+    const [category, sport] = key.split(':');
+    const sorted = [...entries].sort((left, right) => right.points - left.points || right.wins - left.wins);
+    return {
+      id: `platform-standing-${key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`,
+      competition: `${sport} · TournamentX`, category, sport,
+      region: regionalZone(sorted[0]?.team.region), source: 'TournamentX', dataMode: 'platform',
+      table: sorted.map((entry, index) => ({ position: index + 1, teamId: entry.team.id, team: entry.team.name, played: entry.completed.length, wins: entry.wins, draws: entry.draws, losses: entry.losses, points: entry.points, form: entry.form })),
+    };
+  });
+  const teamRows = rows.map(({ team, form }, index) => ({
+    id: team.id, name: team.name, shortName: shortName(team),
+    category: isTraditionalSport(team.sport) ? 'sports' : 'esports', sport: team.sport || 'Esports',
+    region: regionalZone(team.region), country: team.region || '', logo: team.logo || '', rank: index + 1, form,
+    players: (team.roster || []).map((player) => ({ id: player.playerId || player.id, name: player.name, nickname: player.nickname, role: player.role, nationality: '', image: player.avatar || '' })),
+    source: 'TournamentX', dataMode: 'platform',
+  }));
+  return { events: eventRows, standings, teams: teamRows };
+}
+
 async function competitiveOverview() {
   if (cache.payload && Date.now() < cache.expiresAt) return cache.payload;
-  const [pandaResult, footballResult] = await Promise.allSettled([pandaScoreData(), footballData()]);
+  const [pandaResult, footballResult, platformResult] = await Promise.allSettled([pandaScoreData(), footballData(), platformData()]);
   const panda = pandaResult.status === 'fulfilled' ? pandaResult.value : { status: 'error', events: [], standings: [], teams: [] };
   const football = footballResult.status === 'fulfilled' ? footballResult.value : { status: 'error', events: [], standings: [], teams: [] };
+  const platform = platformResult.status === 'fulfilled' ? platformResult.value : { events: [], standings: [], teams: [] };
   const payload = {
     generatedAt: new Date().toISOString(),
     integration: { esports: panda.status, football: football.status },
-    events: mergeById([...panda.events, ...football.events], eventSeed),
-    standings: mergeById([...panda.standings, ...football.standings], standingSeed),
-    teams: mergeById([...panda.teams, ...football.teams], teamSeed),
+    events: mergeById([...panda.events, ...football.events], platform.events),
+    standings: mergeById([...panda.standings, ...football.standings], platform.standings),
+    teams: mergeById([...panda.teams, ...football.teams], platform.teams),
   };
   cache = { expiresAt: Date.now() + 300000, payload };
   return payload;

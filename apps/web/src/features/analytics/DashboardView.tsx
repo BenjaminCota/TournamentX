@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { 
   Flame, 
   Trophy, 
@@ -8,7 +8,9 @@ import {
   Clock, 
   Radio, 
   Activity,
-  Calendar
+  Calendar,
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { TabId } from '../shell/Sidebar';
 import { Team, Tournament, TournamentMatch } from '../../types';
@@ -16,21 +18,45 @@ import { tournamentXApi } from '../../services/apiClient';
 
 interface DashboardViewProps {
   onNavigate: (tab: TabId, targetId?: string) => void;
+  onOpenMatch: (matchId: string) => void;
   onOpenCreateWizard: () => void;
   teams: Team[];
   tournaments: Tournament[];
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
-  onNavigate,
+  onNavigate, onOpenMatch,
   onOpenCreateWizard, teams, tournaments
 }) => {
   const [rankingFilter, setRankingFilter] = useState<'REGIONAL' | 'GLOBAL'>('REGIONAL');
 
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
-  useEffect(() => { tournamentXApi.matches().then(setMatches).catch(() => setMatches([])); }, []);
-  const topTeams = useMemo(() => [...teams].sort((a, b) => b.points - a.points).slice(0, 5), [teams]);
-  const featuredMatch = matches.find((match) => match.status === 'live') || matches[0];
+  const [matchesError, setMatchesError] = useState('');
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const loadMatches = useCallback(async () => {
+    try {
+      setMatchesLoading(true);
+      setMatchesError('');
+      const result = await tournamentXApi.matches();
+      setMatches(Array.isArray(result) ? result : []);
+    } catch (error) {
+      setMatchesError(error instanceof Error ? error.message : 'No fue posible consultar la agenda.');
+    } finally {
+      setMatchesLoading(false);
+    }
+  }, []);
+  useEffect(() => { void loadMatches(); }, [loadMatches]);
+  const topTeams = useMemo(() => teams
+    .filter((team) => rankingFilter === 'GLOBAL' || /latam|méxico|mexico|brasil|chile|colombia|argentina|perú|peru/i.test(team.region))
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 5), [rankingFilter, teams]);
+  const activeTournaments = tournaments.filter((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status));
+  const featuredMatch = matches.find((match) => match.status === 'live')
+    || matches.find((match) => ['scheduled', 'postponed'].includes(match.status))
+    || matches[0];
+  const featuredIsLive = featuredMatch?.status === 'live';
+  const featuredStatus = !featuredMatch ? 'SIN PARTIDOS' : featuredIsLive ? 'EN VIVO' : featuredMatch.status === 'completed' ? 'FINALIZADO' : featuredMatch.status === 'postponed' ? 'POSPUESTO' : 'PRÓXIMO PARTIDO';
+  const featuredTime = !featuredMatch ? 'Crea o programa un encuentro' : featuredIsLive ? 'Marcador activo' : new Date(featuredMatch.scheduledAt).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
   const completedMatches = matches.filter((match) => match.status === 'completed').length;
   const completionRate = matches.length ? Math.round(completedMatches / matches.length * 100) : 0;
   const teamName = (id?: string) => teams.find((team) => team.id === id)?.name || id || 'Por definir';
@@ -39,11 +65,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const upcomingMatches = matches.filter((match) => ['scheduled', 'postponed'].includes(match.status)).slice(0, 4).map((match) => ({ id: match.id, group: `${match.roundId || 'Ronda'} • ${match.mode.replaceAll('_', ' ').toUpperCase()}`, team1: teamName(match.team1Id), team2: teamName(match.team2Id), time: new Date(match.scheduledAt).toLocaleString(), game: tournaments.find((item) => item.id === match.tournamentId)?.game || 'Competencia' }));
 
   return (
-    <div id="dashboard-view-main" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div id="dashboard-view-main" className="relative p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
       {/* Top Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-brand font-black text-4xl text-white uppercase tracking-tight italic">
+          <div className="mb-2 h-1 w-24 rounded-full bg-gradient-to-r from-[#ff2e83] via-[#8b5cf6] to-[#22d3ee] shadow-[0_0_18px_rgba(139,92,246,.35)]" />
+          <h1 className="font-brand font-black text-4xl text-white uppercase tracking-[.025em] italic">
             CENTRO DE MANDO PRO
           </h1>
           <p className="text-xs text-slate-400 font-tech">
@@ -67,13 +94,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {matchesError && <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[.07] p-4 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0"/> La agenda no pudo actualizarse: {matchesError}</span><button type="button" onClick={() => void loadMatches()} disabled={matchesLoading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/25 px-3 py-2 text-xs font-bold disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${matchesLoading ? 'animate-spin' : ''}`}/> Reintentar</button></div>}
+
       <section aria-label="Indicadores operativos" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { label: 'Torneos activos', value: tournaments.filter((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status)).length, detail: `${tournaments.length} en total`, icon: Trophy, tone: 'text-[#ff69a8]' },
-          { label: 'Partidos en vivo', value: matches.filter((match) => match.status === 'live').length, detail: `${matches.length} registrados`, icon: Radio, tone: 'text-red-400' },
-          { label: 'Avance de jornada', value: `${completionRate}%`, detail: `${completedMatches} finalizados`, icon: Activity, tone: 'text-emerald-400' },
-        ].map(({ label, value, detail, icon: Icon, tone }) => <article key={label} className="surface rounded-2xl p-4 flex items-center gap-4">
-          <span className={`grid h-10 w-10 place-items-center rounded-xl bg-white/[.04] ${tone}`}><Icon className="w-5 h-5" /></span>
+          { label: 'Torneos activos', value: tournaments.filter((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status)).length, detail: `${tournaments.length} en total`, icon: Trophy, tone: 'pink' },
+          { label: 'Partidos en vivo', value: matches.filter((match) => match.status === 'live').length, detail: `${matches.length} registrados`, icon: Radio, tone: 'red' },
+          { label: 'Avance de jornada', value: `${completionRate}%`, detail: `${completedMatches} finalizados`, icon: Activity, tone: 'cyan' },
+        ].map(({ label, value, detail, icon: Icon, tone }) => <article key={label} data-tone={tone} className="tx-dashboard-metric surface rounded-2xl p-4 flex items-center gap-4">
+          <span className="tx-metric-icon grid h-11 w-11 place-items-center rounded-xl"><Icon className="w-5 h-5" /></span>
           <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p><strong className="block mt-0.5 text-2xl text-white">{value}</strong><small className="text-[11px] text-slate-500">{detail}</small></div>
         </article>)}
       </section>
@@ -81,7 +110,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* HERO MATCH STATUS CARD (Image 5) */}
       <div 
         id="hero-live-match-card"
-        className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#171926] via-[#12141f] to-[#1a1524] border border-[#ff2e83]/40 p-6 sm:p-8 shadow-2xl"
+        className="relative rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_15%_0,rgba(79,124,255,.17),transparent_32%),radial-gradient(circle_at_90%_100%,rgba(255,46,131,.18),transparent_35%),linear-gradient(110deg,#151827,#11131e_48%,#201426)] border border-[#ff2e83]/40 p-6 sm:p-8 shadow-[0_28px_80px_rgba(0,0,0,.35)]"
       >
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#ff2e83]/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -90,13 +119,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center gap-3">
               <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono-code font-bold text-xs flex items-center gap-1.5 animate-pulse">
                 <Radio className="w-3.5 h-3.5" />
-                {featuredMatch?.status === 'live' ? 'EN VIVO' : featuredMatch?.status === 'completed' ? 'FINALIZADO' : 'PRÓXIMO PARTIDO'}
+                {featuredStatus}
               </span>
               <span className="text-xs text-slate-400 font-mono-code">
-                TIEMPO: <strong className="text-white">67:32</strong>
-              </span>
-              <span className="text-xs text-slate-400 font-mono-code">
-                ESPECTADORES: <strong className="text-[#ff2e83]">124K</strong>
+                {featuredIsLive ? 'ESTADO' : 'FECHA'}: <strong className="text-white">{featuredTime}</strong>
               </span>
             </div>
 
@@ -140,11 +166,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex flex-col sm:flex-row lg:flex-col gap-3 justify-center">
             <button
               id="btn-dashboard-watch-stream"
-              onClick={() => onNavigate('live_match')}
+              onClick={() => featuredMatch && onOpenMatch(featuredMatch.id)}
+              disabled={!featuredMatch}
               className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white font-black text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 hover:scale-105 transition-all flex items-center justify-center gap-2 cursor-pointer font-tech"
             >
               <Flame className="w-4 h-4" />
-              <span>VER TRANSMISIÓN</span>
+              <span>{featuredIsLive ? 'VER TRANSMISIÓN' : 'ABRIR PARTIDOS'}</span>
             </button>
             <button
               onClick={() => onNavigate('tournaments')}
@@ -176,8 +203,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {tournaments.filter((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status)).slice(0, 2).map((tournament) => <div key={tournament.id} onClick={() => onNavigate('tournaments')} className="p-5 rounded-2xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83]/60 transition-all cursor-pointer group flex flex-col justify-between"><div className="space-y-2"><div className="flex items-center justify-between"><span className="px-2 py-0.5 rounded bg-[#ff2e83]/15 text-[#ff69a8] font-bold text-[10px]">{tournament.tier}</span><span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold text-[10px]">{tournament.status}</span></div><h3 className="font-display font-bold text-lg text-white group-hover:text-[#ff2e83]">{tournament.name}</h3><p className="text-xs text-slate-400">{tournament.registeredTeams}/{tournament.maxTeams} inscritos · {tournament.format.replaceAll('_', ' ')}</p></div><div className="mt-4 pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs"><span className="text-slate-400">Premio:</span><span className="font-bold text-emerald-400">{tournament.prizePool || `$${tournament.prizeAmountUSD.toLocaleString()} USD`}</span></div></div>)}
-              {tournaments.length === 0 && <div className="sm:col-span-2 p-8 rounded-2xl border border-dashed border-white/10 text-center text-sm text-slate-500">Crea tu primer torneo para verlo aquí.</div>}
+              {activeTournaments.slice(0, 2).map((tournament, index) => <div key={tournament.id} data-accent={index % 2 ? 'blue' : 'violet'} onClick={() => onNavigate('tournaments')} className="tx-dashboard-card p-5 rounded-2xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83]/60 transition-all cursor-pointer group flex flex-col justify-between"><div className="space-y-2"><div className="flex items-center justify-between"><span className="px-2 py-0.5 rounded bg-[#ff2e83]/15 text-[#ff69a8] font-bold text-[10px]">{tournament.tier}</span><span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold text-[10px]">{tournament.status}</span></div><h3 className="font-display font-bold text-lg text-white group-hover:text-[#ff2e83]">{tournament.name}</h3><p className="text-xs text-slate-400">{tournament.registeredTeams}/{tournament.maxTeams} inscritos · {tournament.format.replaceAll('_', ' ')}</p></div><div className="mt-4 pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs"><span className="text-slate-400">Premio:</span><span className="font-bold text-emerald-400">{tournament.prizePool || `$${tournament.prizeAmountUSD.toLocaleString()} USD`}</span></div></div>)}
+              {activeTournaments.length === 0 && <div className="sm:col-span-2 p-8 rounded-2xl border border-dashed border-white/10 text-center text-sm text-slate-500">No hay torneos activos. Crea uno nuevo o consulta el historial completo.</div>}
             </div>
           </div>
 
@@ -192,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {upcomingMatches.map((m) => (
                 <div
                   key={m.id}
-                  className="p-4 rounded-xl bg-[#10121a] border border-[#1e2230] hover:border-slate-600 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  data-accent="blue" className="tx-dashboard-card p-4 rounded-xl bg-[#10121a] border border-[#1e2230] hover:border-[#4f7cff]/55 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3">
                     <span className="px-2.5 py-1 rounded bg-[#161926] text-[11px] font-mono-code text-slate-300 font-bold">
@@ -211,14 +238,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {m.time}
                     </span>
                     <button 
-                      onClick={() => onNavigate('live_match')}
+                      onClick={() => onOpenMatch(m.id)}
                       className="px-3 py-1 rounded-lg bg-[#181b28] hover:bg-[#ff2e83] text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
                     >
-                      Recordatorio
+                      Ver detalle
                     </button>
                   </div>
                 </div>
               ))}
+              {upcomingMatches.length === 0 && <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">No hay próximos partidos programados.</div>}
             </div>
           </div>
         </div>
@@ -226,7 +254,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Right Column: Leaderboard & Métricas */}
         <div className="space-y-8">
           {/* SECTION: TOP 5 EQUIPOS (Image 5) */}
-          <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-5">
+          <div data-accent="gold" className="tx-dashboard-card p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-5">
             <div className="flex items-center justify-between">
               <h2 className="font-display font-bold text-lg uppercase tracking-wider text-white">
                 TOP 5 EQUIPOS
@@ -290,6 +318,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                 );
               })}
+              {topTeams.length === 0 && <p className="rounded-xl border border-dashed border-white/10 p-5 text-center text-xs text-slate-500">No hay equipos para este alcance.</p>}
             </div>
 
             <button
@@ -301,7 +330,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* SECTION: MÉTRICAS (Image 5) */}
-          <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-6">
+          <div data-accent="teal" className="tx-dashboard-card p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-6">
             <h2 className="font-display font-bold text-lg uppercase tracking-wider text-white flex items-center gap-2">
               <Activity className="w-4 h-4 text-[#ff2e83]" />
               MÉTRICAS GENERALES

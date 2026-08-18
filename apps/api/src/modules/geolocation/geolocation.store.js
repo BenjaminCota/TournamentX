@@ -1,4 +1,5 @@
 const localStore = require('../../config/local-store');
+const crypto = require('node:crypto');
 
 const venuesSeed = [
   { id: 'ven-1', name: 'Arena CDMX Esports Dome', city: 'Ciudad de México', country: 'México', address: 'Av. de las Granjas 800, Azcapotzalco', latitude: 19.4978, longitude: -99.1757, activeEventsCount: 3 },
@@ -9,12 +10,27 @@ const venuesSeed = [
 ];
 
 const venues = localStore.collection('venues', venuesSeed);
+function saveVenues() { localStore.saveCollection('venues', venues); }
+function serializeVenue(venue) {
+  return { ...venue, coordinates: venue.coordinates || [venue.latitude, venue.longitude], features: venue.features || ['Streaming', 'Zona de jugadores', 'Accesibilidad'], image: venue.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1000&auto=format&fit=crop&q=80' };
+}
+function listVenues() { return venues.map(serializeVenue); }
+function createVenue(input) { const venue = { id: crypto.randomUUID(), ...input, latitude: input.latitude, longitude: input.longitude, activeEventsCount: Number(input.activeEventsCount || 0), createdAt: new Date().toISOString() }; venues.push(venue); saveVenues(); return serializeVenue(venue); }
+function updateVenue(id, input) { const venue = venues.find((entry) => entry.id === id); if (!venue) return null; Object.assign(venue, input, { updatedAt: new Date().toISOString() }); saveVenues(); return serializeVenue(venue); }
+function removeVenue(id) { const index = venues.findIndex((entry) => entry.id === id); if (index < 0) return { error: 'Sede no encontrada', status: 404 }; if (Number(venues[index].activeEventsCount || 0) > 0) return { error: 'No se puede eliminar una sede con eventos activos', status: 409 }; venues.splice(index, 1); saveVenues(); return { removed: true }; }
 
 const notificationsSeed = [
-  { id: 'notif-1', title: 'Partido próximo', message: 'PRO LEAGUE SEASON 5 comienza en Arena CDMX.', type: 'tournament', createdAt: new Date().toISOString() },
+  { id: 'notif-1', title: 'Partido programado', message: 'Luminex y Titans jugarán en Arena CDMX el 20 de agosto.', type: 'schedule', visibility: 'public', readBy: [], createdAt: '2026-08-15T18:00:00.000Z' },
 ];
 const notifications = localStore.collection('notifications', notificationsSeed);
 function saveNotifications() { localStore.saveCollection('notifications', notifications); }
+function markNotificationRead(id, userId) {
+  const notification = notifications.find((item) => item.id === id);
+  if (!notification) return null;
+  notification.readBy = [...new Set([...(notification.readBy || []), userId])];
+  saveNotifications();
+  return { ...notification, read: true };
+}
 
 function distanceKm(lat1, lon1, lat2, lon2) {
   const toRadians = (value) => value * Math.PI / 180;
@@ -33,4 +49,4 @@ function nearbyVenues(latitude, longitude, radiusKm) {
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
-module.exports = { venues, notifications, nearbyVenues, saveNotifications };
+module.exports = { venues, listVenues, createVenue, updateVenue, removeVenue, notifications, nearbyVenues, saveNotifications, markNotificationRead };

@@ -116,7 +116,7 @@ async function removeRosterMember(req, res, next) {
 }
 
 async function createInvitation(req, res, next) {
-  try { assertTeamManager(req); const result = teamStore.createInvitation(req.params.id, { ...(req.validated?.body || req.body), createdBy: req.user.sub }); if (result.error) throw new HttpError(result.status, result.error); res.status(201).json(result); } catch (error) { next(error); }
+  try { assertTeamManager(req); const result = teamStore.createInvitation(req.params.id, { ...(req.validated?.body || req.body), createdBy: req.user.sub }); if (result.error) throw new HttpError(result.status, result.error); const baseUrl = require('../../config/env').webAppUrl.replace(/\/$/, ''); res.status(201).json({ ...result, invitation: { ...result.invitation, inviteUrl: `${baseUrl}/?team_invite=${encodeURIComponent(result.invitation.code)}` } }); } catch (error) { next(error); }
 }
 async function listInvitations(req, res, next) {
   try { assertTeamManager(req); res.json({ data: teamStore.listInvitations(req.params.id) }); } catch (error) { next(error); }

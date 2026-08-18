@@ -140,4 +140,16 @@ async function createDispute(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { listMatches, getMatch, createMatch, updateMatchScore, getWorkflow, checkIn, reportResult, decideReport, createDispute };
+async function decideDispute(req, res, next) {
+  try {
+    const match = await matchStore.getMatch(req.validated.params.id);
+    if (!match) throw new HttpError(404, 'Partido no encontrado');
+    const result = workflowStore.decideDispute(match.id, req.validated.params.disputeId, { ...req.validated.body, resolvedBy: req.user.sub });
+    if (result.error) throw new HttpError(result.status, result.error);
+    const workflow = workflowStore.getWorkflow(match.id);
+    req.app.get('io')?.to(`match:${match.id}`).emit('match-workflow-update', workflow);
+    res.json({ ...result, workflow });
+  } catch (error) { next(error); }
+}
+
+module.exports = { listMatches, getMatch, createMatch, updateMatchScore, getWorkflow, checkIn, reportResult, decideReport, createDispute, decideDispute };

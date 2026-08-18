@@ -5,13 +5,14 @@ export interface MediaStream {
   title: string;
   channel: string;
   embedId: string;
-  mediaKind: 'live' | 'video';
+  mediaKind: 'live' | 'video' | 'channel';
+  channelHandle?: string | null;
   game: string;
   viewers: number;
   live: boolean;
   thumbnail: string;
   url: string;
-  source: 'twitch' | 'youtube' | 'demo' | 'curated';
+  source: 'twitch' | 'youtube' | 'curated';
 }
 
 export interface LiveEvent {
@@ -27,6 +28,7 @@ export interface LiveEvent {
   context: string;
   viewers: number;
   status: 'LIVE' | 'UPCOMING' | 'FINAL';
-  dataMode: 'api' | 'simulated';
+  dataMode: 'api' | 'platform';
+  source?: string;
   stats: Array<{ label: string; a: string; b: string }>;
 }

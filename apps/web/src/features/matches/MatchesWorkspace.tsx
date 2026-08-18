@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, Radio, Tv2 } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Radio, Tv2 } from 'lucide-react';
 import { UserRole } from '../../types';
 import { TabId } from '../shell/Sidebar';
 import { EsportsArenaView } from '../media/EsportsArenaView';
@@ -18,11 +18,10 @@ interface MatchesWorkspaceProps {
 const sections = [
   { id: 'calendar' as const, label: 'Agenda', helper: 'Calendario y resultados', icon: CalendarDays },
   { id: 'esports' as const, label: 'Transmisiones', helper: 'Directos, marcador y salas', icon: Tv2 },
-  { id: 'live_match' as const, label: 'Partida', helper: 'Check-in y resultado oficial', icon: Radio },
 ];
 
 export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, currentUserRole, currentUserId, selectedMatchId, onNavigate, onOpenMatch }) => (
-  <div className="min-h-screen bg-[#0a0b0e]">
+  <div className="tx-module-shell min-h-screen bg-[#0a0b0e]">
     <section className="border-b border-white/[.07] bg-[radial-gradient(circle_at_76%_0%,rgba(255,46,131,.11),transparent_32%),#0d0e13] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-[1480px] flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div>
@@ -30,7 +29,9 @@ export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, cur
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Partidos y transmisiones</h1>
           <p className="mt-1 text-xs leading-5 text-slate-400">Consulta la agenda, sigue el marcador y cambia a la señal oficial sin salir del partido.</p>
         </div>
-        <div className="grid gap-1.5 rounded-2xl border border-white/[.08] bg-black/25 p-1.5 sm:grid-cols-3" role="tablist" aria-label="Secciones de partidos">
+        <div className="flex flex-wrap items-center gap-2">
+          {section === 'live_match' && <button type="button" onClick={() => onNavigate('calendar')} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-300 hover:border-[#ff2e83]/40 hover:text-white"><ArrowLeft className="h-4 w-4"/> Volver a la agenda</button>}
+          <div className="grid gap-1.5 rounded-2xl border border-white/[.08] bg-black/25 p-1.5 sm:grid-cols-2" role="tablist" aria-label="Secciones de partidos">
           {sections.map((item) => {
             const Icon = item.icon;
             const active = section === item.id;
@@ -41,6 +42,7 @@ export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, cur
               </button>
             );
           })}
+          </div>
         </div>
       </div>
     </section>

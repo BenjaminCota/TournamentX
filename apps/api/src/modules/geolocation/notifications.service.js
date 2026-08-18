@@ -4,7 +4,8 @@ function publishNotification(app, payload) {
   const notification = { id: `notif-${Date.now()}`, ...payload, createdAt: new Date().toISOString() };
   notifications.push(notification);
   saveNotifications();
-  app.get('io')?.to('notifications').emit('notification:new', notification);
+  // Las dirigidas se consultan por /notifications/me; no se emiten a la sala pública.
+  if (!notification.visibility || notification.visibility === 'public') app.get('io')?.to('notifications').emit('notification:new', notification);
   return notification;
 }
 

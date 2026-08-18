@@ -58,6 +58,38 @@ function createUser({ name, username, email, password, role = 'player' }) {
   return { user: publicUser(user) };
 }
 
+function upsertExternalUser({ id, name, username, email, role = 'player', status = 'ACTIVE' }) {
+  const list = users();
+  const now = new Date().toISOString();
+  const existing = list.find((user) => user.id === id);
+  if (existing) {
+    Object.assign(existing, {
+      name: name || existing.name,
+      username: username || existing.username,
+      email: String(email || existing.email).toLowerCase(),
+      role: normalizeRole(role),
+      status: status || existing.status,
+      updatedAt: now,
+      authProvider: 'supabase',
+    });
+    persist(list);
+    return publicUser(existing);
+  }
+  const user = {
+    id,
+    name: name || 'Usuario TournamentX',
+    username: username || `@${String(email || id).split('@')[0]}`,
+    email: String(email || '').toLowerCase(),
+    role: normalizeRole(role),
+    status: status || 'ACTIVE',
+    authProvider: 'supabase',
+    createdAt: now,
+    updatedAt: now,
+  };
+  list.push(user); persist(list);
+  return publicUser(user);
+}
+
 function createOrganizerRequest(userId, input) {
   const user = findById(userId);
   if (!user) return { error: 'Usuario no encontrado', status: 404 };
@@ -121,5 +153,6 @@ function updateUser(id, updates) {
 
 module.exports = {
   normalizeRole, displayRole, verifyPassword, publicUser, findByEmail, findById, listUsers, createUser, updateUser,
+  upsertExternalUser,
   createOrganizerRequest, listOrganizerRequests, decideOrganizerRequest,
 };

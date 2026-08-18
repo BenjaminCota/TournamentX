@@ -26,7 +26,8 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   const [formRegion, setFormRegion] = useState('LATAM');
   const [formDescription, setFormDescription] = useState('');
   const [feedTeams, setFeedTeams] = useState<CompetitiveTeam[]>([]);
-  const [feedIntegration, setFeedIntegration] = useState({ esports: 'demo', football: 'demo' });
+  const [feedIntegration, setFeedIntegration] = useState({ esports: 'not_configured', football: 'not_configured' });
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => { let active = true; tournamentXApi.competitiveOverview().then((result) => { if (active) { setFeedTeams(result.teams); setFeedIntegration(result.integration); } }).catch(() => undefined); return () => { active = false; }; }, []);
 
@@ -62,33 +63,43 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!onCreateTeam) return;
+    if (formName.trim().length < 2 || formTag.trim().length < 2) {
+      notify('error', 'El nombre y el tag deben contener al menos 2 caracteres.');
+      return;
+    }
+    try {
+      setIsCreating(true);
+      const created = await onCreateTeam({
+        name: formName.trim(),
+        tag: formTag.trim().toUpperCase(),
+        abbreviation: formTag.trim().toUpperCase(),
+        logo: formLogo,
+        region: formRegion,
+        sport: 'Valorant',
+        competitionType: 'Regional',
+        description: formDescription.trim(),
+        status: 'active',
+        roster: [],
+      });
 
-    const created = await onCreateTeam({
-      name: formName,
-      tag: formTag.toUpperCase(),
-      abbreviation: formTag.toUpperCase(),
-      logo: formLogo,
-      region: formRegion,
-      sport: 'Valorant',
-      competitionType: 'Regional',
-      description: formDescription,
-      status: 'active',
-      roster: [],
-    });
-
-    if (created) {
-      setShowCreateModal(false);
-      setFormName('');
-      setFormTag('');
-      setFormLogo('https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&auto=format&fit=crop&q=80');
-      setFormRegion('LATAM');
-      setFormDescription('');
-      notify('success', `Equipo "${created.name}" creado correctamente.`);
+      if (created) {
+        setShowCreateModal(false);
+        setFormName('');
+        setFormTag('');
+        setFormLogo('https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&auto=format&fit=crop&q=80');
+        setFormRegion('LATAM');
+        setFormDescription('');
+        notify('success', `Equipo "${created.name}" creado correctamente.`);
+      }
+    } catch (error) {
+      notify('error', error instanceof Error ? error.message : 'No fue posible crear el equipo.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
   return (
-    <div id="teams-list-view" className="min-h-screen bg-[#0a0c15]">
+    <div id="teams-list-view" className="tx-module-shell min-h-screen bg-[#0a0c15]">
       {/* DECORATIVE HEADER BANNER */}
       <div className="relative overflow-hidden bg-gradient-to-r from-[#ff2e83]/10 via-[#6366f1]/5 to-[#8b5cf6]/10 border-b border-[#1e2230]">
         {/* Geometric pattern background */}
@@ -267,8 +278,8 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
       </div>
 
       <section className="px-6 lg:px-8 pb-12 max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-t border-white/[.07] pt-8"><div><span className="text-[10px] font-bold uppercase tracking-[.18em] text-[#d6b15e]">Directorio sincronizado</span><h2 className="mt-1 text-2xl font-black text-white">Equipos internacionales</h2><p className="mt-1 text-xs text-slate-500">Esports de LATAM, Norteamérica y Europa, junto con clubes de deportes tradicionales.</p></div><p className="text-[10px] text-slate-600">Esports: {feedIntegration.esports === 'configured' ? 'PandaScore' : 'demo'} · Fútbol: {feedIntegration.football === 'configured' ? 'football-data.org' : 'demo'}</p></div>
-        <div className="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{filteredFeedTeams.map((team) => <article key={team.id} className="rounded-2xl border border-white/[.07] bg-[#10121a] p-4 hover:border-[#d6b15e]/40 transition-colors"><div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[.04] text-[10px] font-black">{team.logo ? <img src={team.logo} alt="" className="h-full w-full object-contain"/> : team.shortName}</div><div className="min-w-0"><h3 className="truncate text-sm font-bold text-white">{team.name}</h3><p className="mt-0.5 text-[10px] text-slate-500">{team.sport} · {team.region}</p></div></div><div className="mt-4 flex items-center justify-between"><div className="flex gap-1">{team.form.slice(-5).map((result, index) => <span key={`${result}-${index}`} className={`grid h-5 w-5 place-items-center rounded text-[8px] font-bold ${result === 'W' ? 'bg-emerald-500/15 text-emerald-300' : result === 'L' ? 'bg-red-500/15 text-red-300' : 'bg-slate-500/15 text-slate-300'}`}>{result}</span>)}</div><span className={`rounded px-1.5 py-1 text-[8px] font-bold ${team.dataMode === 'api' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{team.dataMode === 'api' ? 'API' : 'DEMO'}</span></div><div className="mt-4 border-t border-white/[.06] pt-3"><p className="text-[9px] uppercase tracking-wider text-slate-600">Plantilla</p>{team.players.length ? <div className="mt-2 space-y-1">{team.players.slice(0, 4).map((player) => <div key={player.id} className="flex justify-between text-[10px]"><span className="truncate text-slate-300">{player.nickname || player.name}</span><span className="text-slate-600">{player.role}</span></div>)}</div> : <p className="mt-2 text-[10px] leading-4 text-slate-500">Conecta el proveedor para obtener integrantes oficiales.</p>}</div></article>)}</div>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-t border-white/[.07] pt-8"><div><span className="text-[10px] font-bold uppercase tracking-[.18em] text-[#d6b15e]">Directorio competitivo</span><h2 className="mt-1 text-2xl font-black text-white">Equipos y organizaciones</h2><p className="mt-1 text-xs text-slate-500">Registros de TournamentX enriquecidos con proveedores oficiales cuando están disponibles.</p></div><p className="text-[10px] text-slate-600">Esports: {feedIntegration.esports === 'configured' ? 'PandaScore' : 'TournamentX'} · Fútbol: {feedIntegration.football === 'configured' ? 'football-data.org' : 'TournamentX'}</p></div>
+        <div className="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{filteredFeedTeams.map((team) => <article key={team.id} className="rounded-2xl border border-white/[.07] bg-[#10121a] p-4 hover:border-[#d6b15e]/40 transition-colors"><div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[.04] text-[10px] font-black">{team.logo ? <img src={team.logo} alt="" className="h-full w-full object-contain"/> : team.shortName}</div><div className="min-w-0"><h3 className="truncate text-sm font-bold text-white">{team.name}</h3><p className="mt-0.5 text-[10px] text-slate-500">{team.sport} · {team.region}</p></div></div><div className="mt-4 flex items-center justify-between"><div className="flex gap-1">{team.form.slice(-5).map((result, index) => <span key={`${result}-${index}`} className={`grid h-5 w-5 place-items-center rounded text-[8px] font-bold ${result === 'W' ? 'bg-emerald-500/15 text-emerald-300' : result === 'L' ? 'bg-red-500/15 text-red-300' : 'bg-slate-500/15 text-slate-300'}`}>{result}</span>)}</div><span className={`rounded px-1.5 py-1 text-[8px] font-bold ${team.dataMode === 'api' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-[#ff2e83]/10 text-[#ff69a8]'}`}>{team.source}</span></div><div className="mt-4 border-t border-white/[.06] pt-3"><p className="text-[9px] uppercase tracking-wider text-slate-600">Plantilla</p>{team.players.length ? <div className="mt-2 space-y-1">{team.players.slice(0, 4).map((player) => <div key={player.id} className="flex justify-between text-[10px]"><span className="truncate text-slate-300">{player.nickname || player.name}</span><span className="text-slate-600">{player.role}</span></div>)}</div> : <p className="mt-2 text-[10px] leading-4 text-slate-500">La plantilla aún no ha sido publicada por la organización.</p>}</div></article>)}</div>
       </section>
 
       {/* CREATE TEAM MODAL */}
@@ -307,7 +318,8 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                     value={formTag}
                     onChange={(e) => setFormTag(e.target.value.toUpperCase())}
                     placeholder="LNX"
-                    maxLength={3}
+                    minLength={2}
+                    maxLength={8}
                     className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1"
                   />
                 </div>
@@ -319,7 +331,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                     className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-3 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1"
                   >
                     <option value="LATAM">LATAM</option>
-                    <option value="LATAM Nord">LATAM Nord</option>
+                    <option value="LATAM Norte">LATAM Norte</option>
                     <option value="LATAM Sur">LATAM Sur</option>
                     <option value="NA">NA</option>
                     <option value="EU">EU</option>
@@ -359,9 +371,10 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-bold text-xs shadow-lg shadow-[#ff2e83]/30"
+                  disabled={isCreating}
+                  className="px-6 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-bold text-xs shadow-lg shadow-[#ff2e83]/30 disabled:cursor-wait disabled:opacity-60"
                 >
-                  Crear equipo
+                  {isCreating ? 'Creando…' : 'Crear equipo'}
                 </button>
               </div>
             </form>

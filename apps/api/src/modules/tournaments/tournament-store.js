@@ -7,7 +7,8 @@ const localStore = require('../../config/local-store');
 const { getActiveTeam } = require('../teams/teams.public');
 
 const tournaments = localStore.collection('tournaments', []);
-function persist() { localStore.saveCollection('tournaments', tournaments); }
+const tournamentAudits = localStore.collection('tournamentAudits', []);
+function persist() { localStore.saveCollection('tournaments', tournaments); localStore.saveCollection('tournamentAudits', tournamentAudits); }
 
 function findTournament(tournamentId) {
   const tournament = tournaments.find((entry) => entry.id === tournamentId);
@@ -139,7 +140,7 @@ function createTournament(input) {
     prizeAmountUSD: Number(input.prizeAmountUSD) || 0,
     entryFee: Math.max(0, Number(input.entryFee ?? 10) || 0),
     entryCurrency: String(input.entryCurrency || 'USD').toUpperCase(),
-    status: 'OPEN',
+    status: ['DRAFT', 'OPEN', 'CLOSED', 'PUBLISHED'].includes(input.status) ? input.status : 'OPEN',
     format: input.format || 'SINGLE_ELIMINATION',
     dates: input.dates || '',
     maxTeams: Number(input.maxTeams) || 0,
@@ -160,6 +161,26 @@ function createTournament(input) {
   tournaments.push(tournament);
   persist();
   return serializeTournament(tournament);
+}
+
+function changeStatus(tournamentId, nextStatus, changedBy, note = '') {
+  const tournament = findTournament(tournamentId);
+  const transitions = {
+    DRAFT: ['OPEN'], OPEN: ['CLOSED', 'IN_PROGRESS'], CLOSED: ['OPEN', 'PUBLISHED'],
+    PUBLISHED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'], COMPLETED: [],
+  };
+  if (!transitions[tournament.status]?.includes(nextStatus)) throw new HttpError(409, `No se puede cambiar de ${tournament.status} a ${nextStatus}`);
+  const previousStatus = tournament.status;
+  tournament.status = nextStatus;
+  tournament.updatedAt = new Date().toISOString();
+  tournamentAudits.push({ id: crypto.randomUUID(), tournamentId, previousStatus, nextStatus, changedBy, note, createdAt: tournament.updatedAt });
+  persist();
+  return { tournament: serializeTournament(tournament), audit: tournamentAudits.at(-1) };
+}
+
+function listAudit(tournamentId) {
+  findTournament(tournamentId);
+  return tournamentAudits.filter((entry) => entry.tournamentId === tournamentId).map((entry) => ({ ...entry }));
 }
 
 function listParticipants(tournamentId) {
@@ -469,4 +490,6 @@ module.exports = {
   getBracket,
   reportBracketMatchResult,
   getStatus,
+  changeStatus,
+  listAudit,
 };

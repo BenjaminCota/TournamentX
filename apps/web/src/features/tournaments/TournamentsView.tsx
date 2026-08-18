@@ -3,9 +3,11 @@ import {
   Trophy,
   DollarSign,
   Flame,
-  Sparkles
+  Sparkles,
+  CalendarClock,
+  UsersRound
 } from 'lucide-react';
-import { BracketMatch, Tournament, UserRole } from '../../types';
+import { BracketMatch, Team, Tournament, TournamentMatch, UserRole } from '../../types';
 import { TabId } from '../shell/Sidebar';
 import { tournamentXApi } from '../../services/apiClient';
 
@@ -50,10 +52,12 @@ interface TournamentsViewProps {
   currentUserRole: UserRole;
   onOpenCreateWizard: () => void;
   tournaments: Tournament[];
+  teams: Team[];
   onReportBracketResult: (tournamentId: string, matchId: string, score1: number, score2: number) => Promise<void> | void;
   onRegisterParticipant: (tournamentId: string, data: { teamId?: string; teamName: string; seed?: number }) => Promise<void> | void;
   onGenerateGroups: (tournamentId: string, groupCount: number) => Promise<void> | void;
   onGenerateBracket: (tournamentId: string) => Promise<void> | void;
+  onChangeStatus: (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED', note?: string) => Promise<void> | void;
 }
 
 export const TournamentsView: React.FC<TournamentsViewProps> = ({
@@ -61,13 +65,15 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   currentUserRole,
   onOpenCreateWizard,
   tournaments,
+  teams,
   onReportBracketResult,
   onRegisterParticipant,
   onGenerateGroups,
-  onGenerateBracket
+  onGenerateBracket,
+  onChangeStatus,
 }) => {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | undefined>(tournaments[0]?.id);
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BRACKET' | 'MATCHES' | 'STANDINGS'>('BRACKET');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BRACKET' | 'MATCHES' | 'STANDINGS'>('OVERVIEW');
 
   const [selectedMatch, setSelectedMatch] = useState<EditableMatch | null>(null);
   const [selectedMatchKind, setSelectedMatchKind] = useState<'knockout' | 'group' | null>(null);
@@ -82,7 +88,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
 
-  const [newParticipantName, setNewParticipantName] = useState('');
+  const [newParticipantTeamId, setNewParticipantTeamId] = useState('');
   const [newParticipantSeed, setNewParticipantSeed] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
@@ -93,9 +99,19 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   const [isGeneratingBracket, setIsGeneratingBracket] = useState(false);
   const [generateBracketError, setGenerateBracketError] = useState<string | null>(null);
+  const [flowMatches, setFlowMatches] = useState<TournamentMatch[]>([]);
+  const [flowSchedules, setFlowSchedules] = useState<Array<{ id: string; tournamentId: string; startsAt: string; status: string }>>([]);
+  const [scheduleStart, setScheduleStart] = useState(() => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16));
+  const [scheduleVenue, setScheduleVenue] = useState('Arena TournamentX');
+  const [scheduleMode, setScheduleMode] = useState<'best_of_1' | 'best_of_3' | 'best_of_5'>('best_of_3');
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [flowMessage, setFlowMessage] = useState('');
+  const [audit, setAudit] = useState<Array<{ id: string; previousStatus: string; nextStatus: string; changedBy: string; note?: string; createdAt: string }>>([]);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const selectedTournament = tournaments.find((t) => t.id === selectedTournamentId) || tournaments[0];
 
+  const canManageTournament = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
   const canEditScores = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro';
 
   const loadGroups = async (tournamentId: string) => {
@@ -122,6 +138,15 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     }
   };
 
+  const loadFlowState = async (tournamentId: string) => {
+    const [matchesResult, schedulesResult] = await Promise.allSettled([
+      tournamentXApi.matches(tournamentId),
+      tournamentXApi.schedules(tournamentId),
+    ]);
+    setFlowMatches(matchesResult.status === 'fulfilled' ? matchesResult.value : []);
+    setFlowSchedules(schedulesResult.status === 'fulfilled' ? schedulesResult.value : []);
+  };
+
   useEffect(() => {
     if (!selectedTournament || selectedTournament.format !== 'GROUP_STAGE_PLAYOFFS') {
       setGroups([]);
@@ -132,9 +157,29 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   }, [activeTab, selectedTournament?.id, selectedTournament?.format]);
 
   useEffect(() => {
-    if (!selectedTournament || activeTab !== 'MATCHES') return;
-    loadParticipants(selectedTournament.id);
-  }, [activeTab, selectedTournament?.id]);
+    if (!selectedTournament) return;
+    void loadParticipants(selectedTournament.id);
+    void loadFlowState(selectedTournament.id);
+    if (canManageTournament) tournamentXApi.tournamentAudit(selectedTournament.id).then((value) => setAudit(value as typeof audit)).catch(() => setAudit([]));
+    setFlowMessage('');
+  }, [selectedTournament?.id]);
+
+  const nextStatuses: Record<string, Array<'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED'>> = {
+    DRAFT: ['OPEN'], OPEN: ['CLOSED', 'IN_PROGRESS'], CLOSED: ['OPEN', 'PUBLISHED'],
+    PUBLISHED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'], COMPLETED: [],
+  };
+
+  const changeStatus = async (status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED') => {
+    if (!selectedTournament) return;
+    setIsChangingStatus(true); setFlowMessage('');
+    try {
+      await onChangeStatus(selectedTournament.id, status, `Cambio realizado desde el panel de competición`);
+      const entries = await tournamentXApi.tournamentAudit(selectedTournament.id);
+      setAudit(entries as typeof audit);
+      setFlowMessage(`Estado actualizado a ${status}.`);
+    } catch (error) { setFlowMessage(error instanceof Error ? error.message : 'No se pudo cambiar el estado.'); }
+    finally { setIsChangingStatus(false); }
+  };
 
   const handleOpenMatch = (match: EditableMatch, kind: 'knockout' | 'group') => {
     setSelectedMatch(match);
@@ -166,15 +211,17 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   const handleAddParticipant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTournament || !newParticipantName.trim()) return;
+    const team = teams.find((item) => item.id === newParticipantTeamId);
+    if (!selectedTournament || !team) return;
     setIsRegistering(true);
     setRegisterError(null);
     try {
       await onRegisterParticipant(selectedTournament.id, {
-        teamName: newParticipantName.trim(),
+        teamId: team.id,
+        teamName: team.name,
         seed: newParticipantSeed ? Number(newParticipantSeed) : undefined,
       });
-      setNewParticipantName('');
+      setNewParticipantTeamId('');
       setNewParticipantSeed('');
       await loadParticipants(selectedTournament.id);
     } catch (error) {
@@ -204,6 +251,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     setGenerateBracketError(null);
     try {
       await onGenerateBracket(selectedTournament.id);
+      await loadFlowState(selectedTournament.id);
     } catch (error) {
       setGenerateBracketError(error instanceof Error ? error.message : 'No se pudo generar el bracket.');
     } finally {
@@ -211,21 +259,50 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     }
   };
 
+  const handleCreateSchedule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedTournament || participants.length < 2) return;
+    setIsScheduling(true); setFlowMessage('');
+    try {
+      const result = await tournamentXApi.createSchedule({
+        tournamentId: selectedTournament.id,
+        teamIds: participants.map((participant) => participant.id),
+        startsAt: new Date(scheduleStart).toISOString(),
+        slotMinutes: 90,
+        venue: scheduleVenue || selectedTournament.venue || 'Online',
+        mode: scheduleMode,
+        format: selectedTournament.format === 'SINGLE_ELIMINATION' ? 'single_elimination' : 'round_robin',
+      });
+      await loadFlowState(selectedTournament.id);
+      setFlowMessage(`Calendario publicado con ${result.matches.length} partido${result.matches.length === 1 ? '' : 's'}.`);
+    } catch (error) {
+      setFlowMessage(error instanceof Error ? error.message : 'No se pudo programar el calendario.');
+    } finally { setIsScheduling(false); }
+  };
+
   if (!selectedTournament) {
     return (
       <div className="p-6 lg:p-8 max-w-7xl mx-auto text-center text-sm text-slate-400">
         Todavía no hay torneos creados.
-        <button
+        {canManageTournament ? <button
           onClick={onOpenCreateWizard}
           className="block mx-auto mt-4 px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white text-xs font-bold tracking-wide shadow-md shadow-[#ff2e83]/20 hover:scale-105 transition-all cursor-pointer"
         >
           ＋ CREAR NUEVO TORNEO
-        </button>
+        </button> : <p className="mt-4 text-xs text-slate-500">Inicia sesión como organizador para publicar un torneo.</p>}
       </div>
     );
   }
 
   const rounds = selectedTournament.rounds || [];
+  const availableTeams = teams.filter((team) => team.status !== 'inactive' && !participants.some((participant) => participant.id === team.id));
+  const hasParticipants = participants.length >= 2;
+  const hasBracket = rounds.length > 0;
+  const hasSchedule = flowSchedules.length > 0 || flowMatches.length > 0;
+  const completedMatches = flowMatches.filter((match) => match.status === 'completed').length;
+  const bracketMatches = rounds.flatMap((round) => round.matches);
+  const completedBracketMatches = bracketMatches.filter((match) => match.status === 'FINISHED').length;
+  const bracketProgress = bracketMatches.length ? Math.round((completedBracketMatches / bracketMatches.length) * 100) : 0;
   const allGroupMatchesFinished = groups.length > 0
     && groups.every((group) => group.matches.length > 0 && group.matches.every((m) => m.status === 'FINISHED'));
 
@@ -248,13 +325,41 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           </select>
         </div>
 
-        <button
+        {canManageTournament && <button
           onClick={onOpenCreateWizard}
           className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white text-xs font-bold tracking-wide shadow-md shadow-[#ff2e83]/20 hover:scale-105 transition-all self-start sm:self-auto cursor-pointer"
         >
           ＋ CREAR NUEVO TORNEO
-        </button>
+        </button>}
       </div>
+
+      {selectedTournament.status !== 'COMPLETED' && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[linear-gradient(135deg,rgba(255,46,131,.08),rgba(16,18,26,.96)_45%)] p-5 lg:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[.2em] text-[#ff69a8]">Control de competición</div>
+            <h2 className="mt-1 text-xl font-bold text-white">Operación de {selectedTournament.name}</h2>
+            <p className="mt-1 text-xs text-slate-400">Participantes, llave, agenda y resultados confirmados en el registro activo.</p>
+          </div>
+          {hasSchedule && <button type="button" onClick={() => onNavigate('calendar')} className="rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white">ABRIR PARTIDOS</button>}
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-4">
+          {[
+            ['Equipos inscritos', participants.length],
+            ['Rondas de bracket', rounds.length],
+            ['Partidos programados', flowMatches.length],
+            ['Resultados oficiales', completedMatches],
+          ].map(([label, value]) => <article key={label} className="rounded-2xl border border-white/10 bg-black/20 p-4"><strong className="block text-2xl font-black text-white">{value}</strong><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span></article>)}
+        </div>
+        {!hasParticipants && <button type="button" onClick={() => setActiveTab('MATCHES')} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#ff2e83]/30 px-4 py-2.5 text-xs font-bold text-[#ff69a8]"><UsersRound className="h-4 w-4"/> INSCRIBIR EQUIPOS</button>}
+        {hasParticipants && !hasBracket && <button type="button" onClick={() => setActiveTab('MATCHES')} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white"><Trophy className="h-4 w-4"/> GENERAR BRACKET</button>}
+        {hasBracket && !hasSchedule && canManageTournament && <form onSubmit={handleCreateSchedule} className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-[1fr_1fr_150px_auto]">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Inicio<input required type="datetime-local" value={scheduleStart} onChange={(event) => setScheduleStart(event.target.value)} className="field mt-1"/></label>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sede<input value={scheduleVenue} onChange={(event) => setScheduleVenue(event.target.value)} className="field mt-1" placeholder="Online o arena"/></label>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Modalidad<select value={scheduleMode} onChange={(event) => setScheduleMode(event.target.value as typeof scheduleMode)} className="field mt-1"><option value="best_of_1">Mejor de 1</option><option value="best_of_3">Mejor de 3</option><option value="best_of_5">Mejor de 5</option></select></label>
+          <button disabled={isScheduling} className="self-end rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white disabled:opacity-50"><CalendarClock className="mr-1 inline h-4 w-4"/>{isScheduling ? 'PUBLICANDO…' : 'PROGRAMAR'}</button>
+        </form>}
+        {flowMessage && <p role="status" className={`mt-3 rounded-xl border px-4 py-3 text-xs ${flowMessage.includes('publicado') ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/25 bg-amber-500/10 text-amber-200'}`}>{flowMessage}</p>}
+      </section>}
 
       {/* TOURNAMENT HEADER */}
       <div className="rounded-3xl bg-[#10121a] border border-[#1e2230] p-6 lg:p-8 space-y-6">
@@ -286,12 +391,13 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {canManageTournament && (nextStatuses[selectedTournament.status] || []).map((status) => <button key={status} disabled={isChangingStatus} onClick={() => void changeStatus(status)} className="rounded-xl border border-emerald-500/30 bg-emerald-500/[.08] px-4 py-2.5 text-xs font-bold text-emerald-300 disabled:opacity-50">{status === 'CLOSED' ? 'CERRAR INSCRIPCIÓN' : status === 'PUBLISHED' ? 'PUBLICAR' : status === 'IN_PROGRESS' ? 'INICIAR TORNEO' : status === 'COMPLETED' ? 'FINALIZAR' : 'ABRIR INSCRIPCIÓN'}</button>)}
             <button
-              onClick={() => onNavigate('live_match')}
+              onClick={() => onNavigate('esports')}
               className="px-5 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-black text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 transition-all flex items-center gap-2 cursor-pointer font-tech"
             >
               <Flame className="w-4 h-4" />
-              <span>TRANSMISIÓN EN VIVO</span>
+              <span>VER TRANSMISIONES</span>
             </button>
             <button
               onClick={() => onNavigate('rewards')}
@@ -339,6 +445,13 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               )}
             </div>
           </div>
+
+          {rounds.length > 0 && <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_1.5fr]">
+            <article className="rounded-2xl border border-white/10 bg-[#10121a] p-4"><strong className="text-2xl font-black text-white">{rounds.length}</strong><span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Rondas</span></article>
+            <article className="rounded-2xl border border-white/10 bg-[#10121a] p-4"><strong className="text-2xl font-black text-white">{bracketMatches.length}</strong><span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Cruces</span></article>
+            <article className="rounded-2xl border border-white/10 bg-[#10121a] p-4"><strong className="text-2xl font-black text-emerald-400">{completedBracketMatches}</strong><span className="mt-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Finalizados</span></article>
+            <article className="rounded-2xl border border-white/10 bg-[#10121a] p-4"><div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Avance de la llave</span><strong className="text-sm text-[#ff69a8]">{bracketProgress}%</strong></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-gradient-to-r from-[#ff2e83] to-[#d6b15e]" style={{ width: `${bracketProgress}%` }}/></div></article>
+          </div>}
 
           {/* BRACKET CANVAS */}
           <div className="p-6 lg:p-8 rounded-3xl bg-[#0e1017] border border-[#1e2230] overflow-x-auto min-h-[500px]">
@@ -492,6 +605,8 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               Todos los equipos deben conectarse al servidor 15 minutos antes de la hora estipulada. El anti-cheat Vanguard debe estar activo. Se permite 1 pausa táctica de 60s por mapa.
             </p>
           </div>
+
+          {canManageTournament && <div className="p-6 rounded-2xl bg-[#10121a] border border-[#1e2230] space-y-4 md:col-span-3"><div className="flex items-center justify-between"><div><h3 className="font-display font-bold text-lg text-white">Bitácora del torneo</h3><p className="mt-1 text-xs text-slate-500">Cada transición queda asociada a la cuenta que la autorizó.</p></div><span className="status-chip text-slate-300">{audit.length} cambios</span></div>{audit.length === 0 ? <p className="text-sm text-slate-500">Todavía no hay cambios de estado registrados.</p> : <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{[...audit].reverse().slice(0, 6).map((entry) => <article key={entry.id} className="rounded-xl border border-white/[.07] bg-black/20 p-3"><strong className="text-xs text-white">{entry.previousStatus} → {entry.nextStatus}</strong><p className="mt-1 text-[11px] text-slate-500">{new Date(entry.createdAt).toLocaleString('es-MX')}</p>{entry.note && <p className="mt-2 text-xs text-slate-400">{entry.note}</p>}</article>)}</div>}</div>}
         </div>
       )}
 
@@ -521,15 +636,17 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               </ul>
             )}
 
-            {canEditScores && rounds.length === 0 && (
+            {canManageTournament && rounds.length === 0 && (
               <form onSubmit={handleAddParticipant} className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-[#1e2230]">
-                <input
-                  type="text"
-                  value={newParticipantName}
-                  onChange={(e) => setNewParticipantName(e.target.value)}
-                  placeholder="Nombre del equipo / jugador"
+                <select
+                  required
+                  value={newParticipantTeamId}
+                  onChange={(e) => setNewParticipantTeamId(e.target.value)}
                   className="flex-1 bg-[#141724] border border-[#232738] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none"
-                />
+                >
+                  <option value="">Selecciona un equipo activo</option>
+                  {availableTeams.map((team) => <option key={team.id} value={team.id}>{team.name} · {team.region}</option>)}
+                </select>
                 <input
                   type="number"
                   value={newParticipantSeed}
@@ -539,7 +656,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                 />
                 <button
                   type="submit"
-                  disabled={isRegistering || !newParticipantName.trim()}
+                  disabled={isRegistering || !newParticipantTeamId}
                   className="px-4 py-2 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isRegistering ? 'Agregando…' : 'Agregar'}
@@ -558,7 +675,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               ) : groups.length === 0 ? (
                 <>
                   <p className="text-sm text-slate-400">Todavía no se generaron los grupos.</p>
-                  {canEditScores && (
+                  {canManageTournament && (
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -606,7 +723,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                     <div className="pt-2 border-t border-[#1e2230] space-y-2">
                       {!allGroupMatchesFinished ? (
                         <p className="text-xs text-slate-500">Cuando terminen todos los partidos de grupo vas a poder generar el bracket de playoffs.</p>
-                      ) : canEditScores ? (
+                      ) : canManageTournament ? (
                         <button
                           onClick={handleGenerateBracketClick}
                           disabled={isGeneratingBracket}
@@ -629,7 +746,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               <p className="text-sm text-slate-400">
                 Con {participants.length} participante{participants.length === 1 ? '' : 's'} inscritos ya se puede armar la llave de eliminación directa.
               </p>
-              {canEditScores && (
+              {canManageTournament && (
                 <button
                   onClick={handleGenerateBracketClick}
                   disabled={isGeneratingBracket || participants.length < 2}

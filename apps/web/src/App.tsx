@@ -15,15 +15,10 @@ import { UsersView } from './features/auth/UsersView';
 import { OrganizerRequestCard } from './features/auth/OrganizerRequestCard';
 import { SplashScreen } from './features/landing/SplashScreen';
 import { AuthUser, Team, Tournament, User, UserRole } from './types';
-import { INITIAL_USERS, MOCK_TEAMS, MOCK_TOURNAMENTS } from './data/mockData';
 import { tournamentXApi } from './services/apiClient';
 import { supabase } from './services/supabaseClient';
 import { FeedbackToaster } from './shared/components/FeedbackToaster';
 import { notify } from './shared/feedback';
-
-const TEAM_STORAGE_KEY = 'tournamentx-dev3-teams';
-const PLAYER_STORAGE_KEY = 'tournamentx-dev3-players';
-const TOURNAMENT_STORAGE_KEY = 'tournamentx-dev2-tournaments';
 
 function normalizeTeam(team: Team | Record<string, unknown>): Team {
   const roster = Array.isArray((team as Team).roster) ? (team as Team).roster : [];
@@ -58,7 +53,7 @@ function normalizeTeam(team: Team | Record<string, unknown>): Team {
       role: String(member.role || 'Jugador'),
       ovr: Number((member as { ovr?: number }).ovr ?? 90),
       avatar: String((member as { avatar?: string }).avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'),
-      kda: String((member as { kda?: string }).kda || '1.20 K/D'),
+      kda: String((member as { kda?: string }).kda || 'Sin registro oficial'),
       status: (member as { status?: 'active' | 'inactive' }).status ?? 'active',
     })),
   };
@@ -94,19 +89,10 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
-  const [teams, setTeams] = useState<Team[]>(() => {
-    const initial = typeof window !== 'undefined' ? localStorage.getItem(TEAM_STORAGE_KEY) : null;
-    return initial ? JSON.parse(initial).map(normalizeTeam) : MOCK_TEAMS;
-  });
-  const [players, setPlayers] = useState<User[]>(() => {
-    const initial = typeof window !== 'undefined' ? localStorage.getItem(PLAYER_STORAGE_KEY) : null;
-    return initial ? JSON.parse(initial).map(normalizePlayer) : INITIAL_USERS;
-  });
-  const [tournaments, setTournaments] = useState<Tournament[]>(() => {
-    const initial = typeof window !== 'undefined' ? localStorage.getItem(TOURNAMENT_STORAGE_KEY) : null;
-    return initial ? JSON.parse(initial) : MOCK_TOURNAMENTS;
-  });
-  const [selectedTeamId, setSelectedTeamId] = useState<string>('team-lnx');
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [players, setPlayers] = useState<User[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>();
 
   useEffect(() => { const timer = window.setTimeout(() => setShowSplash(false), 3000); return () => window.clearTimeout(timer); }, []);
@@ -137,25 +123,50 @@ export default function App() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [fetchedTeams, fetchedPlayers, fetchedTournaments] = await Promise.all([
-          tournamentXApi.teams().catch(() => null),
-          tournamentXApi.players().catch(() => null),
-          tournamentXApi.tournaments().catch(() => null),
+        const results = await Promise.allSettled([
+          tournamentXApi.teams(),
+          tournamentXApi.players(),
+          tournamentXApi.tournaments(),
+          tournamentXApi.analytics(),
         ]);
-        if (Array.isArray(fetchedTeams) && fetchedTeams.length > 0) {
-          setTeams(fetchedTeams.map(normalizeTeam));
-          localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(fetchedTeams.map(normalizeTeam)));
+        const [teamsResult, playersResult, tournamentsResult, analyticsResult] = results;
+        const fetchedTeams = teamsResult.status === 'fulfilled' ? teamsResult.value : null;
+        const fetchedPlayers = playersResult.status === 'fulfilled' ? playersResult.value : null;
+        const fetchedTournaments = tournamentsResult.status === 'fulfilled' ? tournamentsResult.value : null;
+        const analytics = analyticsResult.status === 'fulfilled' ? analyticsResult.value : null;
+        const failedModules = [
+          teamsResult.status === 'rejected' ? 'equipos' : '',
+          playersResult.status === 'rejected' ? 'jugadores' : '',
+          tournamentsResult.status === 'rejected' ? 'torneos' : '',
+          analyticsResult.status === 'rejected' ? 'estadísticas' : '',
+        ].filter(Boolean);
+        if (failedModules.length) {
+          notify(failedModules.length === results.length ? 'error' : 'info', `Carga parcial: no se pudieron actualizar ${failedModules.join(', ')}.`);
         }
-        if (Array.isArray(fetchedPlayers) && fetchedPlayers.length > 0) {
+        if (Array.isArray(fetchedTeams)) {
+          setTeams(fetchedTeams.map((team) => {
+            const persisted = normalizeTeam(team);
+            const rankingIndex = analytics?.ranking.findIndex((entry) => entry.id === persisted.id) ?? -1;
+            const result = rankingIndex >= 0 ? analytics?.ranking[rankingIndex] : undefined;
+            return result ? normalizeTeam({
+              ...persisted,
+              globalRank: result.played > 0 ? rankingIndex + 1 : 0,
+              winRate: result.rate,
+              matchesPlayed: result.played,
+              record: { wins: result.wins, losses: result.losses, ties: result.draws },
+              points: result.points,
+            }) : persisted;
+          }));
+          setSelectedTeamId((current) => current || fetchedTeams[0]?.id || '');
+        }
+        if (Array.isArray(fetchedPlayers)) {
           setPlayers(fetchedPlayers.map(normalizePlayer));
-          localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(fetchedPlayers.map(normalizePlayer)));
         }
-        if (Array.isArray(fetchedTournaments) && fetchedTournaments.length > 0) {
+        if (Array.isArray(fetchedTournaments)) {
           setTournaments(fetchedTournaments as Tournament[]);
-          localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(fetchedTournaments));
         }
-      } catch {
-        // Se conserva el fallback local cuando la API no esté disponible.
+      } catch (error) {
+        notify('error', error instanceof Error ? error.message : 'No se pudieron cargar los datos persistidos.');
       }
     };
     loadData();
@@ -171,15 +182,7 @@ export default function App() {
     return () => { void supabase.removeChannel(channel); };
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(teams));
-      localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(players));
-      localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(tournaments));
-    }
-  }, [teams, players, tournaments]);
-
-  const selectedTeam = useMemo(() => teams.find((team) => team.id === selectedTeamId) || teams[0] || MOCK_TEAMS[0], [teams, selectedTeamId]);
+  const selectedTeam = useMemo(() => teams.find((team) => team.id === selectedTeamId) || teams[0], [teams, selectedTeamId]);
 
   const handleCreateTeam = async (data: Partial<Team>) => {
     const payload = normalizeTeam({
@@ -203,11 +206,8 @@ export default function App() {
       setTeams((current) => [next, ...current]);
       setSelectedTeamId(next.id);
       return next;
-    } catch {
-      const next = normalizeTeam(payload);
-      setTeams((current) => [next, ...current]);
-      setSelectedTeamId(next.id);
-      return next;
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -223,9 +223,8 @@ export default function App() {
       const normalized = normalizeTeam(updated);
       setTeams((current) => current.map((team) => team.id === id ? normalized : team));
       return normalized;
-    } catch {
-      setTeams((current) => current.map((team) => team.id === id ? nextTeam : team));
-      return nextTeam;
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -244,9 +243,8 @@ export default function App() {
       const next = normalizePlayer(created);
       setPlayers((current) => [next, ...current]);
       return next;
-    } catch {
-      setPlayers((current) => [payload, ...current]);
-      return payload;
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -262,9 +260,8 @@ export default function App() {
       const normalized = normalizePlayer(updated);
       setPlayers((currentPlayers) => currentPlayers.map((player) => player.id === id ? normalized : player));
       return normalized;
-    } catch {
-      setPlayers((currentPlayers) => currentPlayers.map((player) => player.id === id ? nextPlayer : player));
-      return nextPlayer;
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -291,7 +288,7 @@ export default function App() {
             role,
             ovr: player?.ratingOVR ?? 90,
             avatar: player?.avatar || '',
-            kda: '1.30 K/D',
+            kda: 'Sin registro oficial',
             status: 'active',
           },
         ],
@@ -301,37 +298,16 @@ export default function App() {
         setTeams((current) => current.map((entry) => entry.id === teamId ? normalizeTeam(updatedTeam) : entry));
       }
       return { ok: true, message: 'Jugador agregado a la plantilla.' };
-    } catch {
-      const player = players.find((entry) => entry.id === playerId);
-      const team = teams.find((entry) => entry.id === teamId);
-      if (!team || !player) return { ok: false, message: 'Equipo o jugador no disponible.' };
-      const nextTeam = normalizeTeam({
-        ...team,
-        roster: [
-          ...team.roster,
-          {
-            id: `member-${Date.now()}`,
-            playerId,
-            name: `${player.name} ${player.username}`,
-            nickname: player.username,
-            role,
-            ovr: player.ratingOVR ?? 90,
-            avatar: player.avatar,
-            kda: '1.30 K/D',
-            status: 'active',
-          },
-        ],
-      });
-      setTeams((current) => current.map((entry) => entry.id === teamId ? nextTeam : entry));
-      return { ok: true, message: 'Jugador agregado a la plantilla.' };
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : 'No se pudo modificar la plantilla.' };
     }
   };
 
   const handleRemoveRosterMember = async (teamId: string, playerId: string) => {
     try {
       await tournamentXApi.removeRosterMember(teamId, playerId);
-    } catch {
-      // Fallback local sin error en la API externa.
+    } catch (error) {
+      throw error;
     }
     setTeams((current) => current.map((team) => {
       if (team.id !== teamId) return team;
@@ -366,9 +342,8 @@ export default function App() {
       const created = await tournamentXApi.createTournament(payload) as Tournament;
       setTournaments((current) => [created, ...current]);
       return created;
-    } catch {
-      setTournaments((current) => [payload, ...current]);
-      return payload;
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -379,33 +354,8 @@ export default function App() {
   };
 
   const handleReportBracketResult = async (tournamentId: string, matchId: string, score1: number, score2: number) => {
-    try {
-      await tournamentXApi.reportBracketMatchResult(tournamentId, matchId, score1, score2);
-      await refreshTournament(tournamentId);
-    } catch (error) {
-      if (!(error instanceof TypeError)) {
-        // La API respondió (p. ej. rechazó un empate en eliminación directa): no se aplica localmente.
-        throw error;
-      }
-      // Fallback local solo cuando la API no está disponible: refleja el resultado sin avanzar la llave.
-      setTournaments((current) => current.map((t) => {
-        if (t.id !== tournamentId || !t.rounds) return t;
-        return {
-          ...t,
-          rounds: t.rounds.map((round) => ({
-            ...round,
-            matches: round.matches.map((m) => m.id === matchId
-              ? {
-                ...m,
-                team1: { ...m.team1, score: score1, winner: score1 > score2 },
-                team2: { ...m.team2, score: score2, winner: score2 > score1 },
-                status: 'FINISHED' as const,
-              }
-              : m),
-          })),
-        };
-      }));
-    }
+    await tournamentXApi.reportBracketMatchResult(tournamentId, matchId, score1, score2);
+    await refreshTournament(tournamentId);
   };
 
   const handleRegisterParticipant = async (tournamentId: string, data: { teamId?: string; teamName: string; seed?: number }) => {
@@ -423,8 +373,13 @@ export default function App() {
     await refreshTournament(tournamentId);
   };
 
+  const handleChangeTournamentStatus = async (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED', note?: string) => {
+    const result = await tournamentXApi.changeTournamentStatus(tournamentId, status, note) as { tournament: Tournament };
+    setTournaments((current) => current.map((tournament) => tournament.id === tournamentId ? result.tournament : tournament));
+  };
+
   const openTournamentWizard = () => setShowCreateWizard(true);
-  const navigate = (tab: TabId) => setActiveTab(tab === 'live_match' ? 'esports' : tab);
+  const navigate = (tab: TabId) => setActiveTab(tab);
   const enterFromLanding = (tab: TabId = 'dashboard') => navigate(tab);
   const logout = async () => {
     if (supabase) await supabase.auth.signOut();
@@ -445,9 +400,11 @@ export default function App() {
   if (showSplash) return <SplashScreen />;
 
   return (
-    <div id="tournamentx-app-root" className="min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
+    <div id="tournamentx-app-root" className="tx-app-shell min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
       {activeTab === 'landing' ? (
         <LandingView
+          teams={teams}
+          tournaments={tournaments}
           onEnterApp={enterFromLanding}
           onOpenCreateWizard={() => currentUser ? openTournamentWizard() : navigate('login')}
           onOpenAuth={() => navigate('login')}
@@ -470,18 +427,20 @@ export default function App() {
             onOpenCreateWizard={openTournamentWizard}
           />
 
-          <main className="flex-1 bg-[#0a0b0e] pb-16">
-            {activeTab === 'dashboard' && <><OrganizerRequestCard currentUserRole={currentUserRole}/><DashboardView teams={teams} tournaments={tournaments} onNavigate={navigate} onOpenCreateWizard={openTournamentWizard} /></>}
+          <main className="tx-module-host flex-1 bg-[#0a0b0e] pb-16">
+            {activeTab === 'dashboard' && <><OrganizerRequestCard currentUserRole={currentUserRole}/><DashboardView teams={teams} tournaments={tournaments} onNavigate={navigate} onOpenMatch={navigateToMatch} onOpenCreateWizard={openTournamentWizard} /></>}
             {activeTab === 'tournaments' && (
               <TournamentsView
                 onNavigate={navigate}
                 currentUserRole={currentUserRole}
                 onOpenCreateWizard={openTournamentWizard}
                 tournaments={tournaments}
+                teams={teams}
                 onReportBracketResult={handleReportBracketResult}
                 onRegisterParticipant={handleRegisterParticipant}
                 onGenerateGroups={handleGenerateGroups}
                 onGenerateBracket={handleGenerateBracket}
+                onChangeStatus={handleChangeTournamentStatus}
               />
             )}
             {(activeTab === 'calendar' || activeTab === 'esports' || activeTab === 'live_match') && (

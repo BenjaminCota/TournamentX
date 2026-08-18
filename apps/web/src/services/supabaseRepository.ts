@@ -148,14 +148,18 @@ function mapMatch(row: Row): TournamentMatch {
 export const supabaseRepository = {
   async login(email: string, password: string) {
     const client = requireSupabase();
-    const { data, error } = await client.auth.signInWithPassword({ email, password }); fail(error);
+    const { data, error } = await client.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); fail(error);
     if (!data.session || !data.user) throw new Error('No se pudo crear la sesión de Supabase.');
     const { data: profile, error: profileError } = await client.from('profiles').select('*').eq('id', data.user.id).single(); fail(profileError);
+    if (profile.status === 'SUSPENDED') {
+      await client.auth.signOut();
+      throw new Error('La cuenta está suspendida. Contacta a un administrador.');
+    }
     return { token: data.session.access_token, user: mapProfile(profile), expiresIn: data.session.expires_in };
   },
   async register(input: { name: string; username?: string; email: string; password: string }) {
     const client = requireSupabase();
-    const { data, error } = await client.auth.signUp({ email: input.email, password: input.password, options: { data: { name: input.name, username: input.username } } }); fail(error);
+    const { data, error } = await client.auth.signUp({ email: input.email.trim().toLowerCase(), password: input.password, options: { data: { name: input.name.trim(), username: input.username?.trim() } } }); fail(error);
     if (!data.user) throw new Error('No se pudo crear la cuenta.');
     if (!data.session) throw new Error('Cuenta creada. Confirma el correo electrónico y después inicia sesión.');
     const { data: profile, error: profileError } = await client.from('profiles').select('*').eq('id', data.user.id).single(); fail(profileError);
@@ -166,6 +170,7 @@ export const supabaseRepository = {
     const { data: auth, error } = await client.auth.getUser(); fail(error);
     if (!auth.user) throw new Error('No existe una sesión activa.');
     const { data, error: profileError } = await client.from('profiles').select('*').eq('id', auth.user.id).single(); fail(profileError);
+    if (data.status === 'SUSPENDED') throw new Error('La cuenta está suspendida.');
     return { user: mapProfile(data) };
   },
   async users() {
@@ -250,17 +255,23 @@ export const supabaseRepository = {
   },
   async notifications() {
     const { data, error } = await requireSupabase().from('notifications').select('*').order('created_at', { ascending: false }).limit(20); fail(error);
-    return (data || []).map((row: Row) => ({ id: row.id, title: row.title, message: row.message, type: 'venue', createdAt: row.created_at }));
+    return (data || []).map((row: Row) => ({ id: row.id, title: row.title, message: row.message, type: 'venue', createdAt: row.created_at, read: Boolean(row.read_at) }));
+  },
+  async markNotificationRead(id: string) {
+    const { data, error } = await requireSupabase().from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id).select('*').single(); fail(error);
+    return { id: data.id, title: data.title, message: data.message, type: 'venue', createdAt: data.created_at, read: true };
   },
   async lobbies() {
     const { data, error } = await requireSupabase().from('media_lobbies').select('*').order('created_at'); fail(error);
-    return { data: (data || []).map((row: Row) => ({ id: row.id, name: row.name, game: row.game, server: row.server, map: row.map, team1: row.team1, team2: row.team2, status: row.status, ping: row.ping, players: row.players, maxPlayers: row.max_players })) };
+    return { data: (data || []).map((row: Row) => ({ id: row.id, name: row.name, game: row.game, server: row.server, map: row.map, team1: row.team1, team2: row.team2, matchId: row.match_id, streamId: row.stream_id, status: row.status, ping: row.ping, players: row.players, maxPlayers: row.max_players })) };
   },
   async createLobby(input: Row) {
-    const { maxPlayers, ...values } = input;
-    const { data, error } = await requireSupabase().from('media_lobbies').insert({ ...values, max_players: maxPlayers }).select('*').single(); fail(error); return data;
+    const { maxPlayers, matchId, streamId, ...values } = input;
+    const { data, error } = await requireSupabase().from('media_lobbies').insert({ ...values, max_players: maxPlayers, match_id: matchId || null, stream_id: streamId || null }).select('*').single(); fail(error); return data;
   },
   async updateLobby(id: string, input: Row) {
-    const { data, error } = await requireSupabase().from('media_lobbies').update(input).eq('id', id).select('*').single(); fail(error); return data;
+    const { maxPlayers, matchId, streamId, ...values } = input;
+    const update = { ...values, ...(maxPlayers === undefined ? {} : { max_players: maxPlayers }), ...(matchId === undefined ? {} : { match_id: matchId || null }), ...(streamId === undefined ? {} : { stream_id: streamId || null }) };
+    const { data, error } = await requireSupabase().from('media_lobbies').update(update).eq('id', id).select('*').single(); fail(error); return data;
   },
 };

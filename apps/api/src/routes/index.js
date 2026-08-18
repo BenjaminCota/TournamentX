@@ -19,6 +19,7 @@ const localRewardsRoutes = require('../modules/rewards/local-rewards.routes');
 const registrationPaymentRoutes = require('../modules/registration-payments/registration-payments.routes');
 const stripeConnectRoutes = require('../modules/stripe-connect/stripe-connect.routes');
 const paymentSettingsRoutes = require('../modules/payments/payment-settings.routes');
+const assetsRoutes = require('../modules/assets/assets.routes');
 
 if (env.databaseUrl) {
   router.use('/sponsors', sponsorsRoutes);
@@ -34,6 +35,7 @@ router.use('/players', playersRoutes);
 router.use('/', registrationPaymentRoutes);
 router.use('/stripe/connect', stripeConnectRoutes);
 router.use('/payment-settings', paymentSettingsRoutes);
+router.use('/assets', assetsRoutes);
 router.use('/tournaments', tournamentsRoutes);
 router.use('/matches', matchesRoutes);
 router.use('/schedules', schedulesRoutes);

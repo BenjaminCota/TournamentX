@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellRing, ChevronRight, LocateFixed, MapPin, Navigation, Search, Wifi, WifiOff, X } from 'lucide-react';
+import { Bell, BellRing, ChevronRight, LocateFixed, MapPin, Navigation, RefreshCw, Search, Wifi, WifiOff, X } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import L from 'leaflet';
-import { MOCK_TOURNAMENTS, MOCK_VENUES } from '../../data/mockData';
 import { Tournament, Venue } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
-import { supabase } from '../../services/supabaseClient';
 
 type Coordinates = { lat: number; lng: number };
 type LocationState = 'idle' | 'loading' | 'ready' | 'denied' | 'unsupported';
-type Notification = { id: string; title: string; message: string; type: string; createdAt: string };
+type Notification = { id: string; title: string; message: string; type: string; createdAt: string; read?: boolean };
 
 interface SedesMapViewProps { onSelectVenueTournament?: (venueName: string) => void }
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000';
+const VENUE_PLACEHOLDER = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=900&auto=format&fit=crop&q=80';
 
 function distanceKm(origin: Coordinates, destination: [number, number]) {
   const radians = (value: number) => value * Math.PI / 180;
@@ -26,21 +25,41 @@ function distanceKm(origin: Coordinates, destination: [number, number]) {
 }
 
 export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
-  const [venues, setVenues] = useState<Venue[]>(MOCK_VENUES);
-  const [tournaments, setTournaments] = useState<Tournament[]>(MOCK_TOURNAMENTS);
-  const [selectedVenue, setSelectedVenue] = useState<Venue>(MOCK_VENUES[0]);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [selectedVenueId, setSelectedVenueId] = useState('');
+  const [dataError, setDataError] = useState('');
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [locationState, setLocationState] = useState<LocationState>('idle');
   const [radiusKm, setRadiusKm] = useState(1000);
   const [query, setQuery] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [notificationError, setNotificationError] = useState('');
   const [socketConnected, setSocketConnected] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const venueLayerRef = useRef<L.LayerGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const unreadNotifications = notifications.filter((notification) => !notification.read).length;
+
+  const mergeNotification = (notification: Notification) => {
+    setNotifications((current) => [notification, ...current.filter((item) => item.id !== notification.id)].slice(0, 20));
+  };
+
+  const loadNotifications = async () => {
+    setNotificationsLoading(true);
+    try {
+      setNotifications(await tournamentXApi.notifications());
+      setNotificationError('');
+    } catch (error) {
+      setNotificationError(error instanceof Error ? error.message : 'No fue posible cargar las notificaciones.');
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
 
   const venuesWithDistance = useMemo(() => venues.map((venue) => ({
     venue,
@@ -50,7 +69,10 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
     return text.includes(query.trim().toLowerCase()) && (distance === null || distance <= radiusKm);
   }).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)), [query, radiusKm, userLocation, venues]);
 
+  const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) || venues[0];
+
   const venueTournaments = useMemo(() => tournaments.filter((tournament: Tournament) => {
+    if (!selectedVenue) return false;
     if (tournament.venue?.toLowerCase().includes(selectedVenue.city.toLowerCase())) return true;
     if (!tournament.location) return false;
     return distanceKm({ lat: tournament.location.lat, lng: tournament.location.lng }, selectedVenue.coordinates) < 25;
@@ -61,14 +83,16 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
       tournamentXApi.venues(),
       tournamentXApi.tournaments(),
     ]).then(([venueRows, tournamentRows]) => {
-      const normalized = venueRows.map((venue, index) => ({
+      const normalized = venueRows.map((venue) => ({
         ...venue,
-        image: venue.image || MOCK_VENUES[index % MOCK_VENUES.length].image,
+        image: venue.image || VENUE_PLACEHOLDER,
         features: venue.features.length ? venue.features : ['Streaming', 'Zona de jugadores', 'Accesibilidad'],
       }));
-      if (normalized.length) { setVenues(normalized); setSelectedVenue((current) => normalized.find((item) => item.id === current.id) || normalized[0]); }
+      setVenues(normalized);
+      setSelectedVenueId((current) => normalized.find((item) => item.id === current)?.id || normalized[0]?.id || '');
       setTournaments(tournamentRows);
-    }).catch(() => undefined);
+      setDataError('');
+    }).catch((error) => setDataError(error instanceof Error ? error.message : 'No fue posible cargar las sedes registradas.'));
   }, []);
 
   useEffect(() => {
@@ -87,31 +111,25 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
     if (!layer) return;
     layer.clearLayers();
     venuesWithDistance.forEach(({ venue, distance }) => {
-      const selected = venue.id === selectedVenue.id;
+      const selected = venue.id === selectedVenue?.id;
       const icon = L.divIcon({ className: '', iconSize: [36, 36], iconAnchor: [18, 18], html: `<div aria-label="${venue.name}" style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:${selected ? '#ff2e83' : '#141724'};border:2px solid ${selected ? '#fff' : '#ff2e83'};box-shadow:0 0 18px rgba(255,46,131,.55);font-size:18px">⌖</div>` });
       const marker = L.marker(venue.coordinates, { icon }).bindTooltip(`${venue.name}${distance === null ? '' : ` · ${distance.toFixed(0)} km`}`);
-      marker.on('click', () => { setSelectedVenue(venue); mapRef.current?.flyTo(venue.coordinates, 12); });
+      marker.on('click', () => { setSelectedVenueId(venue.id); mapRef.current?.flyTo(venue.coordinates, 12); });
       marker.addTo(layer);
     });
-  }, [selectedVenue, venuesWithDistance]);
+  }, [selectedVenue?.id, venuesWithDistance]);
 
   useEffect(() => {
-    tournamentXApi.notifications().then(setNotifications).catch(() => undefined);
+    void loadNotifications();
     const socket = io(SOCKET_URL, { reconnectionAttempts: 4 });
     socketRef.current = socket;
     socket.on('connect', () => { setSocketConnected(true); socket.emit('subscribe-notifications'); });
     socket.on('disconnect', () => setSocketConnected(false));
-    socket.on('notification:new', (notification: Notification) => setNotifications((current) => [notification, ...current].slice(0, 20)));
-    const channel = supabase
-      ?.channel('tournamentx-venue-notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-        const row = payload.new as Record<string, unknown>;
-        setNotifications((current) => [{ id: String(row.id), title: String(row.title), message: String(row.message), type: 'venue', createdAt: String(row.created_at) }, ...current].slice(0, 20));
-      })
-      .subscribe();
+    socket.on('notification:new', (notification: Notification) => mergeNotification(notification));
+    const refreshTimer = window.setInterval(() => void loadNotifications(), 60000);
     return () => {
       socket.emit('unsubscribe-notifications'); socket.disconnect();
-      if (channel && supabase) void supabase.removeChannel(channel);
+      window.clearInterval(refreshTimer);
     };
   }, []);
 
@@ -129,7 +147,15 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
     }, () => setLocationState('denied'), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   };
 
-  const selectVenue = (venue: Venue) => { setSelectedVenue(venue); mapRef.current?.flyTo(venue.coordinates, 12); };
+  const selectVenue = (venue: Venue) => { setSelectedVenueId(venue.id); mapRef.current?.flyTo(venue.coordinates, 12); };
+  const markRead = async (id: string) => {
+    try {
+      await tournamentXApi.markNotificationRead(id);
+      setNotifications((current) => current.map((item) => item.id === id ? { ...item, read: true } : item));
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No fue posible actualizar la notificación.');
+    }
+  };
   const locationMessage = locationState === 'denied' ? 'Permiso de ubicación denegado. Actívalo en tu navegador.'
     : locationState === 'unsupported' ? 'Este navegador no permite geolocalización.' : null;
 
@@ -137,15 +163,17 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div><h1 className="font-brand font-black text-4xl text-white uppercase italic flex items-center gap-3"><MapPin className="w-8 h-8 text-[#ff2e83]"/> Sedes y torneos cercanos</h1><p className="text-xs text-slate-400 mt-1">Explora arenas, usa tu ubicación y recibe alertas en tiempo real.</p></div>
       <div className="flex gap-2">
-        <button onClick={() => setNotificationsOpen((value) => !value)} className="relative px-4 py-2.5 rounded-xl bg-[#181b28] border border-[#282d42] text-white flex items-center gap-2"><Bell className="w-4 h-4"/> Alertas{notifications.length > 0 && <span className="rounded-full bg-[#ff2e83] px-2 text-[10px]">{notifications.length}</span>}</button>
+        <button onClick={() => setNotificationsOpen((value) => !value)} className="relative px-4 py-2.5 rounded-xl bg-[#181b28] border border-[#282d42] text-white flex items-center gap-2"><Bell className="w-4 h-4"/> Alertas{unreadNotifications > 0 && <span className="rounded-full bg-[#ff2e83] px-2 text-[10px]">{unreadNotifications}</span>}</button>
         <button onClick={locateUser} disabled={locationState === 'loading'} className="px-4 py-2.5 rounded-xl bg-[#ff2e83] disabled:opacity-60 text-white font-semibold text-xs flex items-center gap-2"><Navigation className="w-4 h-4"/>{locationState === 'loading' ? 'Localizando…' : 'Usar mi ubicación'}</button>
       </div>
     </header>
 
     {locationMessage && <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">{locationMessage}</div>}
+    {dataError && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{dataError}</div>}
     {notificationsOpen && <section className="rounded-2xl border border-[#282d42] bg-[#10121a] p-4 space-y-3">
-      <div className="flex items-center justify-between"><h2 className="font-bold text-white flex items-center gap-2"><BellRing className="w-4 h-4 text-[#ff2e83]"/> Notificaciones</h2><div className={`text-xs flex items-center gap-1 ${socketConnected ? 'text-emerald-400' : 'text-slate-500'}`}>{socketConnected ? <Wifi className="w-3 h-3"/> : <WifiOff className="w-3 h-3"/>}{socketConnected ? 'En tiempo real' : 'API desconectada'}</div><button aria-label="Cerrar" onClick={() => setNotificationsOpen(false)}><X className="w-4 h-4 text-slate-400"/></button></div>
-      {notifications.length === 0 ? <p className="text-sm text-slate-500">Aún no hay alertas.</p> : notifications.map((item) => <article key={item.id} className="rounded-xl bg-[#161926] border border-[#232738] p-3"><div className="font-semibold text-sm text-white">{item.title}</div><p className="text-xs text-slate-400 mt-1">{item.message}</p><time className="text-[10px] text-slate-600">{new Date(item.createdAt).toLocaleString()}</time></article>)}
+      <div className="flex items-center justify-between gap-3"><h2 className="font-bold text-white flex items-center gap-2"><BellRing className="w-4 h-4 text-[#ff2e83]"/> Notificaciones</h2><div className="ml-auto flex items-center gap-3"><div className={`text-xs flex items-center gap-1 ${socketConnected ? 'text-emerald-400' : 'text-slate-500'}`}>{socketConnected ? <Wifi className="w-3 h-3"/> : <WifiOff className="w-3 h-3"/>}{socketConnected ? 'En tiempo real' : 'Actualización periódica'}</div><button aria-label="Actualizar notificaciones" onClick={() => void loadNotifications()} disabled={notificationsLoading}><RefreshCw className={`w-4 h-4 text-slate-400 ${notificationsLoading ? 'animate-spin' : ''}`}/></button><button aria-label="Cerrar" onClick={() => setNotificationsOpen(false)}><X className="w-4 h-4 text-slate-400"/></button></div></div>
+      {notificationError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200"><span>{notificationError}</span><button onClick={() => void loadNotifications()} className="font-bold underline">Reintentar</button></div>}
+      {notificationsLoading && notifications.length === 0 ? <p className="text-sm text-slate-500">Consultando alertas…</p> : notifications.length === 0 ? <p className="text-sm text-slate-500">No tienes alertas pendientes.</p> : notifications.map((item) => <article key={item.id} className={`rounded-xl border p-3 ${item.read ? 'border-[#232738] bg-[#161926]/60' : 'border-[#ff2e83]/25 bg-[#ff2e83]/[.06]'}`}><div className="flex items-start justify-between gap-3"><div><div className="font-semibold text-sm text-white">{item.title}</div><p className="text-xs text-slate-400 mt-1">{item.message}</p></div>{!item.read && localStorage.getItem('tournamentx_token') && <button onClick={() => void markRead(item.id)} className="shrink-0 rounded-lg border border-white/10 px-2 py-1 text-[10px] text-slate-300">Marcar leída</button>}</div><time className="text-[10px] text-slate-600">{Number.isNaN(Date.parse(item.createdAt)) ? 'Fecha no disponible' : new Date(item.createdAt).toLocaleString()}</time></article>)}
     </section>}
 
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -157,6 +185,7 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
         <div className="relative rounded-3xl overflow-hidden border border-[#1e2230] shadow-2xl h-[500px]"><div ref={mapContainerRef} className="w-full h-full"/><div className="absolute top-4 left-14 z-[400] bg-[#0d0e14]/90 rounded-xl px-3 py-2 text-xs text-slate-300"><LocateFixed className="inline w-3 h-3 mr-1 text-[#ff2e83]"/>{venuesWithDistance.length} sedes visibles</div></div>
       </div>
       <aside className="space-y-3">
+        {!selectedVenue ? <div className="rounded-3xl border border-dashed border-white/10 bg-[#10121a] p-8 text-center"><MapPin className="mx-auto h-8 w-8 text-[#ff2e83]"/><h2 className="mt-3 font-bold text-white">No hay sedes registradas</h2><p className="mt-2 text-xs leading-5 text-slate-500">Cuando un organizador publique una sede aparecerá aquí con sus torneos asociados.</p></div> : <>
         <div className="p-5 rounded-3xl bg-[#10121a] border border-[#1e2230] space-y-4">
           <img src={selectedVenue.image} alt={selectedVenue.name} className="w-full h-36 object-cover rounded-2xl"/>
           <div><h2 className="font-bold text-xl text-white">{selectedVenue.name}</h2><p className="text-xs text-slate-400">{selectedVenue.address}</p></div>
@@ -166,6 +195,7 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
           <button onClick={() => onSelectVenueTournament?.(selectedVenue.name)} className="w-full py-2.5 rounded-xl bg-[#ff2e83] text-white text-xs font-bold">VER TORNEOS EN ESTA SEDE</button>
         </div>
         <div className="space-y-2 max-h-60 overflow-y-auto">{venuesWithDistance.length === 0 ? <p className="text-sm text-slate-500 p-3">No hay sedes dentro del radio seleccionado.</p> : venuesWithDistance.map(({ venue, distance }) => <button key={venue.id} onClick={() => selectVenue(venue)} className={`w-full p-3 rounded-2xl border text-left flex justify-between ${selectedVenue.id === venue.id ? 'bg-[#ff2e83]/10 border-[#ff2e83]' : 'bg-[#10121a] border-[#1e2230]'}`}><span><span className="block font-bold text-xs text-white">{venue.name}</span><span className="text-[10px] text-slate-500">{venue.city}{distance === null ? '' : ` · ${distance.toFixed(0)} km`}</span></span><ChevronRight className="w-4 h-4 text-slate-500"/></button>)}</div>
+        </>}
       </aside>
     </div>
   </div>;

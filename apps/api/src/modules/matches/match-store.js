@@ -11,8 +11,60 @@ const matchesSeed = [
     venue: 'Arena CDMX', mode: 'best_of_3', status: 'scheduled', score: { team1: 0, team2: 0 },
     streamUrl: null, createdAt: '2026-08-15T18:00:00.000Z', updatedAt: '2026-08-15T18:00:00.000Z',
   },
+  {
+    id: 'match-101', scheduleId: 'schedule-valorant', tournamentId: 'tour-community', roundId: 'Cuartos de final',
+    team1Id: 'team-lnx', team2Id: 'team-phoenix', scheduledAt: '2026-08-02T19:00:00.000Z', venue: 'Arena TournamentX CDMX',
+    mode: 'best_of_3', status: 'completed', score: { team1: 2, team2: 1 }, streamUrl: null,
+    createdAt: '2026-07-28T18:00:00.000Z', updatedAt: '2026-08-02T21:05:00.000Z',
+  },
+  {
+    id: 'match-102', scheduleId: 'schedule-valorant', tournamentId: 'tour-community', roundId: 'Semifinal',
+    team1Id: 'team-titans', team2Id: 'team-lnx', scheduledAt: '2026-08-09T20:00:00.000Z', venue: 'Servidor LATAM Norte',
+    mode: 'best_of_3', status: 'completed', score: { team1: 0, team2: 2 }, streamUrl: 'https://www.youtube.com/watch?v=6VOfpE_HGpw',
+    createdAt: '2026-08-03T18:00:00.000Z', updatedAt: '2026-08-09T22:10:00.000Z',
+  },
+  {
+    id: 'match-103', scheduleId: 'schedule-lol', tournamentId: 'tour-groups', roundId: 'Jornada 1',
+    team1Id: 'team-andes', team2Id: 'team-nova', scheduledAt: '2026-08-10T18:30:00.000Z', venue: 'Servidor LATAM Sur',
+    mode: 'best_of_3', status: 'completed', score: { team1: 2, team2: 1 }, streamUrl: null,
+    createdAt: '2026-08-04T18:00:00.000Z', updatedAt: '2026-08-10T20:55:00.000Z',
+  },
+  {
+    id: 'match-104', scheduleId: 'schedule-cs', tournamentId: 'tour-open', roundId: 'Ronda 1',
+    team1Id: 'team-raven', team2Id: 'team-nova', scheduledAt: '2026-08-11T17:00:00.000Z', venue: 'Servidor Europa Oeste',
+    mode: 'best_of_3', status: 'completed', score: { team1: 2, team2: 0 }, streamUrl: null,
+    createdAt: '2026-08-05T18:00:00.000Z', updatedAt: '2026-08-11T19:14:00.000Z',
+  },
+  {
+    id: 'match-105', scheduleId: 'schedule-football', tournamentId: 'tour-sports', roundId: 'Jornada 1',
+    team1Id: 'team-sonora-fc', team2Id: 'team-baja-fc', scheduledAt: '2026-08-12T02:00:00.000Z', venue: 'Estadio Regional Sonora',
+    mode: 'best_of_1', status: 'completed', score: { team1: 3, team2: 1 }, streamUrl: null,
+    createdAt: '2026-08-06T18:00:00.000Z', updatedAt: '2026-08-12T04:02:00.000Z',
+  },
+  {
+    id: 'match-106', scheduleId: 'schedule-basket', tournamentId: 'tour-sports', roundId: 'Jornada 1',
+    team1Id: 'team-desert-hoops', team2Id: 'team-pacific-hoops', scheduledAt: '2026-08-13T03:30:00.000Z', venue: 'Gimnasio TournamentX',
+    mode: 'best_of_1', status: 'completed', score: { team1: 88, team2: 82 }, streamUrl: null,
+    createdAt: '2026-08-07T18:00:00.000Z', updatedAt: '2026-08-13T05:41:00.000Z',
+  },
+  {
+    id: 'match-202', scheduleId: 'schedule-football', tournamentId: 'tour-sports', roundId: 'Jornada 2',
+    team1Id: 'team-baja-fc', team2Id: 'team-sonora-fc', scheduledAt: '2026-08-22T01:00:00.000Z', venue: 'Unidad Deportiva Baja',
+    mode: 'best_of_1', status: 'scheduled', score: { team1: 0, team2: 0 }, streamUrl: null,
+    createdAt: '2026-08-14T18:00:00.000Z', updatedAt: '2026-08-14T18:00:00.000Z',
+  },
+  {
+    id: 'match-203', scheduleId: 'schedule-basket', tournamentId: 'tour-sports', roundId: 'Jornada 2',
+    team1Id: 'team-pacific-hoops', team2Id: 'team-desert-hoops', scheduledAt: '2026-08-23T02:30:00.000Z', venue: 'Pacific Sports Center',
+    mode: 'best_of_1', status: 'scheduled', score: { team1: 0, team2: 0 }, streamUrl: null,
+    createdAt: '2026-08-14T18:00:00.000Z', updatedAt: '2026-08-14T18:00:00.000Z',
+  },
 ];
 const matches = localStore.collection('matches', matchesSeed);
+if (matchesSeed.some((seed) => !matches.some((match) => match.id === seed.id))) {
+  for (const seed of matchesSeed) if (!matches.some((match) => match.id === seed.id)) matches.push(structuredClone(seed));
+  localStore.saveCollection('matches', matches);
+}
 function persist() { localStore.saveCollection('matches', matches); }
 
 const selectMatch = `SELECT id, schedule_id AS "scheduleId", tournament_id AS "tournamentId", round_id AS "roundId",

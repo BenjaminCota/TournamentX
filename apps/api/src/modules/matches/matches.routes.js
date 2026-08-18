@@ -12,6 +12,7 @@ router.post('/:id/check-in', authenticate, authorize('captain'), validate(schema
 router.post('/:id/reports', authenticate, authorize('captain'), validate(schemas.reportResult), controller.reportResult);
 router.patch('/:id/reports/:reportId', authenticate, authorize('admin', 'organizer'), validate(schemas.reportDecision), controller.decideReport);
 router.post('/:id/disputes', authenticate, authorize('captain'), validate(schemas.dispute), controller.createDispute);
+router.patch('/:id/disputes/:disputeId', authenticate, authorize('admin', 'organizer'), validate(schemas.disputeDecision), controller.decideDispute);
 router.get('/:id', validate(schemas.matchId), controller.getMatch);
 
 module.exports = router;

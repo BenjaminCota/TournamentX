@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ExternalLink, Maximize, Pause, Play, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
+import { Maximize, Pause, Play, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import type { MediaStream } from './media.types';
 
 interface TwitchPlayerInstance {
@@ -18,6 +18,7 @@ interface TwitchPlayerConstructor {
   READY: string;
   PLAY: string;
   PAUSE: string;
+  OFFLINE: string;
 }
 
 interface YouTubePlayerInstance {
@@ -110,7 +111,10 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
           if (!active || !window.Twitch?.Player) return;
           const Constructor = window.Twitch.Player;
           const player = new Constructor(hostId, {
-            width: '100%', height: '100%', channel: stream.embedId,
+            width: '100%', height: '100%',
+            ...(stream.mediaKind === 'video'
+              ? { video: stream.embedId.startsWith('v') ? stream.embedId : `v${stream.embedId}` }
+              : { channel: stream.embedId }),
             parent: [window.location.hostname], autoplay: false, muted: true,
           });
           twitchRef.current = player;
@@ -119,10 +123,13 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
             player.setMuted(true);
             player.setVolume(volume / 100);
             setReady(true);
-            setMessage(stream.source === 'curated' ? 'Canal oficial enlazado · el estado se confirma con Twitch API' : stream.mediaKind === 'live' ? 'Directo oficial de Twitch' : 'Video oficial de Twitch');
+            setMessage(stream.mediaKind === 'channel'
+              ? 'Canal oficial embebido · al configurar Twitch API se sustituirá por su último VOD cuando esté fuera de línea.'
+              : stream.mediaKind === 'live' ? 'Directo oficial de Twitch' : 'Último video disponible de Twitch');
           });
           player.addEventListener(Constructor.PLAY, () => active && setPlaying(true));
           player.addEventListener(Constructor.PAUSE, () => active && setPlaying(false));
+          player.addEventListener(Constructor.OFFLINE, () => active && setMessage('El canal está fuera de línea. TournamentX solicitará su último VOD a Twitch API en la próxima actualización.'));
         } else {
           await loadYouTubeApi();
           if (!active || !window.YT?.Player || !host) return;
@@ -173,8 +180,8 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
   function seek(delta: number) {
     if (!ready) return;
     if (stream.platform === 'Twitch') {
-      if (stream.mediaKind === 'live') {
-        setMessage('Twitch no permite buscar dentro de una señal en vivo; el control funciona en VOD.');
+      if (stream.mediaKind !== 'video') {
+        setMessage('El avance de 10 segundos está disponible cuando Twitch entrega un VOD.');
         return;
       }
       const player = twitchRef.current;
@@ -219,7 +226,7 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
           </div>
         )}
         <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2">
-          <span className="rounded-md bg-red-500/90 px-2 py-1 text-[10px] font-black tracking-wider text-white">{stream.platform === 'Twitch' && stream.source === 'curated' ? 'CANAL' : stream.live ? 'EN VIVO' : 'VOD'}</span>
+          <span className={`rounded-md px-2 py-1 text-[10px] font-black tracking-wider text-white ${stream.live ? 'bg-red-500/90' : 'bg-[#5b4a86]/90'}`}>{stream.mediaKind === 'channel' ? 'CANAL EMBEBIDO' : stream.live ? 'EN VIVO' : stream.platform === 'Twitch' && stream.source === 'twitch' ? 'ÚLTIMO VIDEO' : 'VIDEO OFICIAL'}</span>
           <span className="rounded-md border border-white/10 bg-black/70 px-2 py-1 text-[10px] font-bold text-white backdrop-blur">{stream.platform}</span>
         </div>
       </div>
@@ -231,7 +238,6 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
           <button type="button" onClick={toggleMute} disabled={!ready} className={controlClass} aria-label={muted ? 'Activar sonido' : 'Silenciar'}>{muted ? <VolumeX className="h-4 w-4"/> : <Volume2 className="h-4 w-4"/>}</button>
           <input type="range" min="0" max="100" value={volume} onChange={(event) => changeVolume(Number(event.target.value))} disabled={!ready} aria-label="Volumen" className="stream-volume mx-1 hidden w-24 sm:block" />
           <p className="ml-2 hidden min-w-0 flex-1 truncate text-[11px] text-slate-500 md:block" aria-live="polite">{message}</p>
-          <a href={stream.url} target="_blank" rel="noreferrer" className={controlClass} aria-label="Abrir fuente original"><ExternalLink className="h-4 w-4"/></a>
           <button type="button" onClick={enterFullscreen} className={controlClass} aria-label="Pantalla completa"><Maximize className="h-4 w-4"/></button>
         </div>
         <p className="truncate px-2 pb-1 text-[11px] text-slate-500 md:hidden" aria-live="polite">{message}</p>

@@ -76,5 +76,9 @@ const dispute = z.object({
   params: workflowParams, query: z.any(),
   body: z.object({ teamId: opaqueId, reason: z.string().trim().min(5).max(500), evidenceUrl: z.string().url().max(1000).optional() }),
 });
+const disputeDecision = z.object({
+  params: z.object({ id: opaqueId, disputeId: opaqueId }), query: z.any(),
+  body: z.object({ decision: z.enum(['resolve', 'dismiss']), resolution: z.string().trim().min(5).max(1000) }),
+});
 
-module.exports = { listMatches, matchId, createMatch, updateMatchScore, workflow, checkIn, reportResult, reportDecision, dispute };
+module.exports = { listMatches, matchId, createMatch, updateMatchScore, workflow, checkIn, reportResult, reportDecision, dispute, disputeDecision };

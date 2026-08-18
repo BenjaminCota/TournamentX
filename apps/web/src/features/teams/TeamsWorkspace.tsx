@@ -30,7 +30,7 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
   onCreatePlayer,
   onUpdatePlayer,
 }) => (
-  <div className="min-h-screen bg-[#0a0b0e]">
+  <div className="tx-module-shell min-h-screen bg-[#0a0b0e]">
     <section className="border-b border-white/[.07] bg-[radial-gradient(circle_at_20%_0%,rgba(255,46,131,.12),transparent_34%),#0d0e13] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>

@@ -20,5 +20,7 @@ router.post('/:id/bracket/generate', ...manager, controller.generateBracket);
 router.put('/:id/bracket-matches/:matchId/result', ...manager, controller.reportBracketMatchResult);
 
 router.get('/:id/status', controller.getStatus);
+router.patch('/:id/status', ...manager, controller.changeStatus);
+router.get('/:id/audit', ...manager, controller.listAudit);
 
 module.exports = router;

@@ -20,7 +20,7 @@ interface PlayersViewProps {
 export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, currentUserId, players, onCreatePlayer, onUpdatePlayer }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get('team_invite') || '');
   const [inviteMessage, setInviteMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [showAddModal, setShowAddModal] = useState(false);

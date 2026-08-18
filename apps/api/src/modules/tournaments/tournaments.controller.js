@@ -112,6 +112,18 @@ async function getStatus(req, res, next) {
   }
 }
 
+async function changeStatus(req, res, next) {
+  try {
+    const allowed = ['DRAFT', 'OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED'];
+    if (!allowed.includes(req.body.status)) throw new HttpError(400, 'Estado de torneo no válido');
+    res.json(store.changeStatus(req.params.id, req.body.status, req.user.sub, String(req.body.note || '').slice(0, 500)));
+  } catch (error) { next(error); }
+}
+
+async function listAudit(req, res, next) {
+  try { res.json({ data: store.listAudit(req.params.id) }); } catch (error) { next(error); }
+}
+
 module.exports = {
   listTournaments,
   getTournament,
@@ -125,4 +137,6 @@ module.exports = {
   getBracket,
   reportBracketMatchResult,
   getStatus,
+  changeStatus,
+  listAudit,
 };

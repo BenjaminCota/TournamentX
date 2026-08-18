@@ -181,7 +181,7 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
         </div>
         <div className={`${dimensions.fullWidth} mt-2`}>
           <div className="flex items-center justify-center font-brand font-black text-white tracking-tight uppercase leading-none text-4xl sm:text-5xl lg:text-6xl">
-            <span>TURNAMENT</span>
+            <span>TOURNAMENT</span>
             <span className="text-[#ff2e83] italic drop-shadow-[0_0_15px_rgba(255,46,131,0.8)] ml-0.5">X</span>
           </div>
         </div>
@@ -213,7 +213,7 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
         className={`flex items-center cursor-pointer select-none group ${className}`}
       >
         <span className={`font-brand font-black tracking-tight uppercase ${dimensions.text} text-white group-hover:text-pink-50 transition-colors`}>
-          TURNAMENT<span className="text-[#ff2e83] italic drop-shadow-[0_0_10px_rgba(255,46,131,0.7)] ml-0.5">X</span>
+          TOURNAMENT<span className="text-[#ff2e83] italic drop-shadow-[0_0_10px_rgba(255,46,131,0.7)] ml-0.5">X</span>
         </span>
       </div>
     );
@@ -234,7 +234,7 @@ export const TournamentXLogo: React.FC<LogoProps> = ({
       {showText && (
         <div className="flex items-center leading-none">
           <span className={`font-brand font-black tracking-tight ${dimensions.text} text-white uppercase group-hover:text-pink-50 transition-colors`}>
-            TURNAMENT
+            TOURNAMENT
           </span>
           <span className={`font-brand font-black ${dimensions.text} text-[#ff2e83] italic drop-shadow-[0_0_8px_rgba(255,46,131,0.7)] ml-0.5 group-hover:scale-110 transition-transform`}>
             X
