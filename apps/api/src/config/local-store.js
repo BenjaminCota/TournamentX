@@ -8,6 +8,33 @@ const dataFile = process.env.LOCAL_DATA_FILE
 
 let memoryState = {};
 
+const transientWriteErrors = new Set(['EACCES', 'EBUSY', 'EPERM']);
+
+function waitForFileUnlock(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function replaceDataFile(temporary) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      fs.renameSync(temporary, dataFile);
+      return;
+    } catch (error) {
+      if (!transientWriteErrors.has(error.code) || attempt === 4) {
+        if (!transientWriteErrors.has(error.code)) throw error;
+        break;
+      }
+      waitForFileUnlock(20 * (attempt + 1));
+    }
+  }
+
+  // Windows can briefly lock the destination while an editor, antivirus or a
+  // second local process reads it. The temporary file already contains a full,
+  // valid JSON document, so copying it is a safe last resort for local mode.
+  fs.copyFileSync(temporary, dataFile);
+  fs.rmSync(temporary, { force: true });
+}
+
 function readDisk() {
   if (isTest) return memoryState;
   try {
@@ -22,9 +49,13 @@ function writeDisk(state) {
   memoryState = state;
   if (isTest) return;
   fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-  const temporary = `${dataFile}.tmp`;
-  fs.writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
-  fs.renameSync(temporary, dataFile);
+  const temporary = `${dataFile}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+  try {
+    fs.writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+    replaceDataFile(temporary);
+  } finally {
+    fs.rmSync(temporary, { force: true });
+  }
 }
 
 function collection(name, seed = []) {

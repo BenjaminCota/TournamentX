@@ -265,6 +265,15 @@ export default function App() {
     }
   };
 
+  const handleDeletePlayer = async (id: string) => {
+    await tournamentXApi.deletePlayer(id);
+    setPlayers((currentPlayers) => currentPlayers.filter((player) => player.id !== id));
+    setTeams((currentTeams) => currentTeams.map((team) => ({
+      ...team,
+      roster: team.roster.filter((member) => (member.playerId || member.id) !== id),
+    })));
+  };
+
   const handleAddRosterMember = async (teamId: string, playerId: string, role: string) => {
     const alreadyInTeam = teams
       .find((team) => team.id === teamId)?.roster.some((member) => member.playerId === playerId);
@@ -465,6 +474,7 @@ export default function App() {
                 onCreateTeam={handleCreateTeam}
                 onCreatePlayer={handleCreatePlayer}
                 onUpdatePlayer={handleUpdatePlayer}
+                onDeletePlayer={handleDeletePlayer}
               />
             )}
             {activeTab === 'team_detail' && (

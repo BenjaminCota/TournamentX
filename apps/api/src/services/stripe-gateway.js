@@ -70,6 +70,11 @@ async function confirmTestPayment(providerReference, client = createClient()) {
   return { providerReference: paymentIntent.id, providerStatus: paymentIntent.status };
 }
 
+async function retrievePayment(providerReference, client = createClient()) {
+  const paymentIntent = await client.paymentIntents.retrieve(providerReference);
+  return { providerReference: paymentIntent.id, providerStatus: paymentIntent.status };
+}
+
 function constructWebhookEvent(payload, signature, client = createClient()) {
   if (!env.stripeWebhookSecret) throw new HttpError(503, 'Falta STRIPE_WEBHOOK_SECRET');
   return client.webhooks.constructEvent(payload, signature, env.stripeWebhookSecret);
@@ -124,6 +129,7 @@ module.exports = {
   cancelPayment,
   refundPayment,
   confirmTestPayment,
+  retrievePayment,
   constructWebhookEvent,
   createConnectedAccount,
   retrieveConnectedAccount,

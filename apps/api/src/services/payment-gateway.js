@@ -10,7 +10,9 @@ async function createPayment({ provider, amount, currency, reference, idempotenc
   if (env.stripeMode === 'test') {
     return stripeGateway.authorizePayment({ amount, currency, reference, idempotencyKey });
   }
-  if (!env.isTestRun) throw new HttpError(503, 'Stripe no está configurado para procesar pagos');
+  if (env.paymentsMode !== 'simulated' && !env.isTestRun) {
+    throw new HttpError(503, 'Stripe no está configurado para procesar pagos');
+  }
 
   const providerReference = `pi_test_${crypto.randomUUID()}`;
   return {

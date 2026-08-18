@@ -10,9 +10,11 @@ const referee = { Authorization: `Bearer ${jwt.sign({ sub: 'e2e-referee', role: 
 
 test('recorrido E2E: equipos, torneo, calendario, resultado, notificación y premio', async () => {
   const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const captainOne = { Authorization: `Bearer ${jwt.sign({ sub: `e2e-captain-one-${suffix}`, role: 'captain' }, secret)}` };
+  const captainTwo = { Authorization: `Bearer ${jwt.sign({ sub: `e2e-captain-two-${suffix}`, role: 'captain' }, secret)}` };
   const teamIds = [];
-  for (const label of ['Alfa', 'Beta']) {
-    const team = await request(app).post('/api/teams').set(organizer).send({
+  for (const [index, label] of ['Alfa', 'Beta'].entries()) {
+    const team = await request(app).post('/api/teams').set(index === 0 ? captainOne : captainTwo).send({
       name: `E2E ${label} ${suffix}`,
       abbreviation: `${label[0]}${suffix.slice(-5)}`,
       sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
@@ -63,7 +65,12 @@ test('recorrido E2E: equipos, torneo, calendario, resultado, notificación y pre
 
   const reward = await request(app).post(`/api/prize-pools/${pool.body.data.id}/results`).set(organizer);
   assert.equal(reward.status, 201);
-  assert.equal(reward.body.data.payout.recipientId, teamIds[0]);
-  assert.equal(reward.body.data.payout.amount, 250);
-  assert.equal((await request(app).get(`/api/receipts/${reward.body.data.payout.receiptCode}`).set(organizer)).status, 200);
+  assert.equal(reward.body.data.winner.recipientId, teamIds[0]);
+  assert.equal(reward.body.data.rule.amount, 250);
+  assert.equal((await request(app).post(`/api/prize-pools/${pool.body.data.id}/claim`).set(captainTwo)).status, 403);
+  const claimed = await request(app).post(`/api/prize-pools/${pool.body.data.id}/claim`).set(captainOne).send({ payoutMethod: { type: 'card', brand: 'visa', last4: '4242', cardholderName: 'Capitán E2E' } });
+  assert.equal(claimed.status, 201);
+  assert.equal(claimed.body.data.payout.recipientId, teamIds[0]);
+  assert.equal(claimed.body.data.payout.amount, 250);
+  assert.equal((await request(app).get(`/api/receipts/${claimed.body.data.payout.receiptCode}`).set(captainOne)).status, 200);
 });

@@ -210,6 +210,11 @@ export const supabaseRepository = {
     const { id: _ignored, ...values } = playerInput(input);
     const { data, error } = await requireSupabase().from('players').update(values).eq('id', id).select('*').single(); fail(error); return mapPlayer(data);
   },
+  async deletePlayer(id: string) {
+    const { data, error } = await requireSupabase().from('players').delete().eq('id', id).select('id').maybeSingle();
+    fail(error);
+    if (!data) throw new Error('No se eliminó el jugador. Verifica tu rol y que el registro todavía exista.');
+  },
   async addRosterMember(teamId: string, input: { playerId: string; role: string; status?: string }) {
     const player = await this.player(input.playerId);
     const { data, error } = await requireSupabase().from('team_roster').insert({ team_id: teamId, player_id: input.playerId, role_name: input.role, status: input.status || 'active', ovr: player.ratingOVR || 85 }).select('id').single(); fail(error);

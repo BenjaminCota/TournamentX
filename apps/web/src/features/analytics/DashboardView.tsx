@@ -190,7 +190,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* SECTION: TORNEOS ACTIVOS (Image 5) */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-display font-bold text-xl uppercase tracking-wider text-white flex items-center gap-2">
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-white">
                 <Trophy className="w-5 h-5 text-[#ff2e83]" />
                 TORNEOS ACTIVOS
               </h2>
@@ -203,7 +203,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {activeTournaments.slice(0, 2).map((tournament, index) => <div key={tournament.id} data-accent={index % 2 ? 'blue' : 'violet'} onClick={() => onNavigate('tournaments')} className="tx-dashboard-card p-5 rounded-2xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83]/60 transition-all cursor-pointer group flex flex-col justify-between"><div className="space-y-2"><div className="flex items-center justify-between"><span className="px-2 py-0.5 rounded bg-[#ff2e83]/15 text-[#ff69a8] font-bold text-[10px]">{tournament.tier}</span><span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold text-[10px]">{tournament.status}</span></div><h3 className="font-display font-bold text-lg text-white group-hover:text-[#ff2e83]">{tournament.name}</h3><p className="text-xs text-slate-400">{tournament.registeredTeams}/{tournament.maxTeams} inscritos · {tournament.format.replaceAll('_', ' ')}</p></div><div className="mt-4 pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs"><span className="text-slate-400">Premio:</span><span className="font-bold text-emerald-400">{tournament.prizePool || `$${tournament.prizeAmountUSD.toLocaleString()} USD`}</span></div></div>)}
+              {activeTournaments.slice(0, 2).map((tournament, index) => <div key={tournament.id} data-accent={index % 2 ? 'blue' : 'violet'} onClick={() => onNavigate('tournaments')} className="tx-dashboard-card p-5 rounded-2xl bg-[#10121a] border border-[#1e2230] hover:border-[#ff2e83]/60 transition-all cursor-pointer group flex flex-col justify-between"><div className="space-y-2"><div className="flex items-center justify-between"><span className="px-2 py-0.5 rounded bg-[#ff2e83]/15 text-[#ff69a8] font-bold text-[10px]">{tournament.tier}</span><span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold text-[10px]">{tournament.status}</span></div><h3 className="text-lg font-semibold leading-snug text-white group-hover:text-[#ff2e83]">{tournament.name}</h3><p className="text-xs leading-relaxed text-slate-400">{tournament.registeredTeams}/{tournament.maxTeams} inscritos · {tournament.format.replaceAll('_', ' ')}</p></div><div className="mt-4 pt-3 border-t border-[#1e2230] flex items-center justify-between text-xs"><span className="text-slate-400">Premio:</span><span className="font-bold text-emerald-400">{tournament.prizePool || `$${tournament.prizeAmountUSD.toLocaleString()} USD`}</span></div></div>)}
               {activeTournaments.length === 0 && <div className="sm:col-span-2 p-8 rounded-2xl border border-dashed border-white/10 text-center text-sm text-slate-500">No hay torneos activos. Crea uno nuevo o consulta el historial completo.</div>}
             </div>
           </div>

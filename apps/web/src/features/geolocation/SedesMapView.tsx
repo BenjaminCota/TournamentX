@@ -12,7 +12,18 @@ type Notification = { id: string; title: string; message: string; type: string; 
 interface SedesMapViewProps { onSelectVenueTournament?: (venueName: string) => void }
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000';
-const VENUE_PLACEHOLDER = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=900&auto=format&fit=crop&q=80';
+const VENUE_IMAGES = [
+  'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=900&auto=format&fit=crop&q=82',
+  'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=900&auto=format&fit=crop&q=82',
+  'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=900&auto=format&fit=crop&q=82',
+  'https://images.unsplash.com/photo-1598550476439-6847785fcea6?w=900&auto=format&fit=crop&q=82',
+  'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=900&auto=format&fit=crop&q=82',
+];
+
+function venueFallbackImage(venue: Venue, index: number) {
+  const hash = [...String(venue.id || venue.name)].reduce((total, character) => total + character.charCodeAt(0), index);
+  return VENUE_IMAGES[hash % VENUE_IMAGES.length];
+}
 
 function distanceKm(origin: Coordinates, destination: [number, number]) {
   const radians = (value: number) => value * Math.PI / 180;
@@ -83,9 +94,9 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
       tournamentXApi.venues(),
       tournamentXApi.tournaments(),
     ]).then(([venueRows, tournamentRows]) => {
-      const normalized = venueRows.map((venue) => ({
+      const normalized = venueRows.map((venue, index) => ({
         ...venue,
-        image: venue.image || VENUE_PLACEHOLDER,
+        image: venue.image || venueFallbackImage(venue, index),
         features: venue.features.length ? venue.features : ['Streaming', 'Zona de jugadores', 'Accesibilidad'],
       }));
       setVenues(normalized);

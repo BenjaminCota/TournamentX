@@ -16,6 +16,7 @@ interface TeamsWorkspaceProps {
   onCreateTeam: (team: Partial<Team>) => Promise<Team> | Team;
   onCreatePlayer: (data: Partial<User>) => Promise<User>;
   onUpdatePlayer: (id: string, data: Partial<User>) => Promise<User>;
+  onDeletePlayer: (id: string) => Promise<void>;
 }
 
 export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
@@ -29,6 +30,7 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
   onCreateTeam,
   onCreatePlayer,
   onUpdatePlayer,
+  onDeletePlayer,
 }) => (
   <div className="tx-module-shell min-h-screen bg-[#0a0b0e]">
     <section className="border-b border-white/[.07] bg-[radial-gradient(circle_at_20%_0%,rgba(255,46,131,.12),transparent_34%),#0d0e13] px-4 py-5 sm:px-6 lg:px-8">
@@ -54,7 +56,7 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
     {section === 'teams' ? (
       <TeamsListView teams={teams} currentUserRole={currentUserRole} onSelectTeam={onSelectTeam} onCreateTeam={onCreateTeam} />
     ) : (
-      <PlayersView currentUserRole={currentUserRole} currentUserId={currentUserId} players={players} onCreatePlayer={onCreatePlayer} onUpdatePlayer={onUpdatePlayer} />
+      <PlayersView currentUserRole={currentUserRole} currentUserId={currentUserId} players={players} onCreatePlayer={onCreatePlayer} onUpdatePlayer={onUpdatePlayer} onDeletePlayer={onDeletePlayer} />
     )}
   </div>
 );

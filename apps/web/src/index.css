@@ -38,6 +38,7 @@
 @layer components {
   .field { width: 100%; border-radius: .75rem; border: 1px solid var(--tx-border); background: linear-gradient(145deg, #181a28, #11131d); padding-top: .8rem; padding-bottom: .8rem; padding-right: 1rem; font-size: .875rem; color: var(--tx-text-strong); outline: none; }
   .field:focus { border-color: #ff2e83; box-shadow: 0 0 0 3px rgba(255,46,131,.12); }
+  .field option, .field optgroup { background-color: #11131d; color: #fff; }
   .surface { position: relative; border: 1px solid var(--tx-border); background: radial-gradient(circle at 100% 0, rgba(139,92,246,.07), transparent 34%), linear-gradient(145deg, rgba(21,23,35,.98), rgba(12,13,21,.98)); box-shadow: 0 18px 60px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.025); border-radius: 1.25rem; }
   .surface:hover { border-color: rgba(255,255,255,.15); box-shadow: 0 22px 65px rgba(0,0,0,.3); }
   .status-chip { display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); border-radius: 999px; padding: .35rem .65rem; font-size: .65rem; font-weight: 700; letter-spacing: .03em; }
