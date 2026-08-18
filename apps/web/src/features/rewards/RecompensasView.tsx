@@ -15,7 +15,6 @@ import { EscrowTransaction, UserRole } from '../../types';
 import confetti from 'canvas-confetti';
 import { QRCodeSVG } from 'qrcode.react';
 import { loadStripe, Stripe, StripeCardElement } from '@stripe/stripe-js';
-import { notify } from '../../shared/feedback';
 
 interface RecompensasViewProps {
   currentUserRole: UserRole;
@@ -93,19 +92,12 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
   useEffect(() => { void (async () => {
     try {
       const definitiveToken = localStorage.getItem('tournamentx_token');
-      if (!definitiveToken) throw new Error('Inicia sesión para administrar premios y pagos');
       const definitivePoolId = localStorage.getItem('tournamentx_prize_pool_id');
       const definitivePoolName = localStorage.getItem('tournamentx_prize_pool_name');
       const definitiveSponsorId = localStorage.getItem('tournamentx_sponsor_id');
-      let poolId = definitivePoolId; let poolName = definitivePoolName; let sponsorId = definitiveSponsorId; let sponsorName = 'Patrocinador';
-      if (!poolId || !sponsorId) {
-        const [poolBody, sponsorBody] = await Promise.all([apiRequest('/prize-pools', {}, definitiveToken), apiRequest('/sponsors', {}, definitiveToken)]);
-        const firstPool = poolBody.data?.[0]; const firstSponsor = sponsorBody.data?.[0];
-        if (!firstPool || !firstSponsor) throw new Error('Crea una bolsa de premios y un patrocinador para continuar');
-        poolId = firstPool.id; poolName = firstPool.name; sponsorId = firstSponsor.id; sponsorName = firstSponsor.name;
-        localStorage.setItem('tournamentx_prize_pool_id', poolId); localStorage.setItem('tournamentx_prize_pool_name', poolName); localStorage.setItem('tournamentx_sponsor_id', sponsorId);
-      }
-      const active = { token: definitiveToken, stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null, sponsor: { id: sponsorId, name: sponsorName }, prizePool: { id: poolId, name: poolName || 'Bolsa de premios' } };
+      const active = definitiveToken && definitivePoolId && definitiveSponsorId
+        ? { token: definitiveToken, stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null, sponsor: { id: definitiveSponsorId, name: 'Patrocinador' }, prizePool: { id: definitivePoolId, name: definitivePoolName || 'Bolsa de premios' } }
+        : await apiRequest('/dev8-demo/session', { method: 'POST' }, null);
       setDemoSession(active);
       setSelectedSponsorId(active.sponsor.id);
       await loadData(active);
@@ -142,17 +134,14 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
       });
       if (provider === 'stripe') {
         setConnectionMessage('Validando la tarjeta...');
-        if (created.payment.clientSecret && stripeRef.current && cardElementRef.current) {
-          const confirmation = await stripeRef.current.confirmCardPayment(created.payment.clientSecret, { payment_method: { card: cardElementRef.current } });
-          if (confirmation.error) throw new Error(confirmation.error.message || 'Stripe rechazó los datos de prueba');
-          for (let attempt = 0; attempt < 24; attempt += 1) {
-            const listed = await apiRequest('/contributions');
-            const current = (listed.data as ApiContribution[]).find((item) => item.id === created.data.id);
-            if (current?.status === 'authorized') break;
-            await new Promise((resolve) => setTimeout(resolve, 250));
-          }
-        } else {
-          await apiRequest(`/contributions/${created.data.id}/stripe/test-authorize`, { method: 'POST' });
+        if (!stripeRef.current || !cardElementRef.current || !created.payment.clientSecret) throw new Error('El formulario de tarjeta todavía no está listo; espera un momento');
+        const confirmation = await stripeRef.current.confirmCardPayment(created.payment.clientSecret, { payment_method: { card: cardElementRef.current } });
+        if (confirmation.error) throw new Error(confirmation.error.message || 'Stripe rechazó los datos de prueba');
+        for (let attempt = 0; attempt < 24; attempt += 1) {
+          const listed = await apiRequest('/contributions');
+          const current = (listed.data as ApiContribution[]).find((item) => item.id === created.data.id);
+          if (current?.status === 'authorized') break;
+          await new Promise((resolve) => setTimeout(resolve, 250));
         }
         await apiRequest(`/contributions/${created.data.id}/stripe/capture`, { method: 'POST' });
         setConnectionMessage('Aportación con tarjeta registrada');
@@ -170,11 +159,8 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
         spread: 60,
         origin: { y: 0.6 }
       });
-      notify('success', `Aportación de $${Number(amountInput).toLocaleString()} confirmada.`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No fue posible procesar el pago';
-      setConnectionMessage(message);
-      notify('error', message);
+      setConnectionMessage(error instanceof Error ? error.message : 'No fue posible procesar el pago');
     } finally { setIsProcessing(false); }
   };
 
@@ -193,24 +179,23 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
     try {
       await apiRequest(`/prize-pools/${demoSession.prizePool.id}/payouts`, { method: 'POST', body: JSON.stringify({ recipientId, position: pendingRule.position, destination: `simulated:winner:${recipientId}` }) });
       await loadData(demoSession); setConnectionMessage(`Payout de la posición ${pendingRule.position} liberado`);
-      notify('success', `Pago de la posición ${pendingRule.position} liberado.`);
-    } catch (error) { const message = error instanceof Error ? error.message : 'No fue posible entregar el pago'; setConnectionMessage(message); notify('error', message); }
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible entregar el pago'); }
   };
 
   const addSponsor = async () => {
     if (!demoSession) return;
     const name = window.prompt('Nombre del patrocinador'); const contactEmail = window.prompt('Correo del patrocinador');
     if (!name || !contactEmail) return;
-    try { await apiRequest('/sponsors', { method: 'POST', body: JSON.stringify({ name, contactEmail }) }); await loadData(demoSession); notify('success', 'Patrocinador agregado correctamente.'); }
-    catch (error) { const message = error instanceof Error ? error.message : 'No fue posible crear el patrocinador'; setConnectionMessage(message); notify('error', message); }
+    try { await apiRequest('/sponsors', { method: 'POST', body: JSON.stringify({ name, contactEmail }) }); await loadData(demoSession); }
+    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el patrocinador'); }
   };
 
   const addReward = async () => {
     if (!demoSession) return;
     const name = window.prompt('Nombre del premio o cupón'); if (!name) return;
     const quantity = Number(window.prompt('Cantidad disponible', '1') || 1);
-    try { await apiRequest('/rewards', { method: 'POST', body: JSON.stringify({ prizePoolId: demoSession.prizePool.id, rewardType: 'coupon', name, quantity }) }); await loadData(demoSession); notify('success', 'Premio agregado correctamente.'); }
-    catch (error) { const message = error instanceof Error ? error.message : 'No fue posible crear el premio'; setConnectionMessage(message); notify('error', message); }
+    try { await apiRequest('/rewards', { method: 'POST', body: JSON.stringify({ prizePoolId: demoSession.prizePool.id, rewardType: 'coupon', name, quantity }) }); await loadData(demoSession); }
+    catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible crear el premio'); }
   };
 
   const configureDistribution = async () => {
@@ -218,8 +203,8 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
     if (!poolDetails || Number(poolDetails.fundedAmount) <= 0) { setConnectionMessage('Registra al menos una aportación pagada antes de distribuir'); return; }
     try {
       await apiRequest(`/prize-pools/${demoSession.prizePool.id}/distribution`, { method: 'PUT', body: JSON.stringify({ rules: [{ position: 1, percentage: 60 }, { position: 2, percentage: 25 }, { position: 3, percentage: 15 }] }) });
-      await loadData(demoSession); setConnectionMessage('Distribución guardada correctamente'); notify('success', 'Distribución de premios guardada.');
-    } catch (error) { const message = error instanceof Error ? error.message : 'No fue posible configurar la distribución'; setConnectionMessage(message); notify('error', message); }
+      await loadData(demoSession); setConnectionMessage('Distribución guardada correctamente');
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible configurar la distribución'); }
   };
 
   const downloadReceipt = async (receiptCode: string) => {
@@ -227,8 +212,7 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
       const body = await apiRequest(`/receipts/${receiptCode}`, {}, null);
       const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${receiptCode}.json`; link.click(); URL.revokeObjectURL(url);
-      notify('success', 'Comprobante descargado.');
-    } catch (error) { const message = error instanceof Error ? error.message : 'No fue posible descargar el recibo'; setConnectionMessage(message); notify('error', message); }
+    } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible descargar el recibo'); }
   };
 
   return (
@@ -334,7 +318,8 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
                   <span className="font-mono-code">Tarjeta de prueba</span>
                   <span className="text-emerald-400 font-bold">Sin dinero real</span>
                 </div>
-                {demoSession?.stripePublishableKey ? <><div id="stripe-card-element" className="w-full min-h-10 bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-3" /><p className="text-[10px] text-slate-500">Prueba: 4242 4242 4242 4242 · vencimiento futuro · CVC de 3 dígitos · cualquier C.P.</p></> : <div className="w-full rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">Simulación local lista: se autorizará y capturará sin mover dinero real.</div>}
+                <div id="stripe-card-element" className="w-full min-h-10 bg-[#0c0d14] border border-[#1e2230] rounded-xl px-4 py-3" />
+                <p className="text-[10px] text-slate-500">Prueba: 4242 4242 4242 4242 · vencimiento futuro · CVC de 3 dígitos · cualquier C.P.</p>
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-[#141724] border border-[#F0B90B]/30 flex items-center gap-4">
@@ -352,7 +337,7 @@ export const RecompensasView: React.FC<RecompensasViewProps> = ({ currentUserRol
 
             <button
               type="submit"
-              disabled={isProcessing || !demoSession || poolDetails?.status !== 'funding' || (activeGateway === 'STRIPE' && Boolean(demoSession?.stripePublishableKey) && !stripeReady)}
+              disabled={isProcessing || !demoSession || poolDetails?.status !== 'funding' || (activeGateway === 'STRIPE' && !stripeReady)}
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {isProcessing ? (
