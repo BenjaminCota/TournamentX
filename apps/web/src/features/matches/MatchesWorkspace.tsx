@@ -31,12 +31,12 @@ export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, cur
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {section === 'live_match' && <button type="button" onClick={() => onNavigate('calendar')} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-slate-300 hover:border-[#ff2e83]/40 hover:text-white"><ArrowLeft className="h-4 w-4"/> Volver a la agenda</button>}
-          <div className="grid gap-1.5 rounded-2xl border border-white/[.08] bg-black/25 p-1.5 sm:grid-cols-2" role="tablist" aria-label="Secciones de partidos">
+          <div className="grid w-full grid-cols-2 gap-1.5 rounded-2xl border border-white/[.08] bg-black/25 p-1.5 sm:w-auto" role="tablist" aria-label="Secciones de partidos">
           {sections.map((item) => {
             const Icon = item.icon;
             const active = section === item.id;
             return (
-              <button type="button" role="tab" aria-selected={active} key={item.id} onClick={() => onNavigate(item.id)} className={`flex min-w-44 items-center gap-3 rounded-xl px-4 py-2.5 text-left ${active ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>
+              <button type="button" role="tab" aria-selected={active} key={item.id} onClick={() => onNavigate(item.id)} className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-left sm:min-w-44 sm:gap-3 sm:px-4 ${active ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>
                 <Icon className={`h-4 w-4 ${active ? 'text-[#ff4b94]' : ''}`} />
                 <span><b className="block text-xs">{item.label}</b><small className="block text-[10px] font-normal text-slate-500">{item.helper}</small></span>
               </button>

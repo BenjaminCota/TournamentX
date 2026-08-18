@@ -89,16 +89,16 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
   };
 
   return (
-    <div id="tournament-create-wizard-modal" className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-[#0f111a] border border-[#232738] rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div id="tournament-create-wizard-modal" className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/85 p-0 backdrop-blur-md sm:items-center sm:p-6">
+      <div className="flex max-h-[100dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl border border-[#232738] bg-[#0f111a] shadow-2xl animate-in zoom-in-95 duration-200 sm:max-h-[90vh] sm:rounded-3xl">
         {/* Wizard Header */}
-        <div className="p-6 bg-[#131624] border-b border-[#1e2230] flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-[#1e2230] bg-[#131624] p-4 sm:p-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#ff2e83]/20 border border-[#ff2e83]/40 flex items-center justify-center text-[#ff2e83]">
               <Trophy className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold tracking-tight text-white">
+              <h2 className="text-base font-bold tracking-tight text-white sm:text-2xl">
                 CREADOR DE TORNEOS TOURNAMENTX
               </h2>
               <p className="text-xs text-slate-400 font-tech">
@@ -433,12 +433,12 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
         </div>
 
         {/* Wizard Footer Controls */}
-        <div className="p-6 bg-[#131624] border-t border-[#1e2230] flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#1e2230] bg-[#131624] p-4 sm:flex-nowrap sm:gap-4 sm:p-6">
           <button
             type="button"
             disabled={currentStep === 1}
             onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
-            className="px-5 py-2.5 rounded-xl border border-[#232738] text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-40 flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2 rounded-xl border border-[#232738] px-3 py-2.5 text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-40 sm:px-5 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>ANTERIOR</span>
@@ -452,9 +452,9 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             <button
               type="button"
               onClick={() => setCurrentStep(s => Math.min(7, s + 1))}
-              className="px-6 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-bold text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 flex items-center gap-2 cursor-pointer"
+              className="flex max-w-[70%] items-center gap-2 rounded-xl bg-[#ff2e83] px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-[#ff2e83]/30 hover:bg-[#e11d48] sm:max-w-none sm:px-6 cursor-pointer"
             >
-              <span>SIGUIENTE: {steps[currentStep].title}</span>
+              <span className="truncate">SIGUIENTE: {steps[currentStep].title}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           ) : (

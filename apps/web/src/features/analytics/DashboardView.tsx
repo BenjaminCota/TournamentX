@@ -65,12 +65,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const upcomingMatches = matches.filter((match) => ['scheduled', 'postponed'].includes(match.status)).slice(0, 4).map((match) => ({ id: match.id, group: `${match.roundId || 'Ronda'} • ${match.mode.replaceAll('_', ' ').toUpperCase()}`, team1: teamName(match.team1Id), team2: teamName(match.team2Id), time: new Date(match.scheduledAt).toLocaleString(), game: tournaments.find((item) => item.id === match.tournamentId)?.game || 'Competencia' }));
 
   return (
-    <div id="dashboard-view-main" className="relative p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div id="dashboard-view-main" className="relative mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
       {/* Top Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="mb-2 h-1 w-24 rounded-full bg-gradient-to-r from-[#ff2e83] via-[#8b5cf6] to-[#22d3ee] shadow-[0_0_18px_rgba(139,92,246,.35)]" />
-          <h1 className="font-brand font-black text-4xl text-white uppercase tracking-[.025em] italic">
+          <h1 className="font-brand text-3xl font-black uppercase tracking-[.025em] text-white sm:text-4xl">
             CENTRO DE MANDO PRO
           </h1>
           <p className="text-xs text-slate-400 font-tech">

@@ -44,12 +44,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
-      <div className="mx-auto flex min-h-16 max-w-[1540px] items-center gap-3 px-4 lg:gap-5 lg:px-7">
-        <div className="shrink-0 border-r border-white/[.08] pr-4">
-          <TournamentXLogo size="sm" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
+      <div className="mx-auto flex min-h-16 max-w-[1540px] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:gap-5 lg:px-7">
+        <div className="shrink-0 border-r border-white/[.08] pr-2 sm:pr-4">
+          <TournamentXLogo variant="icon" size="sm" className="sm:hidden" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
+          <TournamentXLogo size="sm" className="hidden sm:flex" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
         </div>
 
-        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2" aria-label="Navegación principal">
+        <nav className="tx-nav-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2" aria-label="Navegación principal">
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const active = item.tabs.includes(currentTab);
@@ -59,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
                 key={item.id}
                 onClick={() => setCurrentTab(item.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`group relative inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition-all ${active ? 'bg-[#ff2e83]/12 text-white ring-1 ring-[#ff2e83]/25' : 'text-slate-400 hover:bg-white/[.05] hover:text-white'}`}
+                className={`group relative inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-2.5 text-xs font-semibold transition-all sm:px-3 ${active ? 'bg-[#ff2e83]/12 text-white ring-1 ring-[#ff2e83]/25' : 'text-slate-400 hover:bg-white/[.05] hover:text-white'}`}
               >
                 <Icon className={`h-4 w-4 ${active ? 'text-[#ff4b94]' : 'text-slate-500 group-hover:text-slate-300'}`} />
                 <span>{item.label}</span>
@@ -90,8 +91,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
             {(currentUserName || currentUserRole).charAt(0)}
           </button>
         ) : (
-          <button type="button" onClick={onOpenAuth} className="h-10 shrink-0 rounded-xl bg-[#ff2e83] px-4 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778]">
-            Iniciar sesión
+          <button type="button" onClick={onOpenAuth} className="h-10 shrink-0 rounded-xl bg-[#ff2e83] px-3 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778] sm:px-4">
+            <span className="sm:hidden">Entrar</span><span className="hidden sm:inline">Iniciar sesión</span>
           </button>
         )}
       </div>

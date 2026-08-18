@@ -103,11 +103,11 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
   };
 
   return (
-    <div id="players-management-view" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div id="players-management-view" className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
       {/* HEADER (Image 13) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-brand font-black text-4xl text-white uppercase tracking-tight italic">
+          <h1 className="font-brand text-3xl font-black uppercase tracking-tight text-white sm:text-4xl">
             GESTIÓN DE JUGADORES & ROSTERS
           </h1>
           <p className="text-xs text-slate-400 mt-1 font-tech">

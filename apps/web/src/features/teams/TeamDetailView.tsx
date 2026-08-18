@@ -172,13 +172,13 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   }
 
   return (
-    <div id="team-profile-detail-view" className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div id="team-profile-detail-view" className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
       <button onClick={() => onNavigate('teams')} className="inline-flex items-center gap-2 text-xs font-mono-code font-bold uppercase text-slate-400 hover:text-white transition-colors cursor-pointer">
         <ArrowLeft className="w-4 h-4" />
         <span>← VOLVER A EQUIPOS</span>
       </button>
 
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#171927] via-[#12141f] to-[#1a1524] border border-[#ff2e83]/30 p-6 lg:p-8 shadow-2xl space-y-6">
+      <div className="relative space-y-6 overflow-hidden rounded-3xl border border-[#ff2e83]/30 bg-gradient-to-r from-[#171927] via-[#12141f] to-[#1a1524] p-4 shadow-2xl sm:p-6 lg:p-8">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[#202438] border-2 border-[#ff2e83]/50 p-2 flex items-center justify-center font-display font-black text-3xl text-white shadow-xl">

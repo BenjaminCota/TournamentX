@@ -40,12 +40,12 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Equipos y jugadores</h1>
           <p className="mt-1 text-xs leading-5 text-slate-400">Registra equipos, administra sus integrantes y asigna cada jugador a una plantilla.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/[.08] bg-black/25 p-1.5" role="tablist" aria-label="Secciones de equipos">
-          <button type="button" role="tab" aria-selected={section === 'teams'} onClick={() => onNavigate('teams')} className={`flex min-w-36 items-center gap-3 rounded-xl px-4 py-2.5 text-left ${section === 'teams' ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>
+        <div className="grid w-full grid-cols-2 gap-2 rounded-2xl border border-white/[.08] bg-black/25 p-1.5 lg:w-auto" role="tablist" aria-label="Secciones de equipos">
+          <button type="button" role="tab" aria-selected={section === 'teams'} onClick={() => onNavigate('teams')} className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-left sm:min-w-36 sm:gap-3 sm:px-4 ${section === 'teams' ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>
             <UsersRound className={`h-4 w-4 ${section === 'teams' ? 'text-[#ff4b94]' : ''}`} />
             <span><b className="block text-xs">Equipos</b><small className="block text-[10px] font-normal text-slate-500">{teams.length} registrados</small></span>
           </button>
-          <button type="button" role="tab" aria-selected={section === 'players'} onClick={() => onNavigate('players')} className={`flex min-w-36 items-center gap-3 rounded-xl px-4 py-2.5 text-left ${section === 'players' ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>
+          <button type="button" role="tab" aria-selected={section === 'players'} onClick={() => onNavigate('players')} className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-left sm:min-w-36 sm:gap-3 sm:px-4 ${section === 'players' ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>
             <UserRound className={`h-4 w-4 ${section === 'players' ? 'text-[#ff4b94]' : ''}`} />
             <span><b className="block text-xs">Jugadores</b><small className="block text-[10px] font-normal text-slate-500">{players.length} perfiles</small></span>
           </button>

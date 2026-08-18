@@ -105,7 +105,7 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
             {selectedStream ? <OfficialStreamPlayer stream={selectedStream}/> : <div className="grid aspect-video place-items-center rounded-2xl border border-white/10 bg-[#18181c] text-sm text-slate-500">Cargando fuentes oficiales…</div>}
 
             <div className="rounded-2xl border border-white/[.08] bg-[#18181c] p-3">
-              <div className="flex items-center justify-between gap-4 px-1 pb-3">
+              <div className="flex flex-col items-start gap-2 px-1 pb-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between min-[420px]:gap-4">
                 <div><p className="text-xs font-semibold text-white">Cambiar señal</p><p className="mt-0.5 text-[11px] text-slate-500">El reproductor cambia sin recargar la página.</p></div>
                 <span className="text-[11px] tabular-nums text-slate-500">{compactNumber(totalAudience)} audiencia</span>
               </div>
@@ -131,9 +131,9 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
                 <p className="mt-1 text-xs text-slate-500">{selectedEvent.stage}</p>
               </div>
               <div className="p-5">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
                   <div className="min-w-0 text-center"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/[.04] text-xs font-black">{selectedEvent.participantA.shortName}</span><p className="mt-3 truncate text-sm font-semibold">{selectedEvent.participantA.name}</p></div>
-                  <div className="flex items-center gap-3 text-4xl font-semibold tabular-nums tracking-[-.06em]"><span>{selectedEvent.participantA.score}</span><span className="text-xl font-light text-slate-700">:</span><span>{selectedEvent.participantB.score}</span></div>
+                  <div className="flex items-center gap-2 text-3xl font-semibold tabular-nums tracking-[-.06em] sm:gap-3 sm:text-4xl"><span>{selectedEvent.participantA.score}</span><span className="text-xl font-light text-slate-700">:</span><span>{selectedEvent.participantB.score}</span></div>
                   <div className="min-w-0 text-center"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-[#d6b15e]/20 bg-[#d6b15e]/[.06] text-xs font-black text-[#e6ca83]">{selectedEvent.participantB.shortName}</span><p className="mt-3 truncate text-sm font-semibold">{selectedEvent.participantB.name}</p></div>
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-2">
@@ -153,9 +153,9 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.65fr)]">
           <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#18181c]">
-            <div className="flex flex-col gap-4 border-b border-white/[.07] p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 border-b border-white/[.07] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
               <div><h2 className="flex items-center gap-2 text-base font-semibold"><CalendarClock className="h-4 w-4 text-[#d6b15e]"/> Eventos destacados</h2><p className="mt-1 text-xs text-slate-500">Partidos registrados en TournamentX y señales oficiales disponibles.</p></div>
-              <div className="flex rounded-xl border border-white/[.07] bg-black/20 p-1">{([['all', 'Todos'], ['esports', 'Esports'], ['sports', 'Deportes']] as const).map(([id, label]) => <button type="button" key={id} onClick={() => setEventFilter(id)} className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold ${eventFilter === id ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}>{label}</button>)}</div>
+              <div className="grid w-full grid-cols-3 rounded-xl border border-white/[.07] bg-black/20 p-1 sm:w-auto">{([['all', 'Todos'], ['esports', 'Esports'], ['sports', 'Deportes']] as const).map(([id, label]) => <button type="button" key={id} onClick={() => setEventFilter(id)} className={`rounded-lg px-2 py-1.5 text-[11px] font-semibold sm:px-3 ${eventFilter === id ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}>{label}</button>)}</div>
             </div>
             <div className="grid gap-2 p-3 sm:grid-cols-2">{filteredEvents.map((event) => {
               const active = event.id === selectedEvent?.id;
