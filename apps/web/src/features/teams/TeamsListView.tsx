@@ -3,6 +3,7 @@ import { Plus, Search, Trophy, Globe, Users } from 'lucide-react';
 import { CompetitiveTeam, Team } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
 import { notify } from '../../shared/feedback';
+import { matchesSearch } from '../../shared/search';
 
 interface TeamsListViewProps {
   teams: Team[];
@@ -42,22 +43,15 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
 
   const filteredTeams = useMemo(() => {
     return teams.filter((team) => {
-      const term = searchQuery.toLowerCase();
-      const matchesSearch = 
-        team.name.toLowerCase().includes(term) ||
-        team.tag.toLowerCase().includes(term) ||
-        team.region.toLowerCase().includes(term) ||
-        (team.bio || team.description || '').toLowerCase().includes(term);
+      const matchesQuery = matchesSearch(searchQuery, team.name, team.tag, team.abbreviation, team.region, team.sport, team.bio, team.description);
       
       const matchesRegion = selectedRegion === 'Todos' || team.region === selectedRegion;
       
-      return matchesSearch && matchesRegion;
+      return matchesQuery && matchesRegion;
     });
   }, [teams, searchQuery, selectedRegion]);
   const filteredFeedTeams = useMemo(() => feedTeams.filter((team) => {
-    const term = searchQuery.toLowerCase();
-    const matchesSearch = `${team.name} ${team.shortName} ${team.region} ${team.sport}`.toLowerCase().includes(term);
-    return matchesSearch && (selectedRegion === 'Todos' || team.region === selectedRegion);
+    return matchesSearch(searchQuery, team.name, team.shortName, team.region, team.sport) && (selectedRegion === 'Todos' || team.region === selectedRegion);
   }), [feedTeams, searchQuery, selectedRegion]);
 
   const handleCreateTeam = async (e: React.FormEvent) => {

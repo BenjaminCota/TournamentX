@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Clock3, Gamepad2, MapPin, Radio, Search } from 'lucide-react';
 import { CompetitiveEvent, Team, TournamentMatch } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { matchesSearch } from '../../shared/search';
 
 interface CalendarViewProps {
   onOpenMatch: (matchId: string) => void;
@@ -50,13 +51,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
 
   const teamName = (teamId: string) => teams.find((team) => team.id === teamId)?.name || teamId;
   const visible = useMemo(() => matches.filter((match) => {
-    const searchText = `${match.tournamentId} ${teamName(match.team1Id)} ${teamName(match.team2Id)} ${match.venue || ''}`.toLowerCase();
-    return searchText.includes(query.toLowerCase()) && (filter === 'TODOS' || matchType(match) === filter);
+    return matchesSearch(query, match.tournamentId, teamName(match.team1Id), teamName(match.team2Id), match.venue, match.status) && (filter === 'TODOS' || matchType(match) === filter);
   }), [filter, matches, query, teams]);
   const visibleFeed = useMemo(() => feedEvents.filter((event) => {
-    const searchText = `${event.competition} ${event.teamA.name} ${event.teamB.name} ${event.region} ${event.sport}`.toLowerCase();
     const type = event.category === 'esports' ? 'ESPORTS' : 'PRESENCIAL';
-    return searchText.includes(query.toLowerCase()) && (filter === 'TODOS' || type === filter);
+    return matchesSearch(query, event.competition, event.teamA.name, event.teamB.name, event.region, event.sport) && (filter === 'TODOS' || type === filter);
   }), [feedEvents, filter, query]);
   const summary = useMemo(() => ({
     total: matches.length,

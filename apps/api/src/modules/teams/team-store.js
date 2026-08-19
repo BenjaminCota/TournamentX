@@ -390,6 +390,15 @@ function getPlayer(playerId) {
   return serializePlayer(playerId);
 }
 
+function linkPlayerAccount(playerId, authUserId) {
+  const player = players.find((entry) => entry.id === playerId);
+  if (!player || player.deletedAt) return null;
+  player.authUserId = authUserId;
+  player.updatedAt = new Date().toISOString();
+  persist();
+  return serializePlayer(playerId);
+}
+
 function createPlayer({ name, lastname, nickname, avatar, sport, position, nationality, status, authUserId, gameProfiles }) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -572,6 +581,7 @@ module.exports = {
   updateTeam,
   listPlayers,
   getPlayer,
+  linkPlayerAccount,
   createPlayer,
   updatePlayer,
   deletePlayer,

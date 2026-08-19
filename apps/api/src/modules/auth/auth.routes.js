@@ -6,6 +6,7 @@ const { authenticate, authorize } = require('../../middleware/auth');
 const store = require('./auth.store');
 const supabaseAuth = require('../../services/supabase-auth');
 const { publishNotification } = require('../geolocation/notifications.service');
+const teamStore = require('../teams/team-store');
 
 const password = z.string().min(8).max(128);
 const strongPassword = password
@@ -47,6 +48,14 @@ function ensureSessionUser(req) {
     status: req.user.status,
   });
   return store.publicUser(store.findById(req.user.sub));
+}
+
+function syncRosterPlayerAccounts() {
+  for (const player of teamStore.listPlayers()) {
+    if (!player.currentTeamId) continue;
+    const account = store.ensurePlayerAccount(player);
+    if (player.authUserId !== account.id) teamStore.linkPlayerAccount(player.id, account.id);
+  }
 }
 
 router.post('/login', (req, res, next) => {
@@ -95,7 +104,10 @@ router.get('/me', authenticate, (req, res, next) => {
   return res.json({ user: store.publicUser(user) });
 });
 router.get('/users', authenticate, authorize('admin'), async (req, res, next) => {
-  if (req.authProvider !== 'supabase') return res.json({ data: store.listUsers() });
+  if (req.authProvider !== 'supabase') {
+    syncRosterPlayerAccounts();
+    return res.json({ data: store.listUsers() });
+  }
   try {
     const profiles = await supabaseAuth.listProfiles(req.supabaseAccessToken);
     const data = profiles.map((profile) => store.upsertExternalUser({

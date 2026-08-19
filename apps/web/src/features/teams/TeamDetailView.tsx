@@ -3,6 +3,7 @@ import { ArrowLeft, Copy, Link2, Pencil, Plus, Share2, Star, Swords, Trash2, Use
 import { Team, User, UserRole } from '../../types';
 import { TabId } from '../shell/Sidebar';
 import { tournamentXApi } from '../../services/apiClient';
+import { matchesSearch } from '../../shared/search';
 
 interface TeamDetailViewProps {
   teamId?: string;
@@ -72,12 +73,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   }, [currentTeam.roster, players]);
 
   const filteredAvailablePlayers = useMemo(() => availablePlayers.filter((player) => {
-    const term = searchText.toLowerCase();
-    return (
-      player.name.toLowerCase().includes(term) ||
-      (player.username ?? '').toLowerCase().includes(term) ||
-      (player.teamName ?? '').toLowerCase().includes(term)
-    );
+    return matchesSearch(searchText, player.name, player.username, player.email, player.teamName, player.role);
   }), [availablePlayers, searchText]);
 
   const openTeamModal = (mode: 'create' | 'edit') => {

@@ -167,13 +167,14 @@ function createTournament(input) {
   return serializeTournament(tournament);
 }
 
-function changeStatus(tournamentId, nextStatus, changedBy, note = '') {
+function changeStatus(tournamentId, nextStatus, changedBy, note = '', { forceCancellation = false } = {}) {
   const tournament = findTournament(tournamentId);
   const transitions = {
     DRAFT: ['OPEN'], OPEN: ['CLOSED', 'IN_PROGRESS', 'CANCELLED'], CLOSED: ['OPEN', 'PUBLISHED', 'CANCELLED'],
     PUBLISHED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'], COMPLETED: [], CANCELLED: [],
   };
-  if (!transitions[tournament.status]?.includes(nextStatus)) throw new HttpError(409, `No se puede cambiar de ${tournament.status} a ${nextStatus}`);
+  const adminCancellation = forceCancellation && nextStatus === 'CANCELLED' && tournament.status !== 'CANCELLED';
+  if (!adminCancellation && !transitions[tournament.status]?.includes(nextStatus)) throw new HttpError(409, `No se puede cambiar de ${tournament.status} a ${nextStatus}`);
   const previousStatus = tournament.status;
   tournament.status = nextStatus;
   tournament.updatedAt = new Date().toISOString();

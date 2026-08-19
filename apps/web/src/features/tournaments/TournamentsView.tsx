@@ -333,7 +333,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             className="w-full min-w-0 rounded-xl border border-[#232738] bg-[#141724] px-3 py-2 text-sm font-bold text-white focus:border-[#ff2e83] focus:outline-none sm:w-auto sm:max-w-xl sm:px-4 cursor-pointer"
           >
             {tournaments.map(t => (
-              <option key={t.id} value={t.id}>{t.name} ({t.game})</option>
+              <option key={t.id} value={t.id}>{t.name.slice(0, 120)} ({t.game})</option>
             ))}
           </select>
         </div>
@@ -398,7 +398,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-3">
             {canManageTournament && (nextStatuses[selectedTournament.status] || []).map((status) => <button key={status} disabled={isChangingStatus} onClick={() => void changeStatus(status)} className="rounded-xl border border-emerald-500/30 bg-emerald-500/[.08] px-4 py-2.5 text-xs font-bold text-emerald-300 disabled:opacity-50">{status === 'CLOSED' ? 'CERRAR INSCRIPCIÓN' : status === 'PUBLISHED' ? 'PUBLICAR' : status === 'IN_PROGRESS' ? 'INICIAR TORNEO' : status === 'COMPLETED' ? 'FINALIZAR' : 'ABRIR INSCRIPCIÓN'}</button>)}
-            {currentUserRole === 'Admin' && ['OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS'].includes(selectedTournament.status) && <button disabled={isChangingStatus} onClick={() => { if (window.confirm(`¿Dar de baja el torneo "${selectedTournament.name}"? Esta acción conservará el historial, pero detendrá su operación.`)) void changeStatus('CANCELLED'); }} className="rounded-xl border border-red-500/40 bg-red-500/[.08] px-4 py-2.5 text-xs font-bold text-red-300 disabled:opacity-50">DAR DE BAJA</button>}
+            {currentUserRole === 'Admin' && selectedTournament.status !== 'CANCELLED' && <button disabled={isChangingStatus} onClick={() => { if (window.confirm(`¿Dar de baja el torneo "${selectedTournament.name}"? Esta acción conservará el historial, pero detendrá su operación.`)) void changeStatus('CANCELLED'); }} className="rounded-xl border border-red-500/40 bg-red-500/[.08] px-4 py-2.5 text-xs font-bold text-red-300 disabled:opacity-50">DAR DE BAJA</button>}
             <button
               onClick={() => onNavigate('esports')}
               className="px-5 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-black text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 transition-all flex items-center gap-2 cursor-pointer font-tech"

@@ -58,6 +58,29 @@ function createUser({ name, username, email, password, role = 'player' }) {
   return { user: publicUser(user) };
 }
 
+function ensurePlayerAccount(player) {
+  const list = users();
+  const existing = player.authUserId ? list.find((user) => user.id === player.authUserId) : null;
+  if (existing) return publicUser(existing);
+
+  const base = String(player.nickname || player.name || player.id || 'jugador')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'jugador';
+  const email = `${base}.${String(player.id).replace(/[^a-z0-9]/gi, '').slice(-8)}@tournamentx.local`;
+  const byEmail = list.find((user) => user.email.toLowerCase() === email);
+  if (byEmail) return publicUser(byEmail);
+
+  const now = new Date().toISOString();
+  const user = {
+    id: crypto.randomUUID(), name: `${player.name || 'Jugador'} ${player.lastname || ''}`.trim(),
+    username: `@${base}`.slice(0, 50), email, role: 'player',
+    passwordHash: hashPassword(crypto.randomBytes(24).toString('base64url')),
+    status: 'ACTIVE', createdAt: now, updatedAt: now,
+  };
+  list.push(user); persist(list);
+  return publicUser(user);
+}
+
 function upsertExternalUser({ id, name, username, email, role = 'player', status = 'ACTIVE' }) {
   const list = users();
   const now = new Date().toISOString();
@@ -152,7 +175,7 @@ function updateUser(id, updates) {
 }
 
 module.exports = {
-  normalizeRole, displayRole, verifyPassword, publicUser, findByEmail, findById, listUsers, createUser, updateUser,
+  normalizeRole, displayRole, verifyPassword, publicUser, findByEmail, findById, listUsers, createUser, ensurePlayerAccount, updateUser,
   upsertExternalUser,
   createOrganizerRequest, listOrganizerRequests, decideOrganizerRequest,
 };

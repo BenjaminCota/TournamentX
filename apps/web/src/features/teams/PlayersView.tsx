@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { User, UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { matchesSearch } from '../../shared/search';
 
 interface PlayersViewProps {
   currentUserRole: UserRole;
@@ -47,15 +48,12 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
 
   // Filter logic
   const filteredPlayers = players.filter((p) => {
-    const matchesSearch = 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesQuery = matchesSearch(searchQuery, p.name, p.username, p.email, p.teamName, p.role);
 
     const matchesRole = roleFilter === 'ALL' || p.role === roleFilter;
     const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
 
-    return matchesSearch && matchesRole && matchesStatus;
+    return matchesQuery && matchesRole && matchesStatus;
   });
 
   const handleAddPlayerSubmit = async (e: React.FormEvent) => {

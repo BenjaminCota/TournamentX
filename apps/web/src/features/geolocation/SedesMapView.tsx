@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import L from 'leaflet';
 import { Tournament, Venue } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { matchesSearch } from '../../shared/search';
 
 type Coordinates = { lat: number; lng: number };
 type LocationState = 'idle' | 'loading' | 'ready' | 'denied' | 'unsupported';
@@ -76,8 +77,7 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
     venue,
     distance: userLocation ? distanceKm(userLocation, venue.coordinates) : null,
   })).filter(({ venue, distance }) => {
-    const text = `${venue.name} ${venue.city} ${venue.country}`.toLowerCase();
-    return text.includes(query.trim().toLowerCase()) && (distance === null || distance <= radiusKm);
+    return matchesSearch(query, venue.name, venue.city, venue.country, venue.address, venue.features) && (distance === null || distance <= radiusKm);
   }).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)), [query, radiusKm, userLocation, venues]);
 
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) || venues[0];

@@ -49,7 +49,7 @@ test('rechaza nombres de torneo que exceden el límite de texto', async () => {
   assert.match(response.body.error, /120 caracteres/);
 });
 
-test('solo el administrador puede dar de baja un torneo activo', async () => {
+test('solo el administrador puede dar de baja cualquier torneo no cancelado', async () => {
   const created = await request(app).post('/api/tournaments').set(authorization).send({ name: 'Torneo cancelable', game: 'Valorant' });
   assert.equal(created.status, 201);
 
@@ -59,6 +59,12 @@ test('solo el administrador puede dar de baja un torneo activo', async () => {
   const cancelled = await request(app).patch(`/api/tournaments/${created.body.id}/status`).set(adminAuthorization).send({ status: 'CANCELLED' });
   assert.equal(cancelled.status, 200);
   assert.equal(cancelled.body.tournament.status, 'CANCELLED');
+
+  const draft = await request(app).post('/api/tournaments').set(authorization).send({ name: 'Borrador cancelable', game: 'Valorant', status: 'DRAFT' });
+  assert.equal(draft.status, 201);
+  const cancelledDraft = await request(app).patch(`/api/tournaments/${draft.body.id}/status`).set(adminAuthorization).send({ status: 'CANCELLED' });
+  assert.equal(cancelledDraft.status, 200);
+  assert.equal(cancelledDraft.body.tournament.status, 'CANCELLED');
 });
 
 test('genera y resuelve un bracket de eliminación directa con avance de rondas', async () => {

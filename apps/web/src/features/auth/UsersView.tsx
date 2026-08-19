@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Building2, RefreshCw, Search, ShieldCheck, UserCog, Users } from 'lucide-react';
 import { AuthUser, OrganizerRequest, UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { matchesSearch } from '../../shared/search';
 
 interface UsersViewProps { currentUserRole: UserRole; currentUserId?: string }
 const roles: Array<{ value: AuthUser['role']; label: UserRole }> = [
@@ -30,9 +31,16 @@ export const UsersView: React.FC<UsersViewProps> = ({ currentUserRole, currentUs
   };
   useEffect(() => { void load(); }, []);
 
-  const update = async (user: AuthUser, changes: Partial<AuthUser>) => {
+  const update = async (user: AuthUser, changes: Partial<AuthUser> & { password?: string }) => {
     try { const body = await tournamentXApi.updateUser(user.id, changes); setUsers((current) => current.map((item) => item.id === user.id ? body.user : item)); setMessage('Permisos actualizados'); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo actualizar'); }
+  };
+  const resetPassword = async (user: AuthUser) => {
+    const password = window.prompt(`Define una contraseña temporal para ${user.name}. Debe tener al menos 8 caracteres.`);
+    if (password === null) return;
+    if (password.length < 8) { setMessage('La contraseña debe tener al menos 8 caracteres.'); return; }
+    await update(user, { password });
+    setMessage('Contraseña temporal actualizada. Compártela de forma segura con el jugador.');
   };
   const decide = async (request: OrganizerRequest, decision: 'approve' | 'reject') => {
     try {
@@ -45,7 +53,7 @@ export const UsersView: React.FC<UsersViewProps> = ({ currentUserRole, currentUs
 
   if (currentUserRole !== 'Admin') return <div className="surface mx-auto mt-16 max-w-xl rounded-3xl p-8 text-center"><ShieldCheck className="mx-auto h-10 w-10 text-[#ff2e83]"/><h1 className="mt-4 text-2xl font-black">Acceso administrativo</h1><p className="mt-2 text-sm text-slate-400">Solo un administrador puede cambiar cuentas y roles.</p></div>;
   const managedUsers = users.filter((user) => user.id !== currentUserId);
-  const shown = managedUsers.filter((user) => `${user.name} ${user.email} ${user.roleLabel}`.toLowerCase().includes(query.toLowerCase()));
+  const shown = managedUsers.filter((user) => matchesSearch(query, user.name, user.username, user.email, user.roleLabel, user.role));
   const pending = requests.filter((request) => request.status === 'PENDING');
 
   return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-5 lg:p-8">
@@ -57,7 +65,7 @@ export const UsersView: React.FC<UsersViewProps> = ({ currentUserRole, currentUs
     </section>
 
     <section className="surface overflow-hidden rounded-3xl"><div className="flex flex-col justify-between gap-3 border-b border-white/10 p-4 sm:flex-row sm:items-center"><div className="flex items-center gap-2"><Users className="h-5 w-5 text-[#ff2e83]"/><strong>{managedUsers.length} cuentas</strong></div><label className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500"/><input value={query} onChange={(event) => setQuery(event.target.value)} className="rounded-xl border border-white/10 bg-black/20 py-2 pl-9 pr-3 text-sm" placeholder="Buscar cuenta"/></label></div>
-      <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-white/[.02] text-[10px] uppercase text-slate-500"><tr><th className="p-4 text-left">Usuario</th><th className="p-4 text-left">Rol</th><th className="p-4 text-left">Estado</th><th className="p-4 text-right">Control</th></tr></thead><tbody>{shown.map((user) => <tr key={user.id} className="border-t border-white/[.06]"><td className="p-4"><strong className="block text-white">{user.name}</strong><span className="text-xs text-slate-500">{user.email}</span></td><td className="p-4"><select value={user.role} onChange={(event) => void update(user, { role: event.target.value as AuthUser['role'] })} className="rounded-lg border border-white/10 bg-[#141721] px-3 py-2 text-xs">{roles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}</select></td><td className="p-4"><span className={`text-xs font-bold ${user.status === 'ACTIVE' ? 'text-emerald-400' : user.status === 'SUSPENDED' ? 'text-red-400' : 'text-slate-400'}`}>{user.status}</span></td><td className="p-4 text-right"><button onClick={() => void update(user, { status: user.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED' })} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs hover:border-[#ff2e83]/50"><UserCog className="h-3.5 w-3.5"/>{user.status === 'SUSPENDED' ? 'Reactivar' : 'Suspender'}</button></td></tr>)}</tbody></table>{!loading && shown.length === 0 && <div className="p-10 text-center text-sm text-slate-500">{query ? 'No hay cuentas que coincidan con la búsqueda.' : 'No hay cuentas administrativas disponibles.'}</div>}</div>
+      <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-white/[.02] text-[10px] uppercase text-slate-500"><tr><th className="p-4 text-left">Usuario</th><th className="p-4 text-left">Rol</th><th className="p-4 text-left">Estado</th><th className="p-4 text-right">Control</th></tr></thead><tbody>{shown.map((user) => <tr key={user.id} className="border-t border-white/[.06]"><td className="p-4"><strong className="block text-white">{user.name}</strong><span className="text-xs text-slate-500">{user.email}</span></td><td className="p-4"><select value={user.role} onChange={(event) => void update(user, { role: event.target.value as AuthUser['role'] })} className="rounded-lg border border-white/10 bg-[#141721] px-3 py-2 text-xs">{roles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}</select></td><td className="p-4"><span className={`text-xs font-bold ${user.status === 'ACTIVE' ? 'text-emerald-400' : user.status === 'SUSPENDED' ? 'text-red-400' : 'text-slate-400'}`}>{user.status}</span></td><td className="p-4"><div className="flex justify-end gap-2"><button onClick={() => void resetPassword(user)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs hover:border-[#ff2e83]/50">Contraseña</button><button onClick={() => void update(user, { status: user.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED' })} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs hover:border-[#ff2e83]/50"><UserCog className="h-3.5 w-3.5"/>{user.status === 'SUSPENDED' ? 'Reactivar' : 'Suspender'}</button></div></td></tr>)}</tbody></table>{!loading && shown.length === 0 && <div className="p-10 text-center text-sm text-slate-500">{query ? 'No hay cuentas que coincidan con la búsqueda.' : 'No hay cuentas administrativas disponibles.'}</div>}</div>
     </section>
   </div>;
 };
