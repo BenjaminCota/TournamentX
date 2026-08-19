@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Sidebar, TabId } from './features/shell/Sidebar';
 import { LandingView } from './features/landing/LandingView';
 import { DashboardView } from './features/analytics/DashboardView';
@@ -57,6 +57,18 @@ function normalizeTeam(team: Team | Record<string, unknown>): Team {
       status: (member as { status?: 'active' | 'inactive' }).status ?? 'active',
     })),
   };
+}
+
+function enforceTextLimit(event: FormEvent<HTMLElement>) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+  const isTextarea = target instanceof HTMLTextAreaElement;
+  const supportedInput = ['text', 'search', 'email', 'password', 'tel', 'url'].includes(target.type);
+  if (!isTextarea && !supportedInput) return;
+
+  const defaultLimit = isTextarea ? 500 : target.type === 'password' ? 128 : target.type === 'email' ? 255 : target.type === 'url' ? 500 : 120;
+  if (target.maxLength < 0 || target.maxLength > defaultLimit) target.maxLength = defaultLimit;
+  if (target.value.length > target.maxLength) target.value = target.value.slice(0, target.maxLength);
 }
 
 function normalizePlayer(player: Partial<User> | Record<string, unknown>): User {
@@ -409,7 +421,7 @@ export default function App() {
   if (showSplash) return <SplashScreen />;
 
   return (
-    <div id="tournamentx-app-root" className="tx-app-shell min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
+    <div id="tournamentx-app-root" onInputCapture={enforceTextLimit} className="tx-app-shell min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
       {activeTab === 'landing' ? (
         <LandingView
           teams={teams}

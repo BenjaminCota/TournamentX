@@ -171,6 +171,8 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                   <input
                     type="text"
                     required
+                    minLength={2}
+                    maxLength={120}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ej. Valorant Masters Santiago 2026"
@@ -184,6 +186,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                   </label>
                   <textarea
                     rows={3}
+                    maxLength={500}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe el propósito del torneo, reglas clave e incentivos..."

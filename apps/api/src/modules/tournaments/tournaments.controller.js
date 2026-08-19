@@ -3,6 +3,18 @@ const store = require('./tournament-store');
 const { publishTournamentChampion } = require('../geolocation/notifications.service');
 const { releaseTournamentChampion } = require('../rewards/local-rewards.service');
 
+function boundedText(value, label, { min = 0, max, required = false } = {}) {
+  if (value === undefined || value === null || value === '') {
+    if (required) throw new HttpError(400, `${label} es obligatorio`);
+    return undefined;
+  }
+  if (typeof value !== 'string') throw new HttpError(400, `${label} debe ser texto`);
+  const normalized = value.trim();
+  if (normalized.length < min) throw new HttpError(400, `${label} debe tener al menos ${min} caracteres`);
+  if (normalized.length > max) throw new HttpError(400, `${label} no puede superar ${max} caracteres`);
+  return normalized;
+}
+
 async function listTournaments(_req, res, next) {
   try {
     res.json(store.listTournaments());
@@ -21,8 +33,14 @@ async function getTournament(req, res, next) {
 
 async function createTournament(req, res, next) {
   try {
-    if (!req.body.name || !req.body.game) throw new HttpError(400, 'El nombre y el juego/deporte son obligatorios');
-    res.status(201).json(store.createTournament({ ...req.body, createdBy: req.user.sub }));
+    const name = boundedText(req.body.name, 'El nombre del torneo', { required: true, min: 2, max: 120 });
+    const game = boundedText(req.body.game, 'El juego o deporte', { required: true, min: 2, max: 80 });
+    const description = boundedText(req.body.description, 'La descripción', { max: 500 });
+    const venue = boundedText(req.body.venue, 'La sede', { max: 160 });
+    const dates = boundedText(req.body.dates, 'Las fechas', { max: 100 });
+    const organizer = boundedText(req.body.organizer, 'El organizador', { max: 120 });
+    const tier = boundedText(req.body.tier, 'El nivel', { max: 80 });
+    res.status(201).json(store.createTournament({ ...req.body, name, game, ...(description !== undefined ? { description } : {}), ...(venue !== undefined ? { venue } : {}), ...(dates !== undefined ? { dates } : {}), ...(organizer !== undefined ? { organizer } : {}), ...(tier !== undefined ? { tier } : {}), createdBy: req.user.sub }));
   } catch (error) {
     next(error);
   }

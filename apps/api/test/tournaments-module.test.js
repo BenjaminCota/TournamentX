@@ -42,6 +42,12 @@ test('Dev 2 protege la creación de torneos y expone el estado de la API', async
   assert.equal(missingTeam.status, 404);
 });
 
+test('rechaza nombres de torneo que exceden el límite de texto', async () => {
+  const response = await request(app).post('/api/tournaments').set(authorization).send({ name: '2'.repeat(121), game: 'Valorant' });
+  assert.equal(response.status, 400);
+  assert.match(response.body.error, /120 caracteres/);
+});
+
 test('genera y resuelve un bracket de eliminación directa con avance de rondas', async () => {
   const tournamentId = await createTournamentWithParticipants('SINGLE_ELIMINATION', 3);
   const generated = await request(app).post(`/api/tournaments/${tournamentId}/bracket/generate`).set(authorization);
