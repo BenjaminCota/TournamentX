@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart3,
   CalendarDays,
@@ -20,6 +20,7 @@ interface SidebarProps {
   setCurrentTab: (tab: TabId) => void;
   currentUserRole: UserRole;
   currentUserName?: string;
+  currentUserTeamName?: string;
   isAuthenticated: boolean;
   onOpenAuth: () => void;
   onRequestLogout: () => void;
@@ -36,7 +37,8 @@ const mainItems = [
   { id: 'rewards' as const, label: 'Premios', icon: Gift, tabs: ['rewards'] as TabId[] },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, isAuthenticated, onOpenAuth, onRequestLogout, onOpenCreateWizard }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, currentUserTeamName, isAuthenticated, onOpenAuth, onRequestLogout, onOpenCreateWizard }) => {
+  const [accountOpen, setAccountOpen] = useState(false);
   const visitorItems = mainItems.filter((item) => item.id !== 'dashboard' && item.id !== 'analytics');
   const visibleItems = isAuthenticated
     ? (currentUserRole === 'Admin' ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }] : mainItems)
@@ -83,7 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
         {isAuthenticated ? (
           <button
             type="button"
-            onClick={onRequestLogout}
+            onClick={() => setAccountOpen((open) => !open)}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
             aria-label="Cerrar sesión"
             title={currentUserName ? `Cerrar sesión de ${currentUserName}` : 'Cerrar sesión'}
@@ -96,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
           </button>
         )}
       </div>
+      {accountOpen && <div className="absolute right-4 top-[68px] z-50 w-56 rounded-2xl border border-white/10 bg-[#11131d] p-3 shadow-2xl"><strong className="block text-sm text-white">{currentUserName || 'Cuenta TournamentX'}</strong><p className="mt-1 text-xs text-slate-400">{currentUserRole}{['Jugador', 'Capitán'].includes(currentUserRole) ? ` · ${currentUserTeamName || 'Sin equipo'}` : ''}</p><button type="button" onClick={onRequestLogout} className="mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 hover:border-[#ff2e83]/50 hover:text-white">Cerrar sesión</button></div>}
     </header>
   );
 };

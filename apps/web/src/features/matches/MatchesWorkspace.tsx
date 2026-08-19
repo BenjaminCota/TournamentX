@@ -10,6 +10,7 @@ interface MatchesWorkspaceProps {
   section: 'calendar' | 'esports' | 'live_match';
   currentUserRole: UserRole;
   currentUserId?: string;
+  currentUserTeamId?: string;
   selectedMatchId?: string;
   onNavigate: (tab: TabId) => void;
   onOpenMatch: (matchId: string) => void;
@@ -20,7 +21,7 @@ const sections = [
   { id: 'esports' as const, label: 'Transmisiones', helper: 'Directos, marcador y salas', icon: Tv2 },
 ];
 
-export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, currentUserRole, currentUserId, selectedMatchId, onNavigate, onOpenMatch }) => (
+export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, currentUserRole, currentUserId, currentUserTeamId, selectedMatchId, onNavigate, onOpenMatch }) => (
   <div className="tx-module-shell min-h-screen bg-[#0a0b0e]">
     <section className="border-b border-white/[.07] bg-[radial-gradient(circle_at_76%_0%,rgba(255,46,131,.11),transparent_32%),#0d0e13] px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-[1480px] flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
@@ -47,7 +48,7 @@ export const MatchesWorkspace: React.FC<MatchesWorkspaceProps> = ({ section, cur
       </div>
     </section>
 
-    {section === 'calendar' && <CalendarView onOpenMatch={onOpenMatch} />}
+    {section === 'calendar' && <CalendarView onOpenMatch={onOpenMatch} currentUserTeamId={currentUserTeamId} />}
     {section === 'esports' && <EsportsArenaView currentUserRole={currentUserRole} />}
     {section === 'live_match' && <LiveMatchView currentUserRole={currentUserRole} currentUserId={currentUserId} matchId={selectedMatchId} />}
   </div>

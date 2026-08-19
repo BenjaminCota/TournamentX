@@ -53,6 +53,7 @@ interface TournamentsViewProps {
   onOpenCreateWizard: () => void;
   tournaments: Tournament[];
   teams: Team[];
+  currentUserTeam?: Team;
   onReportBracketResult: (tournamentId: string, matchId: string, score1: number, score2: number) => Promise<void> | void;
   onRegisterParticipant: (tournamentId: string, data: { teamId?: string; teamName: string; seed?: number }) => Promise<void> | void;
   onGenerateGroups: (tournamentId: string, groupCount: number) => Promise<void> | void;
@@ -66,6 +67,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   onOpenCreateWizard,
   tournaments,
   teams,
+  currentUserTeam,
   onReportBracketResult,
   onRegisterParticipant,
   onGenerateGroups,
@@ -108,9 +110,19 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   const [flowMessage, setFlowMessage] = useState('');
   const [audit, setAudit] = useState<Array<{ id: string; previousStatus: string; nextStatus: string; changedBy: string; note?: string; createdAt: string }>>([]);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [teamTournamentIds, setTeamTournamentIds] = useState<string[]>([]);
 
   const availableTournaments = tournaments.filter((tournament) => tournament.status !== 'CANCELLED');
   const selectedTournament = availableTournaments.find((t) => t.id === selectedTournamentId) || availableTournaments[0];
+
+  useEffect(() => {
+    if (!currentUserTeam) { setTeamTournamentIds([]); return; }
+    let active = true;
+    void Promise.all(availableTournaments.map(async (tournament) => ({ id: tournament.id, participants: await tournamentXApi.tournamentParticipants(tournament.id) as TournamentParticipant[] })))
+      .then((rows) => { if (active) setTeamTournamentIds(rows.filter((row) => row.participants.some((participant) => participant.id === currentUserTeam.id)).map((row) => row.id)); })
+      .catch(() => { if (active) setTeamTournamentIds([]); });
+    return () => { active = false; };
+  }, [currentUserTeam?.id, tournaments]);
 
   const canManageTournament = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
   const canEditScores = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro';
@@ -309,6 +321,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   return (
     <div id="tournaments-view-container" className="mx-auto max-w-7xl space-y-6 p-4 sm:space-y-8 sm:p-6 lg:p-8">
+      {currentUserTeam && <section className="rounded-2xl border border-[#ff2e83]/30 bg-[#ff2e83]/[.06] p-4"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#ff69a8]">Torneos de mi equipo</p>{teamTournamentIds.length ? <div className="mt-2 flex flex-wrap gap-2">{availableTournaments.filter((tournament) => teamTournamentIds.includes(tournament.id)).map((tournament) => <button type="button" key={tournament.id} onClick={() => setSelectedTournamentId(tournament.id)} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-white hover:border-[#ff2e83]">{tournament.name} · {tournament.status}</button>)}</div> : <p className="mt-2 text-sm text-slate-300">{currentUserTeam.name} no está inscrito en un torneo activo.</p>}</section>}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
           Torneos

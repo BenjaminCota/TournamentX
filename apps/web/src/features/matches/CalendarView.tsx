@@ -6,6 +6,7 @@ import { matchesSearch } from '../../shared/search';
 
 interface CalendarViewProps {
   onOpenMatch: (matchId: string) => void;
+  currentUserTeamId?: string;
 }
 
 function matchType(match: TournamentMatch) {
@@ -17,7 +18,7 @@ function statusLabel(status: TournamentMatch['status']) {
   return { scheduled: 'PROGRAMADO', live: 'EN VIVO', completed: 'FINALIZADO', postponed: 'POSPUESTO', cancelled: 'CANCELADO' }[status];
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch, currentUserTeamId }) => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'TODOS' | 'ESPORTS' | 'PRESENCIAL'>('TODOS');
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
@@ -26,6 +27,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [onlyMyMatches, setOnlyMyMatches] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,8 +53,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
 
   const teamName = (teamId: string) => teams.find((team) => team.id === teamId)?.name || teamId;
   const visible = useMemo(() => matches.filter((match) => {
-    return matchesSearch(query, match.tournamentId, teamName(match.team1Id), teamName(match.team2Id), match.venue, match.status) && (filter === 'TODOS' || matchType(match) === filter);
-  }), [filter, matches, query, teams]);
+    return matchesSearch(query, match.tournamentId, teamName(match.team1Id), teamName(match.team2Id), match.venue, match.status) && (filter === 'TODOS' || matchType(match) === filter) && (!onlyMyMatches || [match.team1Id, match.team2Id].includes(currentUserTeamId || ''));
+  }), [currentUserTeamId, filter, matches, onlyMyMatches, query, teams]);
+  const myMatchesCount = currentUserTeamId ? matches.filter((match) => [match.team1Id, match.team2Id].includes(currentUserTeamId)).length : 0;
   const visibleFeed = useMemo(() => feedEvents.filter((event) => {
     const type = event.category === 'esports' ? 'ESPORTS' : 'PRESENCIAL';
     return matchesSearch(query, event.competition, event.teamA.name, event.teamB.name, event.region, event.sport) && (filter === 'TODOS' || type === filter);
@@ -75,7 +78,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch }) => {
         <div className="relative w-full lg:w-80"><Search className="absolute left-3 top-3 w-4 h-4 text-slate-500" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar torneo, equipo o sede" className="w-full bg-[#141724] border border-[#252a3d] rounded-xl py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#ff2e83]" /></div>
       </div>
 
-      <div className="flex gap-2">{(['TODOS', 'ESPORTS', 'PRESENCIAL'] as const).map((item) => <button key={item} onClick={() => setFilter(item)} className={`px-4 py-2 rounded-xl text-xs font-bold ${filter === item ? 'bg-[#ff2e83] text-white' : 'bg-[#141724] text-slate-400 border border-[#252a3d]'}`}>{item}</button>)}</div>
+      <div className="flex flex-wrap gap-2">{(['TODOS', 'ESPORTS', 'PRESENCIAL'] as const).map((item) => <button key={item} onClick={() => setFilter(item)} className={`px-4 py-2 rounded-xl text-xs font-bold ${filter === item ? 'bg-[#ff2e83] text-white' : 'bg-[#141724] text-slate-400 border border-[#252a3d]'}`}>{item}</button>)}{myMatchesCount > 0 && <button type="button" onClick={() => setOnlyMyMatches((value) => !value)} className={`px-4 py-2 rounded-xl text-xs font-bold ${onlyMyMatches ? 'bg-emerald-600 text-white' : 'bg-[#141724] text-slate-300 border border-emerald-500/30'}`}>Mis partidos ({myMatchesCount})</button>}</div>
 
       <section aria-label="Resumen del calendario" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[

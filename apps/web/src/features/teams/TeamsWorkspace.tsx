@@ -12,6 +12,7 @@ interface TeamsWorkspaceProps {
   players: User[];
   currentUserRole: UserRole;
   currentUserId?: string;
+  currentUserTeam?: Team;
   onSelectTeam: (teamId: string) => void;
   onCreateTeam: (team: Partial<Team>) => Promise<Team> | Team;
   onCreatePlayer: (data: Partial<User>) => Promise<User>;
@@ -26,6 +27,7 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
   players,
   currentUserRole,
   currentUserId,
+  currentUserTeam,
   onSelectTeam,
   onCreateTeam,
   onCreatePlayer,
@@ -39,6 +41,7 @@ export const TeamsWorkspace: React.FC<TeamsWorkspaceProps> = ({
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-[#ff69a8]"><ShieldCheck className="h-3.5 w-3.5" /> Gestión de plantillas</div>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Equipos y jugadores</h1>
           <p className="mt-1 text-xs leading-5 text-slate-400">Registra equipos, administra sus integrantes y asigna cada jugador a una plantilla.</p>
+          {['Jugador', 'Capitán'].includes(currentUserRole) && <p className="mt-2 text-xs font-bold text-[#ff69a8]">{currentUserTeam ? `Tu equipo: ${currentUserTeam.name} [${currentUserTeam.tag}]` : 'Actualmente estás sin equipo.'}</p>}
         </div>
         <div className="grid w-full grid-cols-2 gap-2 rounded-2xl border border-white/[.08] bg-black/25 p-1.5 lg:w-auto" role="tablist" aria-label="Secciones de equipos">
           <button type="button" role="tab" aria-selected={section === 'teams'} onClick={() => onNavigate('teams')} className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-left sm:min-w-36 sm:gap-3 sm:px-4 ${section === 'teams' ? 'bg-white/[.09] text-white shadow-sm' : 'text-slate-500 hover:text-white'}`}>

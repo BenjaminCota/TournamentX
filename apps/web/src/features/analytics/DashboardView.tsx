@@ -22,11 +22,13 @@ interface DashboardViewProps {
   onOpenCreateWizard: () => void;
   teams: Team[];
   tournaments: Tournament[];
+  currentUserRole: import('../../types').UserRole;
+  currentUserTeam?: Team;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate, onOpenMatch,
-  onOpenCreateWizard, teams, tournaments
+  onOpenCreateWizard, teams, tournaments, currentUserRole, currentUserTeam
 }) => {
   const [rankingFilter, setRankingFilter] = useState<'REGIONAL' | 'GLOBAL'>('REGIONAL');
 
@@ -95,6 +97,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {matchesError && <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/[.07] p-4 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0"/> La agenda no pudo actualizarse: {matchesError}</span><button type="button" onClick={() => void loadMatches()} disabled={matchesLoading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/25 px-3 py-2 text-xs font-bold disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${matchesLoading ? 'animate-spin' : ''}`}/> Reintentar</button></div>}
+      {['Jugador', 'Capitán'].includes(currentUserRole) && <section className="rounded-2xl border border-[#ff2e83]/30 bg-[#ff2e83]/[.06] p-5"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#ff69a8]">Mi equipo</p>{currentUserTeam ? <><h2 className="mt-2 text-xl font-black text-white">{currentUserTeam.name} <span className="text-sm text-slate-400">[{currentUserTeam.tag}]</span></h2><p className="mt-1 text-sm text-slate-300">Ya puedes consultar los torneos y partidos de tu plantilla.</p></> : <><h2 className="mt-2 text-xl font-black text-white">Aún no perteneces a un equipo</h2><p className="mt-1 text-sm text-slate-300">Únete a una plantilla desde Equipos para ver tus torneos y partidos.</p></>}</section>}
 
       <section aria-label="Indicadores operativos" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[

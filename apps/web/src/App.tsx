@@ -195,6 +195,8 @@ export default function App() {
   }, []);
 
   const selectedTeam = useMemo(() => teams.find((team) => team.id === selectedTeamId) || teams[0], [teams, selectedTeamId]);
+  const currentUserPlayer = useMemo(() => players.find((player) => player.authUserId === currentUser?.id || player.email.toLowerCase() === currentUser?.email?.toLowerCase()), [currentUser?.email, currentUser?.id, players]);
+  const currentUserTeam = useMemo(() => teams.find((team) => team.id === currentUserPlayer?.teamId || team.roster.some((member) => member.playerId === currentUserPlayer?.id)) || undefined, [currentUserPlayer?.id, currentUserPlayer?.teamId, teams]);
 
   const handleCreateTeam = async (data: Partial<Team>) => {
     const payload = normalizeTeam({
@@ -442,6 +444,7 @@ export default function App() {
             setCurrentTab={navigate}
             currentUserRole={currentUserRole}
             currentUserName={currentUser?.name}
+            currentUserTeamName={currentUserTeam?.name}
             isAuthenticated={Boolean(currentUser)}
             onOpenAuth={() => navigate('login')}
             onRequestLogout={() => setShowLogoutConfirmation(true)}
@@ -449,7 +452,7 @@ export default function App() {
           />
 
           <main className="tx-module-host flex-1 bg-[#0a0b0e] pb-16">
-            {activeTab === 'dashboard' && <><OrganizerRequestCard currentUserRole={currentUserRole}/><DashboardView teams={teams} tournaments={tournaments} onNavigate={navigate} onOpenMatch={navigateToMatch} onOpenCreateWizard={openTournamentWizard} /></>}
+            {activeTab === 'dashboard' && <><OrganizerRequestCard currentUserRole={currentUserRole}/><DashboardView teams={teams} tournaments={tournaments} currentUserRole={currentUserRole} currentUserTeam={currentUserTeam} onNavigate={navigate} onOpenMatch={navigateToMatch} onOpenCreateWizard={openTournamentWizard} /></>}
             {activeTab === 'tournaments' && (
               <TournamentsView
                 onNavigate={navigate}
@@ -457,6 +460,7 @@ export default function App() {
                 onOpenCreateWizard={openTournamentWizard}
                 tournaments={tournaments}
                 teams={teams}
+                currentUserTeam={currentUserTeam}
                 onReportBracketResult={handleReportBracketResult}
                 onRegisterParticipant={handleRegisterParticipant}
                 onGenerateGroups={handleGenerateGroups}
@@ -469,6 +473,7 @@ export default function App() {
                 section={activeTab}
                 currentUserRole={currentUserRole}
                 currentUserId={currentUser?.id}
+                currentUserTeamId={currentUserTeam?.id}
                 selectedMatchId={selectedMatchId}
                 onNavigate={navigate}
                 onOpenMatch={navigateToMatch}
@@ -481,6 +486,7 @@ export default function App() {
                 players={players}
                 currentUserRole={currentUserRole}
                 currentUserId={currentUser?.id}
+                currentUserTeam={currentUserTeam}
                 onNavigate={navigate}
                 onSelectTeam={navigateToTeam}
                 onCreateTeam={handleCreateTeam}
