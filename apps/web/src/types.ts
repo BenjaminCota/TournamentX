@@ -142,7 +142,7 @@ export interface TeamMember {
   status: 'active' | 'inactive';
 }
 
-export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'UPCOMING';
+export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'UPCOMING';
 export type TournamentFormat = 'SINGLE_ELIMINATION' | 'DOUBLE_ELIMINATION' | 'GROUP_STAGE_PLAYOFFS' | 'ROUND_ROBIN' | 'SWISS';
 
 export interface Tournament {

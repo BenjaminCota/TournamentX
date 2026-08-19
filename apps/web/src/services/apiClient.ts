@@ -161,7 +161,7 @@ export const tournamentXApi = {
     if (useSupabaseDomainData) await ensureLocalTournament(tournamentId);
     return request(`/tournaments/${tournamentId}/status`);
   },
-  changeTournamentStatus: (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED', note?: string) => runTournamentOperation(tournamentId, `/tournaments/${tournamentId}/status`, { method: 'PATCH', body: { status, note } }),
+  changeTournamentStatus: (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED', note?: string) => runTournamentOperation(tournamentId, `/tournaments/${tournamentId}/status`, { method: 'PATCH', body: { status, note } }),
   tournamentAudit: async (tournamentId: string) => {
     const result = await request<{ data: Array<{ id: string; previousStatus: string; nextStatus: string; changedBy: string; note?: string; createdAt: string }> }>(`/tournaments/${tournamentId}/audit`);
     return result.data;

@@ -394,7 +394,7 @@ export default function App() {
     await refreshTournament(tournamentId);
   };
 
-  const handleChangeTournamentStatus = async (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED', note?: string) => {
+  const handleChangeTournamentStatus = async (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED', note?: string) => {
     const result = await tournamentXApi.changeTournamentStatus(tournamentId, status, note) as { tournament: Tournament };
     setTournaments((current) => current.map((tournament) => tournament.id === tournamentId ? result.tournament : tournament));
   };
@@ -506,7 +506,7 @@ export default function App() {
             )}
             {activeTab === 'analytics' && <AnalyticsView />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
-            {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} />}
+            {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} currentUserId={currentUser?.id} />}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} currentUserId={currentUser?.id} isAuthenticated={Boolean(currentUser)} />}
           </main>
         </>

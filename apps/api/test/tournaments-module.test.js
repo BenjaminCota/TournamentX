@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 
 const authorization = { Authorization: `Bearer ${jwt.sign({ sub: 'manager-tournaments', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
+const adminAuthorization = { Authorization: `Bearer ${jwt.sign({ sub: 'admin-tournaments', role: 'admin' }, process.env.JWT_SECRET || 'development-only-secret')}` };
 
 async function activeTeamIds(count) {
   const ids = ['team-lnx', 'team-titans'];
@@ -46,6 +47,18 @@ test('rechaza nombres de torneo que exceden el límite de texto', async () => {
   const response = await request(app).post('/api/tournaments').set(authorization).send({ name: '2'.repeat(121), game: 'Valorant' });
   assert.equal(response.status, 400);
   assert.match(response.body.error, /120 caracteres/);
+});
+
+test('solo el administrador puede dar de baja un torneo activo', async () => {
+  const created = await request(app).post('/api/tournaments').set(authorization).send({ name: 'Torneo cancelable', game: 'Valorant' });
+  assert.equal(created.status, 201);
+
+  const denied = await request(app).patch(`/api/tournaments/${created.body.id}/status`).set(authorization).send({ status: 'CANCELLED' });
+  assert.equal(denied.status, 403);
+
+  const cancelled = await request(app).patch(`/api/tournaments/${created.body.id}/status`).set(adminAuthorization).send({ status: 'CANCELLED' });
+  assert.equal(cancelled.status, 200);
+  assert.equal(cancelled.body.tournament.status, 'CANCELLED');
 });
 
 test('genera y resuelve un bracket de eliminación directa con avance de rondas', async () => {

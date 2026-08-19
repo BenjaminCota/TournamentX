@@ -134,7 +134,8 @@ async function getStatus(req, res, next) {
 
 async function changeStatus(req, res, next) {
   try {
-    const allowed = ['DRAFT', 'OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED'];
+    const allowed = ['DRAFT', 'OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+    if (req.body.status === 'CANCELLED' && String(req.user.role).toLowerCase() !== 'admin') throw new HttpError(403, 'Solo un administrador puede dar de baja un torneo');
     if (!allowed.includes(req.body.status)) throw new HttpError(400, 'Estado de torneo no válido');
     res.json(store.changeStatus(req.params.id, req.body.status, req.user.sub, String(req.body.note || '').slice(0, 500)));
   } catch (error) { next(error); }

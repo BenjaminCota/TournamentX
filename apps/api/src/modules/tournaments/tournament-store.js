@@ -170,8 +170,8 @@ function createTournament(input) {
 function changeStatus(tournamentId, nextStatus, changedBy, note = '') {
   const tournament = findTournament(tournamentId);
   const transitions = {
-    DRAFT: ['OPEN'], OPEN: ['CLOSED', 'IN_PROGRESS'], CLOSED: ['OPEN', 'PUBLISHED'],
-    PUBLISHED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'], COMPLETED: [],
+    DRAFT: ['OPEN'], OPEN: ['CLOSED', 'IN_PROGRESS', 'CANCELLED'], CLOSED: ['OPEN', 'PUBLISHED', 'CANCELLED'],
+    PUBLISHED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['COMPLETED', 'CANCELLED'], COMPLETED: [], CANCELLED: [],
   };
   if (!transitions[tournament.status]?.includes(nextStatus)) throw new HttpError(409, `No se puede cambiar de ${tournament.status} a ${nextStatus}`);
   const previousStatus = tournament.status;
@@ -424,6 +424,7 @@ function getStatus(tournamentId) {
 
   let stage = 'registration';
   if (tournament.status === 'COMPLETED') stage = 'completed';
+  else if (tournament.status === 'CANCELLED') stage = 'cancelled';
   else if (knockout.length > 0) stage = 'knockout';
   else if (group.length > 0) stage = 'group_stage';
 

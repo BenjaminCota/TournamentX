@@ -57,7 +57,7 @@ interface TournamentsViewProps {
   onRegisterParticipant: (tournamentId: string, data: { teamId?: string; teamName: string; seed?: number }) => Promise<void> | void;
   onGenerateGroups: (tournamentId: string, groupCount: number) => Promise<void> | void;
   onGenerateBracket: (tournamentId: string) => Promise<void> | void;
-  onChangeStatus: (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED', note?: string) => Promise<void> | void;
+  onChangeStatus: (tournamentId: string, status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED', note?: string) => Promise<void> | void;
 }
 
 export const TournamentsView: React.FC<TournamentsViewProps> = ({
@@ -164,12 +164,12 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     setFlowMessage('');
   }, [selectedTournament?.id]);
 
-  const nextStatuses: Record<string, Array<'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED'>> = {
+  const nextStatuses: Record<string, Array<'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'>> = {
     DRAFT: ['OPEN'], OPEN: ['CLOSED', 'IN_PROGRESS'], CLOSED: ['OPEN', 'PUBLISHED'],
-    PUBLISHED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'], COMPLETED: [],
+    PUBLISHED: ['IN_PROGRESS'], IN_PROGRESS: ['COMPLETED'], COMPLETED: [], CANCELLED: [],
   };
 
-  const changeStatus = async (status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED') => {
+  const changeStatus = async (status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED') => {
     if (!selectedTournament) return;
     setIsChangingStatus(true); setFlowMessage('');
     try {
@@ -339,7 +339,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
         </div>
       </div>
 
-      {selectedTournament.status !== 'COMPLETED' && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[linear-gradient(135deg,rgba(255,46,131,.08),rgba(16,18,26,.96)_45%)] p-5 lg:p-6">
+      {!['COMPLETED', 'CANCELLED'].includes(selectedTournament.status) && <section className="rounded-3xl border border-[#ff2e83]/25 bg-[linear-gradient(135deg,rgba(255,46,131,.08),rgba(16,18,26,.96)_45%)] p-5 lg:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[.2em] text-[#ff69a8]">Control de competición</div>
@@ -398,6 +398,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-3">
             {canManageTournament && (nextStatuses[selectedTournament.status] || []).map((status) => <button key={status} disabled={isChangingStatus} onClick={() => void changeStatus(status)} className="rounded-xl border border-emerald-500/30 bg-emerald-500/[.08] px-4 py-2.5 text-xs font-bold text-emerald-300 disabled:opacity-50">{status === 'CLOSED' ? 'CERRAR INSCRIPCIÓN' : status === 'PUBLISHED' ? 'PUBLICAR' : status === 'IN_PROGRESS' ? 'INICIAR TORNEO' : status === 'COMPLETED' ? 'FINALIZAR' : 'ABRIR INSCRIPCIÓN'}</button>)}
+            {currentUserRole === 'Admin' && ['OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS'].includes(selectedTournament.status) && <button disabled={isChangingStatus} onClick={() => { if (window.confirm(`¿Dar de baja el torneo "${selectedTournament.name}"? Esta acción conservará el historial, pero detendrá su operación.`)) void changeStatus('CANCELLED'); }} className="rounded-xl border border-red-500/40 bg-red-500/[.08] px-4 py-2.5 text-xs font-bold text-red-300 disabled:opacity-50">DAR DE BAJA</button>}
             <button
               onClick={() => onNavigate('esports')}
               className="px-5 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-black text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 transition-all flex items-center gap-2 cursor-pointer font-tech"
