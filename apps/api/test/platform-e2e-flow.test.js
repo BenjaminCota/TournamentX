@@ -6,7 +6,6 @@ const app = require('../src/app');
 
 const secret = process.env.JWT_SECRET || 'development-only-secret';
 const organizer = { Authorization: `Bearer ${jwt.sign({ sub: 'e2e-organizer', role: 'organizer' }, secret)}` };
-const referee = { Authorization: `Bearer ${jwt.sign({ sub: 'e2e-referee', role: 'referee' }, secret)}` };
 
 test('recorrido E2E: equipos, torneo, calendario, resultado, notificación y premio', async () => {
   const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -39,9 +38,9 @@ test('recorrido E2E: equipos, torneo, calendario, resultado, notificación y pre
   assert.equal(schedule.status, 201);
   assert.equal(schedule.body.matches.length, 1);
 
-  const live = await request(app).patch(`/api/matches/${schedule.body.matches[0].id}/score`).set(referee).send({ team1Score: 2, team2Score: 0, status: 'live' });
+  const live = await request(app).patch(`/api/matches/${schedule.body.matches[0].id}/score`).set(organizer).send({ team1Score: 2, team2Score: 0, status: 'live' });
   assert.equal(live.status, 200);
-  const completed = await request(app).patch(`/api/matches/${schedule.body.matches[0].id}/score`).set(referee).send({ status: 'completed' });
+  const completed = await request(app).patch(`/api/matches/${schedule.body.matches[0].id}/score`).set(organizer).send({ status: 'completed' });
   assert.equal(completed.status, 200);
 
   const notifications = await request(app).get('/api/geolocation/notifications');

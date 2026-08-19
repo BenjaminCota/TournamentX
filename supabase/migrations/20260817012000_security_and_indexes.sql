@@ -29,7 +29,7 @@ as $$
 declare updated public.profiles;
 begin
   if not private.is_app_role(array['admin']) then raise exception 'Acceso denegado'; end if;
-  if new_role is not null and new_role not in ('admin','organizer','referee','captain','player','spectator') then raise exception 'Rol inválido'; end if;
+  if new_role is not null and new_role not in ('admin','organizer','captain','player') then raise exception 'Rol inválido'; end if;
   if new_status is not null and new_status not in ('ACTIVE','OFFLINE','SUSPENDED') then raise exception 'Estado inválido'; end if;
   update public.profiles set role = coalesce(new_role, role), status = coalesce(new_status, status) where id = target_id returning * into updated;
   return updated;

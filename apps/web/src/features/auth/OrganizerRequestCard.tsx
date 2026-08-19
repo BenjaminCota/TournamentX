@@ -11,7 +11,7 @@ export const OrganizerRequestCard: React.FC<OrganizerRequestCardProps> = ({ curr
   const [credentialReference, setCredentialReference] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const eligible = ['Jugador', 'Capitán', 'Espectador'].includes(currentUserRole);
+  const eligible = ['Jugador', 'Capitán'].includes(currentUserRole);
 
   useEffect(() => {
     if (eligible) tournamentXApi.myOrganizerRequests().then((response) => setRequests(response.data)).catch(() => undefined);

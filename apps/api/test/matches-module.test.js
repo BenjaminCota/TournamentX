@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 
 const managerAuthorization = { Authorization: `Bearer ${jwt.sign({ sub: 'manager-matches', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
+const captainAuthorization = { Authorization: `Bearer ${jwt.sign({ sub: 'captain-matches', role: 'captain' }, process.env.JWT_SECRET || 'development-only-secret')}` };
 
 async function createTournamentWithTeams(teamIds) {
   const tournament = await request(app).post('/api/tournaments').set(managerAuthorization).send({
@@ -71,7 +72,7 @@ test('Dev 4 valida partidos y devuelve 404 para IDs desconocidos', async () => {
 });
 
 test('Dev 4 genera un calendario todos-contra-todos con sus partidos', async () => {
-  const thirdTeam = await request(app).post('/api/teams').set(managerAuthorization).send({
+  const thirdTeam = await request(app).post('/api/teams').set(captainAuthorization).send({
     name: `Equipo calendario ${Date.now()}`, abbreviation: `C${Date.now().toString(36).slice(-5)}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
   });
   assert.equal(thirdTeam.status, 201);
@@ -121,7 +122,7 @@ test('Dev 4 protege y actualiza el marcador con transiciones válidas', async ()
     team2Id: 'team-titans',
     scheduledAt: '2026-08-23T18:00:00.000Z',
   });
-  const token = jwt.sign({ sub: 'referee-1', role: 'referee' }, process.env.JWT_SECRET || 'development-only-secret');
+  const token = jwt.sign({ sub: 'organizer-score-1', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
 
   const unauthenticated = await request(app).patch(`/api/matches/${created.body.id}/score`).send({ status: 'live' });
   assert.equal(unauthenticated.status, 401);

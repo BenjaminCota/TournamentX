@@ -427,7 +427,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     <span>Protección de fondos activada</span>
                   </div>
                   <p className="text-slate-400">
-                    Los fondos quedarán bloqueados en el contrato hasta que la Gran Final finalice y el árbitro firme el resultado oficial.
+                    Los fondos quedarán bloqueados en el contrato hasta que la Gran Final finalice y el organizador confirme el resultado oficial.
                   </p>
                 </div>
               </div>

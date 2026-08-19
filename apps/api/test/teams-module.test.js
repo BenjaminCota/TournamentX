@@ -5,7 +5,12 @@ const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 
 function managerAuthorization() {
-  const token = jwt.sign({ sub: 'manager-teams', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
+  const token = jwt.sign({ sub: 'captain-teams', role: 'captain' }, process.env.JWT_SECRET || 'development-only-secret');
+  return { Authorization: `Bearer ${token}` };
+}
+
+function adminAuthorization() {
+  const token = jwt.sign({ sub: 'admin-teams', role: 'admin' }, process.env.JWT_SECRET || 'development-only-secret');
   return { Authorization: `Bearer ${token}` };
 }
 
@@ -22,6 +27,11 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
   const teamResponse = await request(app).post('/api/teams').set(authorization).send(teamData);
   assert.equal(teamResponse.status, 201);
   assert.equal(teamResponse.body.name, 'Atlas Esports');
+  assert.equal(teamResponse.body.captainUserId, 'captain-teams');
+
+  const organizer = { Authorization: `Bearer ${jwt.sign({ sub: 'organizer-teams', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
+  const organizerCreate = await request(app).post('/api/teams').set(organizer).send({ ...teamData, name: 'Equipo sin capitán', abbreviation: 'SCP' });
+  assert.equal(organizerCreate.status, 403);
 
   const playerResponse = await request(app).post('/api/players').set(authorization).send({
     name: 'Carlos', lastname: 'Hernández', nickname: `CarlosX-${Date.now()}`, avatar: 'https://example.com/player.png', sport: 'Valorant', position: 'Duelista', nationality: 'MX', status: 'active',
@@ -51,10 +61,24 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
 
   const unauthenticatedDelete = await request(app).delete(`/api/players/${deletablePlayer.body.id}`);
   assert.equal(unauthenticatedDelete.status, 401);
-  const deleted = await request(app).delete(`/api/players/${deletablePlayer.body.id}`).set(authorization);
+  const forbiddenDelete = await request(app).delete(`/api/players/${deletablePlayer.body.id}`).set(authorization);
+  assert.equal(forbiddenDelete.status, 403);
+  const deleted = await request(app).delete(`/api/players/${deletablePlayer.body.id}`).set(adminAuthorization());
   assert.equal(deleted.status, 204);
   const deletedDetail = await request(app).get(`/api/players/${deletablePlayer.body.id}`);
   assert.equal(deletedDetail.status, 404);
   const teamWithoutDeletedPlayer = await request(app).get(`/api/teams/${teamResponse.body.id}`);
   assert.equal(teamWithoutDeletedPlayer.body.roster.some((member) => member.playerId === deletablePlayer.body.id), false);
+});
+
+test('solo un administrador puede dar de baja un equipo', async () => {
+  const team = await request(app).post('/api/teams').set(managerAuthorization()).send({
+    name: `Equipo baja ${Date.now()}`, abbreviation: `DB${Date.now().toString().slice(-5)}`,
+    sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
+  });
+  assert.equal(team.status, 201);
+  assert.equal((await request(app).delete(`/api/teams/${team.body.id}`).set(managerAuthorization())).status, 403);
+  const dissolved = await request(app).delete(`/api/teams/${team.body.id}`).set(adminAuthorization());
+  assert.equal(dissolved.status, 200);
+  assert.equal(dissolved.body.status, 'inactive');
 });

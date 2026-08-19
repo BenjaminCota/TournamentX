@@ -15,6 +15,7 @@ interface TeamDetailViewProps {
   onSelectTeam?: (teamId: string) => void;
   onCreateTeam?: (team: Partial<Team>) => Promise<Team> | Team;
   onUpdateTeam?: (teamId: string, team: Partial<Team>) => Promise<Team> | Team;
+  onDissolveTeam?: (teamId: string) => Promise<void> | void;
   onAddRosterMember?: (teamId: string, playerId: string, role: string) => Promise<{ ok: boolean; message: string }> | { ok: boolean; message: string };
   onRemoveRosterMember?: (teamId: string, playerId: string) => void | Promise<void>;
 }
@@ -29,6 +30,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   onSelectTeam,
   onCreateTeam,
   onUpdateTeam,
+  onDissolveTeam,
   onAddRosterMember,
   onRemoveRosterMember,
 }) => {
@@ -53,6 +55,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
     status: 'inactive', roster: [],
   };
   const canManage = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || (currentUserRole === 'Capitán' && currentTeam.captainUserId === currentUserId);
+  const canDissolve = currentUserRole === 'Admin' && currentTeam.status === 'active';
 
   useEffect(() => {
     if (!canManage || !currentTeam.id) { setJoinRequests([]); return; }
@@ -144,6 +147,14 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
     await onRemoveRosterMember(currentTeam.id, playerId);
   };
 
+  const dissolveTeam = async () => {
+    if (!onDissolveTeam || !window.confirm(`¿Dar de baja el equipo "${currentTeam.name}"? Sus integrantes quedarán sin equipo.`)) return;
+    try {
+      await onDissolveTeam(currentTeam.id);
+      onNavigate('teams');
+    } catch (error) { setTeamFlowMessage(error instanceof Error ? error.message : 'No fue posible dar de baja el equipo.'); }
+  };
+
   const shareTeam = async () => {
     const shareData = { title: `${currentTeam.name} · TournamentX`, text: `Consulta el perfil competitivo de ${currentTeam.name} en TournamentX.`, url: window.location.href };
     try {
@@ -194,6 +205,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
 
           <div className="flex items-center gap-3 flex-wrap">
             {canManage && <button onClick={() => openTeamModal('edit')} className="px-4 py-2.5 rounded-xl border border-[#ff2e83]/40 bg-[#ff2e83]/10 text-[#ff2e83] font-black text-xs uppercase flex items-center gap-2"><Pencil className="w-4 h-4" /> Editar equipo</button>}
+            {canDissolve && <button onClick={() => void dissolveTeam()} className="px-4 py-2.5 rounded-xl border border-red-500/40 bg-red-500/10 text-red-300 font-black text-xs uppercase flex items-center gap-2"><Trash2 className="w-4 h-4" /> Dar de baja</button>}
             <button onClick={() => setIsFollowing(!isFollowing)} className={`px-6 py-2.5 rounded-xl font-black text-xs tracking-wider uppercase transition-all flex items-center gap-2 cursor-pointer font-tech ${isFollowing ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-[#ff2e83] hover:bg-[#e11d48] text-white shadow-lg shadow-[#ff2e83]/30'}`}>
               <Star className="w-4 h-4" />
               <span>{isFollowing ? 'SIGUIENDO' : '＋ SEGUIR'}</span>

@@ -4,7 +4,8 @@ const validate = require('../../middleware/validate');
 const schemas = require('./teams.schemas');
 const { authenticate, authorize } = require('../../middleware/auth');
 
-const creator = [authenticate, authorize('admin', 'organizer', 'captain')];
+// Un equipo nace con un capitán real: solo una cuenta Capitán puede fundarlo.
+const creator = [authenticate, authorize('captain')];
 const authenticated = [authenticate];
 
 router.get('/', controller.listTeams);
@@ -12,6 +13,7 @@ router.post('/', ...creator, validate(schemas.createTeam), controller.createTeam
 router.get('/:id', controller.getTeam);
 router.post('/join-requests', authenticate, authorize('player', 'captain'), validate(schemas.joinRequest), controller.requestToJoin);
 router.patch('/:id', ...authenticated, controller.authorizeTeamManager, validate(schemas.updateTeam), controller.updateTeam);
+router.delete('/:id', authenticate, authorize('admin'), controller.dissolveTeam);
 router.post('/:id/roster', ...authenticated, controller.authorizeTeamManager, validate(schemas.roster), controller.addRosterMember);
 router.delete('/:id/roster/:playerId', ...authenticated, controller.authorizeTeamManager, controller.removeRosterMember);
 router.get('/:id/invitations', ...authenticated, controller.authorizeTeamManager, controller.listInvitations);

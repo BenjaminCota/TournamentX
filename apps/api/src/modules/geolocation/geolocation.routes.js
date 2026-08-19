@@ -16,7 +16,7 @@ const notificationBody = z.object({
   type: z.enum(['tournament', 'schedule', 'result', 'system']).default('system'),
   visibility: z.enum(['public', 'targeted']).default('public'),
   targetUserIds: z.array(z.string().trim().min(1).max(120)).max(100).default([]),
-  targetRoles: z.array(z.enum(['admin', 'organizer', 'captain', 'player', 'referee'])).max(5).default([]),
+  targetRoles: z.array(z.enum(['admin', 'organizer', 'captain', 'player'])).max(4).default([]),
 }).refine((value) => value.visibility === 'public' || value.targetUserIds.length > 0 || value.targetRoles.length > 0, {
   message: 'Una notificación dirigida necesita usuarios o roles', path: ['targetUserIds'],
 });

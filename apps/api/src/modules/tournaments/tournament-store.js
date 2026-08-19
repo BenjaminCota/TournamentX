@@ -104,6 +104,7 @@ function serializeTournament(tournament) {
     maxTeams: tournament.maxTeams,
     privacy: tournament.privacy,
     organizer: tournament.organizer,
+    createdBy: tournament.createdBy || null,
     tier: tournament.tier,
     ...(tournament.venue ? { venue: tournament.venue } : {}),
     ...(tournament.location ? { location: tournament.location } : {}),

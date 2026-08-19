@@ -4,18 +4,16 @@ const localStore = require('../../config/local-store');
 const ROLE_ALIASES = {
   admin: 'admin', administrador: 'admin',
   organizer: 'organizer', organizador: 'organizer',
-  referee: 'referee', arbitro: 'referee', 'árbitro': 'referee',
   captain: 'captain', capitan: 'captain', 'capitán': 'captain',
   player: 'player', jugador: 'player',
-  spectator: 'spectator', espectador: 'spectator',
 };
 
 function normalizeRole(role) {
-  return ROLE_ALIASES[String(role || '').trim().toLowerCase()] || 'spectator';
+  return ROLE_ALIASES[String(role || '').trim().toLowerCase()] || 'player';
 }
 
 function displayRole(role) {
-  return { admin: 'Admin', organizer: 'Organizador', referee: 'Árbitro', captain: 'Capitán', player: 'Jugador', spectator: 'Espectador' }[normalizeRole(role)];
+  return { admin: 'Admin', organizer: 'Organizador', captain: 'Capitán', player: 'Jugador' }[normalizeRole(role)];
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {

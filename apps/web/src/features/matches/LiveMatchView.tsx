@@ -90,7 +90,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
     ? createEmbeddedStream(apiMatch.streamUrl, `Transmisión · ${apiMatch.id}`)
     : null;
 
-  const canControlScore = (currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro')
+  const canControlScore = (currentUserRole === 'Admin' || currentUserRole === 'Organizador')
     && Boolean(apiMatch) && !['completed', 'cancelled'].includes(apiMatch.status);
 
   useEffect(() => {
@@ -216,7 +216,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
       const updated = await tournamentXApi.updateMatchScore(apiMatch.id, score, import.meta.env.VITE_MATCH_TOKEN);
       setApiMatch(updated as TournamentMatch);
     } catch {
-      setScoreError('No fue posible actualizar el marcador. Inicia sesión con un JWT de árbitro u organizador.');
+      setScoreError('No fue posible actualizar el marcador. Inicia sesión como administrador u organizador.');
     } finally {
       setIsSavingScore(false);
     }
@@ -295,7 +295,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
 
             {canControlScore && (
               <span className="text-[10px] font-tech text-amber-400 uppercase tracking-wider">
-                Control de Árbitro Activo
+                Control de organización activo
               </span>
             )}
           </div>

@@ -33,7 +33,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
 
   useEffect(() => { let active = true; tournamentXApi.competitiveOverview().then((result) => { if (active) { setFeedTeams(result.teams); setFeedIntegration(result.integration); } }).catch(() => undefined); return () => { active = false; }; }, []);
 
-  const canCreate = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Capitán';
+  const canCreate = currentUserRole === 'Capitán';
   
   // Calculate statistics
   const uniqueRegions = useMemo(() => [...new Set(teams.map(t => t.region))].length, [teams]);
@@ -116,7 +116,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
               <h1 className="font-brand text-4xl font-black uppercase tracking-tight text-white sm:text-5xl">
                 EQUIPOS
               </h1>
-              <p className="text-sm text-slate-300 mt-2 font-tech">Explora los equipos registrados en TournamentX.</p>
+              <p className="text-sm text-slate-300 mt-2 font-tech">Cada equipo es fundado por su Capitán, quien queda asignado como líder por defecto.</p>
             </div>
 
             {canCreate && (

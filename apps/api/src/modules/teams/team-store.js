@@ -370,6 +370,29 @@ function createTeam({ name, abbreviation, logo, sport, region, competitionType, 
     updatedAt: now,
   };
   teams.push(team);
+  const captainPlayer = players.find((player) => player.authUserId === captainUserId && !player.deletedAt);
+  if (captainPlayer && !roster.some((membership) => membership.playerId === captainPlayer.id && membership.status === 'active')) {
+    roster.push({ id: crypto.randomUUID(), teamId: id, playerId: captainPlayer.id, role: 'Capitán', status: 'active', joinedAt: now, leftAt: null });
+  }
+  persist();
+  return serializeTeam(team);
+}
+
+function dissolveTeam(teamId) {
+  const team = teams.find((entry) => entry.id === teamId);
+  if (!team || team.status === 'inactive') return null;
+  const now = new Date().toISOString();
+  team.status = 'inactive';
+  team.updatedAt = now;
+  roster.forEach((membership) => {
+    if (membership.teamId === teamId && membership.status === 'active') {
+      membership.status = 'inactive';
+      membership.leftAt = now;
+    }
+  });
+  invitations.forEach((invitation) => {
+    if (invitation.teamId === teamId && invitation.status === 'ACTIVE') invitation.status = 'CANCELLED';
+  });
   persist();
   return serializeTeam(team);
 }
@@ -455,6 +478,7 @@ function addMemberToRoster(teamId, { playerId, role, status }) {
   const team = teams.find((entry) => entry.id === teamId);
   const player = players.find((entry) => entry.id === playerId);
   if (!team || !player) return { error: 'Equipo o jugador no encontrado' };
+  if (team.status !== 'active') return { error: 'No se puede modificar un equipo dado de baja' };
 
   const existing = roster.find((membership) => membership.teamId === teamId && membership.playerId === playerId && membership.status === 'active');
   if (existing) {
@@ -578,6 +602,7 @@ module.exports = {
   listTeams,
   getTeam,
   createTeam,
+  dissolveTeam,
   updateTeam,
   listPlayers,
   getPlayer,

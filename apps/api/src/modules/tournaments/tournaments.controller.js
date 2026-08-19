@@ -135,10 +135,12 @@ async function getStatus(req, res, next) {
 async function changeStatus(req, res, next) {
   try {
     const allowed = ['DRAFT', 'OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
-    const isAdmin = String(req.user.role).toLowerCase() === 'admin';
-    if (req.body.status === 'CANCELLED' && !isAdmin) throw new HttpError(403, 'Solo un administrador puede dar de baja un torneo');
+    const role = String(req.user.role).toLowerCase();
+    const isAdmin = role === 'admin';
+    const isOwnerOrganizer = role === 'organizer' && store.canUserManageTournament(req.params.id, req.user.sub);
+    if (req.body.status === 'CANCELLED' && !isAdmin && !isOwnerOrganizer) throw new HttpError(403, 'Solo el administrador o el organizador creador puede dar de baja este torneo');
     if (!allowed.includes(req.body.status)) throw new HttpError(400, 'Estado de torneo no válido');
-    res.json(store.changeStatus(req.params.id, req.body.status, req.user.sub, String(req.body.note || '').slice(0, 500), { forceCancellation: isAdmin }));
+    res.json(store.changeStatus(req.params.id, req.body.status, req.user.sub, String(req.body.note || '').slice(0, 500), { forceCancellation: isAdmin || isOwnerOrganizer }));
   } catch (error) { next(error); }
 }
 

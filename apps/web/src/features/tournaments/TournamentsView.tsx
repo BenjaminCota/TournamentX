@@ -50,6 +50,7 @@ type EditableMatch = BracketMatch | GroupMatch;
 interface TournamentsViewProps {
   onNavigate: (tab: TabId, targetId?: string) => void;
   currentUserRole: UserRole;
+  currentUserId?: string;
   onOpenCreateWizard: () => void;
   tournaments: Tournament[];
   teams: Team[];
@@ -64,6 +65,7 @@ interface TournamentsViewProps {
 export const TournamentsView: React.FC<TournamentsViewProps> = ({
   onNavigate,
   currentUserRole,
+  currentUserId,
   onOpenCreateWizard,
   tournaments,
   teams,
@@ -125,7 +127,8 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   }, [currentUserTeam?.id, tournaments]);
 
   const canManageTournament = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
-  const canEditScores = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro';
+  const canEditScores = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
+  const canCancelTournament = currentUserRole === 'Admin' || (currentUserRole === 'Organizador' && selectedTournament?.createdBy === currentUserId);
 
   const loadGroups = async (tournamentId: string) => {
     setGroupsLoading(true);
@@ -412,7 +415,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-3">
             {canManageTournament && (nextStatuses[selectedTournament.status] || []).map((status) => <button key={status} disabled={isChangingStatus} onClick={() => void changeStatus(status)} className="rounded-xl border border-emerald-500/30 bg-emerald-500/[.08] px-4 py-2.5 text-xs font-bold text-emerald-300 disabled:opacity-50">{status === 'CLOSED' ? 'CERRAR INSCRIPCIÓN' : status === 'PUBLISHED' ? 'PUBLICAR' : status === 'IN_PROGRESS' ? 'INICIAR TORNEO' : status === 'COMPLETED' ? 'FINALIZAR' : 'ABRIR INSCRIPCIÓN'}</button>)}
-            {currentUserRole === 'Admin' && selectedTournament.status !== 'CANCELLED' && <button disabled={isChangingStatus} onClick={() => { if (window.confirm(`¿Dar de baja el torneo "${selectedTournament.name}"? Esta acción conservará el historial, pero detendrá su operación.`)) void changeStatus('CANCELLED'); }} className="rounded-xl border border-red-500/40 bg-red-500/[.08] px-4 py-2.5 text-xs font-bold text-red-300 disabled:opacity-50">DAR DE BAJA</button>}
+            {canCancelTournament && selectedTournament.status !== 'CANCELLED' && <button disabled={isChangingStatus} onClick={() => { if (window.confirm(`¿Dar de baja el torneo "${selectedTournament.name}"? Esta acción conservará el historial, pero detendrá su operación.`)) void changeStatus('CANCELLED'); }} className="rounded-xl border border-red-500/40 bg-red-500/[.08] px-4 py-2.5 text-xs font-bold text-red-300 disabled:opacity-50">DAR DE BAJA</button>}
             <button
               onClick={() => onNavigate('esports')}
               className="px-5 py-2.5 rounded-xl bg-[#ff2e83] hover:bg-[#e11d48] text-white font-black text-xs tracking-wider uppercase shadow-lg shadow-[#ff2e83]/30 transition-all flex items-center gap-2 cursor-pointer font-tech"

@@ -38,6 +38,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
   const formStatus: 'ACTIVE' = 'ACTIVE';
 
   const canManage = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Capitán';
+  const canDeletePlayers = currentUserRole === 'Admin';
   const ownPlayer = players.find((player) => player.authUserId === currentUserId);
   const canRequestTeam = (currentUserRole === 'Jugador' || currentUserRole === 'Capitán') && Boolean(ownPlayer);
   const requestTeam = async () => {
@@ -80,13 +81,13 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
   };
 
   const handleToggleStatus = async (id: string) => {
-    if (!canManage) return;
+    if (!canDeletePlayers) return;
     const player = players.find((entry) => entry.id === id);
     if (player) await onUpdatePlayer(id, { status: player.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' });
   };
 
   const handleDeletePlayer = async (id: string) => {
-    if (!canManage) return;
+    if (!canDeletePlayers) return;
     const player = players.find((entry) => entry.id === id);
     if (!confirm(`¿Eliminar permanentemente a ${player?.name || 'este jugador'}? También saldrá de su plantilla activa.`)) return;
     setDeletingPlayerId(id);
@@ -156,7 +157,6 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
               <option value="ALL">All Roles</option>
               <option value="Capitán">Capitán</option>
               <option value="Jugador">Jugador</option>
-              <option value="Espectador">Espectador</option>
             </select>
           </div>
 
@@ -255,7 +255,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
                   {/* Actions */}
                   <td className="py-4 px-6 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {canManage && (
+                      {canDeletePlayers && (
                         <>
                           <button
                             onClick={() => handleToggleStatus(player.id)}
@@ -368,9 +368,7 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
                     <option value="Capitán">Capitán</option>
                     <option value="Jugador">Jugador</option>
                     <option value="Organizador">Organizador</option>
-                    <option value="Árbitro">Árbitro</option>
                     <option value="Admin">Admin</option>
-                    <option value="Espectador">Espectador</option>
                   </select>
                 </div>
 

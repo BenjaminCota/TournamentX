@@ -4,7 +4,7 @@ import { requireSupabase } from './supabaseClient';
 type Row = Record<string, any>;
 
 const roleLabels: Record<AuthUser['role'], AuthUser['roleLabel']> = {
-  admin: 'Admin', organizer: 'Organizador', referee: 'Árbitro', captain: 'Capitán', player: 'Jugador', spectator: 'Espectador',
+  admin: 'Admin', organizer: 'Organizador', captain: 'Capitán', player: 'Jugador',
 };
 
 function fail(error: { message: string } | null) {
@@ -13,7 +13,7 @@ function fail(error: { message: string } | null) {
 
 function mapProfile(row: Row): AuthUser {
   const role = row.role as AuthUser['role'];
-  return { id: row.id, name: row.name, username: row.username, email: row.email, role, roleLabel: roleLabels[role] ?? 'Espectador', status: row.status };
+  return { id: row.id, name: row.name, username: row.username, email: row.email, role: roleLabels[role] ? role : 'player', roleLabel: roleLabels[role] ?? 'Jugador', status: row.status };
 }
 
 function mapPlayer(row: Row): User {

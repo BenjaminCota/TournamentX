@@ -35,7 +35,7 @@ module.exports = {
   paths: {
     '/api/health': { get: { security: [], summary: 'Comprueba el estado de la API', responses: { 200: { description: 'API activa' } } } },
     '/api/auth/login': { post: { security: [], summary: 'Inicia una sesión local y devuelve un JWT de ocho horas', responses: { 200: { description: 'Sesión creada' }, 401: { description: 'Credenciales incorrectas' } } } },
-    '/api/auth/register': { post: { security: [], summary: 'Registra una cuenta con rol Espectador', responses: { 201: { description: 'Cuenta creada' }, 409: { description: 'Correo duplicado' } } } },
+    '/api/auth/register': { post: { security: [], summary: 'Registra una cuenta con rol Jugador', responses: { 201: { description: 'Cuenta creada' }, 409: { description: 'Correo duplicado' } } } },
     '/api/auth/me': { get: { summary: 'Devuelve la identidad de la sesión', responses: { 200: { description: 'Usuario autenticado' } } } },
     '/api/auth/users': { get: { summary: 'Lista cuentas; requiere rol administrador', responses: { 200: { description: 'Usuarios obtenidos' }, 403: { description: 'Rol insuficiente' } } } },
     '/api/analytics/overview': { get: { security: [], summary: 'Calcula métricas, ranking y resultados recientes', responses: { 200: { description: 'Analítica calculada' } } } },

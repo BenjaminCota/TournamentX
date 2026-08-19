@@ -15,7 +15,7 @@ create table public.profiles (
   name text not null default 'Usuario TournamentX',
   username text not null unique,
   email text not null,
-  role text not null default 'spectator' check (role in ('admin','organizer','referee','captain','player','spectator')),
+  role text not null default 'player' check (role in ('admin','organizer','captain','player')),
   status text not null default 'ACTIVE' check (status in ('ACTIVE','OFFLINE','SUSPENDED')),
   avatar_url text,
   created_at timestamptz not null default now(),
@@ -293,7 +293,7 @@ declare
   first_role text;
   base_username text;
 begin
-  first_role := case when not exists (select 1 from public.profiles) then 'admin' else 'spectator' end;
+  first_role := case when not exists (select 1 from public.profiles) then 'admin' else 'player' end;
   base_username := coalesce(nullif(new.raw_user_meta_data ->> 'username', ''), split_part(coalesce(new.email, 'usuario'), '@', 1));
   insert into public.profiles (id, name, username, email, role)
   values (
@@ -342,7 +342,7 @@ as $$
 declare updated public.profiles;
 begin
   if not public.is_app_role(array['admin']) then raise exception 'Acceso denegado'; end if;
-  if new_role is not null and new_role not in ('admin','organizer','referee','captain','player','spectator') then raise exception 'Rol inválido'; end if;
+  if new_role is not null and new_role not in ('admin','organizer','captain','player') then raise exception 'Rol inválido'; end if;
   if new_status is not null and new_status not in ('ACTIVE','OFFLINE','SUSPENDED') then raise exception 'Estado inválido'; end if;
   update public.profiles set role = coalesce(new_role, role), status = coalesce(new_status, status) where id = target_id returning * into updated;
   return updated;
@@ -381,7 +381,7 @@ create policy manage_tournaments on public.tournaments for all to authenticated 
 create policy public_read_participants on public.tournament_participants for select to anon, authenticated using (true);
 create policy manage_participants on public.tournament_participants for all to authenticated using (public.is_app_role(array['admin','organizer','captain'])) with check (public.is_app_role(array['admin','organizer','captain']));
 create policy public_read_matches on public.matches for select to anon, authenticated using (true);
-create policy manage_matches on public.matches for all to authenticated using (public.is_app_role(array['admin','organizer','referee'])) with check (public.is_app_role(array['admin','organizer','referee']));
+create policy manage_matches on public.matches for all to authenticated using (public.is_app_role(array['admin','organizer'])) with check (public.is_app_role(array['admin','organizer']));
 create policy public_read_venues on public.venues for select to anon, authenticated using (true);
 create policy manage_venues on public.venues for all to authenticated using (public.is_app_role(array['admin','organizer'])) with check (public.is_app_role(array['admin','organizer']));
 create policy own_notifications on public.notifications for select to authenticated using (user_id = auth.uid() or public.is_app_role(array['admin','organizer']));
@@ -390,7 +390,7 @@ create policy update_own_notifications on public.notifications for update to aut
 create policy public_read_streams on public.media_streams for select to anon, authenticated using (true);
 create policy manage_streams on public.media_streams for all to authenticated using (public.is_app_role(array['admin','organizer'])) with check (public.is_app_role(array['admin','organizer']));
 create policy public_read_events on public.media_events for select to anon, authenticated using (true);
-create policy manage_events on public.media_events for all to authenticated using (public.is_app_role(array['admin','organizer','referee'])) with check (public.is_app_role(array['admin','organizer','referee']));
+create policy manage_events on public.media_events for all to authenticated using (public.is_app_role(array['admin','organizer'])) with check (public.is_app_role(array['admin','organizer']));
 create policy public_read_lobbies on public.media_lobbies for select to anon, authenticated using (true);
 create policy manage_lobbies on public.media_lobbies for all to authenticated using (public.is_app_role(array['admin','organizer','captain'])) with check (public.is_app_role(array['admin','organizer','captain']));
 create policy public_read_sponsors on public.sponsors for select to anon, authenticated using (active);

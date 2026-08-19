@@ -33,11 +33,19 @@ async function getTeam(req, res, next) {
 async function createTeam(req, res, next) {
   try {
     const input = req.validated?.body || req.body;
-    const team = teamStore.createTeam({ ...input, createdBy: req.user.sub, captainUserId: String(req.user.role).toLowerCase() === 'captain' ? req.user.sub : input.captainUserId });
+    const team = teamStore.createTeam({ ...input, createdBy: req.user.sub, captainUserId: req.user.sub });
     res.status(201).json(team);
   } catch (error) {
     next(error);
   }
+}
+
+async function dissolveTeam(req, res, next) {
+  try {
+    const team = teamStore.dissolveTeam(req.params.id);
+    if (!team) throw new HttpError(404, 'Equipo no encontrado o ya dado de baja');
+    res.json(team);
+  } catch (error) { next(error); }
 }
 
 async function updateTeam(req, res, next) {
@@ -157,6 +165,7 @@ module.exports = {
   listTeams,
   getTeam,
   createTeam,
+  dissolveTeam,
   updateTeam,
   listPlayers,
   getPlayer,

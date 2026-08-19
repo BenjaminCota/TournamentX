@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(60) NOT NULL UNIQUE,
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('admin', 'organizer', 'referee', 'captain', 'player', 'spectator') NOT NULL DEFAULT 'spectator',
+  role ENUM('admin', 'organizer', 'captain', 'player') NOT NULL DEFAULT 'player',
   status ENUM('ACTIVE', 'OFFLINE', 'SUSPENDED') NOT NULL DEFAULT 'ACTIVE',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -15,7 +15,7 @@ const strongPassword = password
   .regex(/[0-9]/, 'Incluye un número');
 const credentials = z.object({ email: z.string().trim().email().max(255), password });
 const registration = credentials.extend({ name: z.string().trim().min(2).max(100), username: z.string().trim().min(2).max(50).optional(), password: strongPassword });
-const userUpdate = z.object({ name: z.string().trim().min(2).max(100).optional(), username: z.string().trim().min(2).max(50).optional(), email: z.string().trim().email().max(255).optional(), role: z.enum(['admin', 'organizer', 'referee', 'captain', 'player', 'spectator']).optional(), status: z.enum(['ACTIVE', 'OFFLINE', 'SUSPENDED']).optional(), password: z.string().min(8).max(128).optional() }).refine((body) => Object.keys(body).length > 0, 'Debes enviar al menos un cambio');
+const userUpdate = z.object({ name: z.string().trim().min(2).max(100).optional(), username: z.string().trim().min(2).max(50).optional(), email: z.string().trim().email().max(255).optional(), role: z.enum(['admin', 'organizer', 'captain', 'player']).optional(), status: z.enum(['ACTIVE', 'OFFLINE', 'SUSPENDED']).optional(), password: z.string().min(8).max(128).optional() }).refine((body) => Object.keys(body).length > 0, 'Debes enviar al menos un cambio');
 const organizerRequest = z.object({
   organizationName: z.string().trim().min(2).max(120),
   description: z.string().trim().max(500).optional(),
@@ -71,7 +71,7 @@ router.post('/register', (req, res, next) => {
   if (result.error) return next(Object.assign(new Error(result.error), { status: 409 }));
   return res.status(201).json(session(store.findById(result.user.id)));
 });
-router.post('/organizer-requests', authenticate, authorize('player', 'captain', 'spectator'), (req, res, next) => {
+router.post('/organizer-requests', authenticate, authorize('player', 'captain'), (req, res, next) => {
   ensureSessionUser(req);
   const input = parse(organizerRequest, req.body, next); if (!input) return;
   const result = store.createOrganizerRequest(req.user.sub, input);

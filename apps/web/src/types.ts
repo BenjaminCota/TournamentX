@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Organizador' | 'Árbitro' | 'Capitán' | 'Jugador' | 'Espectador';
+export type UserRole = 'Admin' | 'Organizador' | 'Capitán' | 'Jugador';
 
 export interface User {
   id: string;
@@ -24,7 +24,7 @@ export interface AuthUser {
   name: string;
   username: string;
   email: string;
-  role: 'admin' | 'organizer' | 'referee' | 'captain' | 'player' | 'spectator';
+  role: 'admin' | 'organizer' | 'captain' | 'player';
   roleLabel: UserRole;
   status: 'ACTIVE' | 'OFFLINE' | 'SUSPENDED';
 }
@@ -163,6 +163,7 @@ export interface Tournament {
   maxTeams: number;
   privacy: 'PUBLIC' | 'PRIVATE';
   organizer: string;
+  createdBy?: string | null;
   tier: 'PRO CIRCUIT' | 'CHALLENGER' | 'OPEN' | 'COMMUNITY';
   venue?: string;
   location?: { lat: number; lng: number; city: string; country: string };

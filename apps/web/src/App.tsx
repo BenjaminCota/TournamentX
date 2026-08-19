@@ -97,7 +97,7 @@ function normalizePlayer(player: Partial<User> | Record<string, unknown>): User 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('landing');
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Espectador');
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole>('Jugador');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
@@ -123,7 +123,7 @@ export default function App() {
     if (supabase) {
       void supabase.auth.getSession().then(({ data }) => { if (data.session) void restoreUser(); });
       const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_OUT') { setCurrentUser(null); setCurrentUserRole('Espectador'); }
+        if (event === 'SIGNED_OUT') { setCurrentUser(null); setCurrentUserRole('Jugador'); }
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') void restoreUser();
       });
       return () => authListener.subscription.unsubscribe();
@@ -240,6 +240,13 @@ export default function App() {
     } catch (error) {
       throw error;
     }
+  };
+
+  const handleDissolveTeam = async (id: string) => {
+    const updated = normalizeTeam(await tournamentXApi.dissolveTeam(id));
+    setTeams((current) => current.map((team) => team.id === id ? updated : team));
+    setSelectedTeamId('');
+    notify('success', `El equipo ${updated.name} fue dado de baja.`);
   };
 
   const handleCreatePlayer = async (data: Partial<User>) => {
@@ -409,7 +416,7 @@ export default function App() {
     localStorage.removeItem('tournamentx_token');
     localStorage.removeItem('tournamentx_user');
     setCurrentUser(null);
-    setCurrentUserRole('Espectador');
+    setCurrentUserRole('Jugador');
     navigate('landing');
     setShowLogoutConfirmation(false);
     notify('success', 'Sesión cerrada. Ahora estás explorando como visitante.');
@@ -457,6 +464,7 @@ export default function App() {
               <TournamentsView
                 onNavigate={navigate}
                 currentUserRole={currentUserRole}
+                currentUserId={currentUser?.id}
                 onOpenCreateWizard={openTournamentWizard}
                 tournaments={tournaments}
                 teams={teams}
@@ -506,6 +514,7 @@ export default function App() {
                 onSelectTeam={setSelectedTeamId}
                 onCreateTeam={handleCreateTeam}
                 onUpdateTeam={handleUpdateTeam}
+                onDissolveTeam={handleDissolveTeam}
                 onAddRosterMember={handleAddRosterMember}
                 onRemoveRosterMember={handleRemoveRosterMember}
               />

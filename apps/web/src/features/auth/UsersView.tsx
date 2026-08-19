@@ -5,7 +5,7 @@ import { tournamentXApi } from '../../services/apiClient';
 import { matchesSearch } from '../../shared/search';
 
 interface UsersViewProps { currentUserRole: UserRole; currentUserId?: string; tournaments: Tournament[]; onCancelTournament: (id: string) => Promise<void> | void }
-const editableRoles: Array<{ value: AuthUser['role']; label: UserRole }> = [{ value: 'organizer', label: 'Organizador' }, { value: 'referee', label: 'Árbitro' }, { value: 'captain', label: 'Capitán' }, { value: 'player', label: 'Jugador' }, { value: 'spectator', label: 'Espectador' }];
+const editableRoles: Array<{ value: AuthUser['role']; label: UserRole }> = [{ value: 'organizer', label: 'Organizador' }, { value: 'captain', label: 'Capitán' }, { value: 'player', label: 'Jugador' }];
 const activeStatuses = new Set(['OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS']);
 
 export const UsersView: React.FC<UsersViewProps> = ({ currentUserRole, currentUserId, tournaments, onCancelTournament }) => {

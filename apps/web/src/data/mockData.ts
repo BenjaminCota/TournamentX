@@ -640,12 +640,12 @@ export const DEV_MODULES: DevModuleSpec[] = [
   {
     devNumber: 1,
     title: 'Core & Autenticación',
-    scope: 'Gestión de Usuarios, Roles (Admin, Organizador, Árbitro, Capitán, Jugador y Espectador), DB Schema inicial y API Gateway/Router.',
+    scope: 'Gestión de Usuarios, Roles (Admin, Organizador, Capitán y Jugador), DB Schema inicial y API Gateway/Router.',
     techStack: ['Node.js', 'Express', 'JWT (jsonwebtoken)', 'bcryptjs', 'Zod', 'MySQL (mysql2)'],
     completed: true,
     endpoints: [
       { method: 'POST', path: '/api/v1/auth/login', description: 'Autenticación con email/password y generación de JWT con claims de rol.', zodSchema: 'z.object({ email: z.string().email(), password: z.string().min(6) })' },
-      { method: 'POST', path: '/api/v1/auth/register', description: 'Registro de usuario y asignación de rol inicial.', zodSchema: 'z.object({ name: z.string(), username: z.string(), email: z.string().email(), password: z.string(), role: z.enum(["Admin","Organizador","Árbitro","Capitán","Jugador","Espectador"]) })' },
+      { method: 'POST', path: '/api/v1/auth/register', description: 'Registro de usuario y asignación de rol inicial.', zodSchema: 'z.object({ name: z.string(), username: z.string(), email: z.string().email(), password: z.string(), role: z.enum(["Admin","Organizador","Capitán","Jugador"]) })' },
       { method: 'GET', path: '/api/v1/users/me', description: 'Validación de token y extracción de perfil y permisos del usuario activo.' }
     ]
   },
