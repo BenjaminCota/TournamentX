@@ -4,6 +4,7 @@ const { getActiveTeam } = require('../teams/teams.public');
 const { getRegisteredTeamIds } = require('../tournaments/tournaments.public');
 const tournamentStore = require('../tournaments/tournament-store');
 const { assertOrganizerOwnership } = require('../../utils/resource-ownership');
+const { publishTournamentUpdate } = require('../../utils/realtime');
 
 async function listSchedules(req, res, next) {
   try {
@@ -40,6 +41,7 @@ async function createSchedule(req, res, next) {
     const unregistered = req.validated.body.teamIds.find((teamId) => !registered.has(teamId));
     if (unregistered) throw new HttpError(409, `El equipo ${unregistered} no está inscrito en el torneo`);
     const schedule = await scheduleStore.createSchedule(req.validated.body);
+    publishTournamentUpdate(req.app, req.validated.body.tournamentId, 'schedule-published');
     res.status(201).json(schedule);
   } catch (error) {
     next(error);

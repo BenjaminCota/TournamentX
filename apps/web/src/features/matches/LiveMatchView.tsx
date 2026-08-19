@@ -11,6 +11,7 @@ import {
 import { MatchWorkflow, Team, TournamentMatch, UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
 import { teamDisplayName } from '../../shared/teamStatus';
+import { realtimeServerUrl } from '../../services/realtime';
 import { io } from 'socket.io-client';
 import { OfficialStreamPlayer } from '../media/OfficialStreamPlayer';
 import type { MediaStream } from '../media/media.types';
@@ -123,7 +124,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
 
   useEffect(() => {
     if (!apiMatch?.id) return;
-    const socket = io(import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000');
+    const socket = io(realtimeServerUrl());
     socket.emit('subscribe-match', apiMatch.id);
     socket.on('match-update', (updatedMatch: TournamentMatch) => {
       if (updatedMatch.id === apiMatch.id) setApiMatch(updatedMatch);

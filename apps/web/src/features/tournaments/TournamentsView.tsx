@@ -134,6 +134,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     return () => { active = false; };
   }, [currentUserTeam?.id, tournaments]);
 
+  const canCreateTournament = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
   const canManageTournament = currentUserRole === 'Admin' || (currentUserRole === 'Organizador' && selectedTournament?.createdBy === currentUserId);
   const canEditScores = canManageTournament;
   const canCancelTournament = currentUserRole === 'Admin' || (currentUserRole === 'Organizador' && selectedTournament?.createdBy === currentUserId);
@@ -186,7 +187,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     void loadFlowState(selectedTournament.id);
     if (canManageTournament) tournamentXApi.tournamentAudit(selectedTournament.id).then((value) => setAudit(value as typeof audit)).catch(() => setAudit([]));
     setFlowMessage('');
-  }, [selectedTournament?.id]);
+  }, [selectedTournament?.id, selectedTournament?.updatedAt, canManageTournament]);
 
   const nextStatuses: Record<string, Array<'DRAFT' | 'OPEN' | 'CLOSED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'>> = {
     DRAFT: ['OPEN'], OPEN: ['CLOSED', 'IN_PROGRESS'], CLOSED: ['OPEN', 'PUBLISHED'],
@@ -308,7 +309,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     return (
       <div className="p-6 lg:p-8 max-w-7xl mx-auto text-center text-sm text-slate-400">
         Todavía no hay torneos creados.
-        {canManageTournament ? <button
+        {canCreateTournament ? <button
           onClick={onOpenCreateWizard}
           className="block mx-auto mt-4 px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] text-white text-xs font-bold tracking-wide shadow-md shadow-[#ff2e83]/20 hover:scale-105 transition-all cursor-pointer"
         >
@@ -338,7 +339,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           Torneos
         </h1>
 
-        {canManageTournament && <button
+        {canCreateTournament && <button
           onClick={onOpenCreateWizard}
           className="self-start rounded-xl bg-gradient-to-r from-[#ff2e83] to-[#e11d48] px-4 py-2 text-xs font-bold tracking-wide text-white shadow-md shadow-[#ff2e83]/20 transition-all hover:scale-105 sm:self-auto cursor-pointer"
         >
@@ -381,8 +382,8 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             ['Resultados oficiales', completedMatches],
           ].map(([label, value]) => <article key={label} className="rounded-2xl border border-white/10 bg-black/20 p-4"><strong className="block text-2xl font-black text-white">{value}</strong><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span></article>)}
         </div>
-        {!hasParticipants && <button type="button" onClick={() => setActiveTab('MATCHES')} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#ff2e83]/30 px-4 py-2.5 text-xs font-bold text-[#ff69a8]"><UsersRound className="h-4 w-4"/> INSCRIBIR EQUIPOS</button>}
-        {hasParticipants && !hasBracket && <button type="button" onClick={() => setActiveTab('MATCHES')} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white"><Trophy className="h-4 w-4"/> GENERAR BRACKET</button>}
+        {!hasParticipants && canManageTournament && <button type="button" onClick={() => setActiveTab('MATCHES')} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#ff2e83]/30 px-4 py-2.5 text-xs font-bold text-[#ff69a8]"><UsersRound className="h-4 w-4"/> INSCRIBIR EQUIPOS</button>}
+        {hasParticipants && !hasBracket && canManageTournament && <button type="button" onClick={() => setActiveTab('MATCHES')} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#ff2e83] px-4 py-2.5 text-xs font-bold text-white"><Trophy className="h-4 w-4"/> GENERAR BRACKET</button>}
         {hasBracket && !hasSchedule && canManageTournament && <form onSubmit={handleCreateSchedule} className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-[1fr_1fr_150px_auto]">
           <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Inicio<input required type="datetime-local" value={scheduleStart} onChange={(event) => setScheduleStart(event.target.value)} className="field mt-1"/></label>
           <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sede<input value={scheduleVenue} onChange={(event) => setScheduleVenue(event.target.value)} className="field mt-1" placeholder="Online o arena"/></label>

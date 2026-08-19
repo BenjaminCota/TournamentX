@@ -7,6 +7,7 @@ const tournamentStore = require('../tournaments/tournament-store');
 const workflowStore = require('./match-workflow.store');
 const { synchronizeOfficialResult } = require('./match-integration.service');
 const { assertOrganizerOwnership } = require('../../utils/resource-ownership');
+const { publishTournamentUpdate } = require('../../utils/realtime');
 
 function assertTournamentManager(req, tournamentId) {
   const tournament = tournamentStore.getTournament(tournamentId);
@@ -61,6 +62,7 @@ async function createMatch(req, res, next) {
     assertActiveTeams([req.validated.body.team1Id, req.validated.body.team2Id]);
     assertTournamentTeams(req.validated.body.tournamentId, [req.validated.body.team1Id, req.validated.body.team2Id]);
     const match = await matchStore.createMatch(req.validated.body);
+    publishTournamentUpdate(req.app, match.tournamentId, 'match-created');
     res.status(201).json(match);
   } catch (error) {
     next(error);
@@ -76,6 +78,7 @@ async function updateMatchScore(req, res, next) {
     const match = await matchStore.updateMatchScore(req.validated.params.id, req.validated.body);
     req.app.get('io')?.to(`match:${match.id}`).emit('match-update', match);
     const integration = match.status === 'completed' ? await synchronizeOfficialResult(req.app, match, req.user.sub) : null;
+    publishTournamentUpdate(req.app, match.tournamentId, 'match-result-updated');
     res.json(integration ? { ...match, integration } : match);
   } catch (error) {
     next(error);

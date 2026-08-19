@@ -25,6 +25,11 @@ function createRealtimeServer() {
     socket.on('unsubscribe-match', (matchId) => {
       if (typeof matchId === 'string') socket.leave(`match:${matchId}`);
     });
+    socket.on('subscribe-platform', (acknowledge) => {
+      socket.join('platform');
+      if (typeof acknowledge === 'function') acknowledge({ ok: true });
+    });
+    socket.on('unsubscribe-platform', () => socket.leave('platform'));
   });
 
   return { server, io };

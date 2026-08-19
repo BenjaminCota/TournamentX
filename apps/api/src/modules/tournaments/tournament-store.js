@@ -112,6 +112,8 @@ function serializeTournament(tournament) {
     organizer: tournament.organizer,
     createdBy: tournament.createdBy || null,
     tier: tournament.tier,
+    createdAt: tournament.createdAt,
+    updatedAt: tournament.updatedAt,
     ...(tournament.venue ? { venue: tournament.venue } : {}),
     ...(tournament.location ? { location: tournament.location } : {}),
     ...(tournament.championId ? { championId: tournament.championId } : {}),

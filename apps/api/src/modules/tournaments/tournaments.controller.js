@@ -2,6 +2,7 @@ const HttpError = require('../../utils/http-error');
 const store = require('./tournament-store');
 const { publishTournamentChampion } = require('../geolocation/notifications.service');
 const { releaseTournamentChampion } = require('../rewards/local-rewards.service');
+const { publishTournamentUpdate } = require('../../utils/realtime');
 
 const MAX_PRIZE_AMOUNT_USD = 1_000_000;
 
@@ -79,7 +80,9 @@ async function createTournament(req, res, next) {
       if (endTime <= startTime) throw new HttpError(400, 'La fecha de finalización debe ser posterior a la fecha de inicio');
       calendarDates = { startDate, endDate };
     }
-    res.status(201).json(store.createTournament({ ...req.body, name, game, ...calendarDates, ...(description !== undefined ? { description } : {}), ...(venue !== undefined ? { venue } : {}), ...(dates !== undefined ? { dates } : {}), ...(organizer !== undefined ? { organizer } : {}), ...(tier !== undefined ? { tier } : {}), ...(prizePool !== undefined ? { prizePool } : {}), ...(prizeAmountUSD !== undefined ? { prizeAmountUSD } : {}), createdBy: req.user.sub }));
+    const tournament = store.createTournament({ ...req.body, name, game, ...calendarDates, ...(description !== undefined ? { description } : {}), ...(venue !== undefined ? { venue } : {}), ...(dates !== undefined ? { dates } : {}), ...(organizer !== undefined ? { organizer } : {}), ...(tier !== undefined ? { tier } : {}), ...(prizePool !== undefined ? { prizePool } : {}), ...(prizeAmountUSD !== undefined ? { prizeAmountUSD } : {}), createdBy: req.user.sub });
+    publishTournamentUpdate(req.app, tournament.id, 'created');
+    res.status(201).json(tournament);
   } catch (error) {
     next(error);
   }
@@ -97,7 +100,9 @@ async function registerParticipant(req, res, next) {
   try {
     assertTournamentManager(req, req.params.id);
     const { teamId, teamName, seed } = req.body;
-    res.status(201).json(store.registerParticipant(req.params.id, { teamId, teamName, seed: Number(seed) }));
+    const participant = store.registerParticipant(req.params.id, { teamId, teamName, seed: Number(seed) });
+    publishTournamentUpdate(req.app, req.params.id, 'participant-registered');
+    res.status(201).json(participant);
   } catch (error) {
     next(error);
   }
@@ -107,7 +112,9 @@ async function generateGroups(req, res, next) {
   try {
     assertTournamentManager(req, req.params.id);
     const groupCount = Number(req.body.groupCount);
-    res.status(201).json(store.generateGroupsForTournament(req.params.id, groupCount));
+    const groups = store.generateGroupsForTournament(req.params.id, groupCount);
+    publishTournamentUpdate(req.app, req.params.id, 'groups-generated');
+    res.status(201).json(groups);
   } catch (error) {
     next(error);
   }
@@ -126,7 +133,9 @@ async function reportGroupMatchResult(req, res, next) {
     assertTournamentManager(req, req.params.id);
     const score1 = Number(req.body.score1);
     const score2 = Number(req.body.score2);
-    res.json(store.reportGroupMatchResult(req.params.id, req.params.matchId, { score1, score2 }));
+    const result = store.reportGroupMatchResult(req.params.id, req.params.matchId, { score1, score2 });
+    publishTournamentUpdate(req.app, req.params.id, 'group-result-recorded');
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -135,7 +144,9 @@ async function reportGroupMatchResult(req, res, next) {
 async function generateBracket(req, res, next) {
   try {
     assertTournamentManager(req, req.params.id);
-    res.status(201).json(store.generateBracket(req.params.id));
+    const bracket = store.generateBracket(req.params.id);
+    publishTournamentUpdate(req.app, req.params.id, 'bracket-generated');
+    res.status(201).json(bracket);
   } catch (error) {
     next(error);
   }
@@ -162,6 +173,7 @@ async function reportBracketMatchResult(req, res, next) {
       publishTournamentChampion(req.app, tournament, champion?.name || status.championId);
       await releaseTournamentChampion(req.params.id, req.user.sub);
     }
+    publishTournamentUpdate(req.app, req.params.id, 'bracket-result-recorded');
     res.json(result);
   } catch (error) {
     next(error);
@@ -184,7 +196,9 @@ async function changeStatus(req, res, next) {
     const isAdmin = role === 'admin';
     const isOwnerOrganizer = role === 'organizer' && tournament.createdBy === req.user.sub;
     if (!allowed.includes(req.body.status)) throw new HttpError(400, 'Estado de torneo no válido');
-    res.json(store.changeStatus(req.params.id, req.body.status, req.user.sub, String(req.body.note || '').slice(0, 500), { forceCancellation: isAdmin || isOwnerOrganizer }));
+    const result = store.changeStatus(req.params.id, req.body.status, req.user.sub, String(req.body.note || '').slice(0, 500), { forceCancellation: isAdmin || isOwnerOrganizer });
+    publishTournamentUpdate(req.app, req.params.id, 'status-changed');
+    res.json(result);
   } catch (error) { next(error); }
 }
 

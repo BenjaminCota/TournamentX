@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellRing, ChevronRight, LocateFixed, MapPin, Navigation, RefreshCw, Search, Wifi, WifiOff, X } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import { realtimeServerUrl } from '../../services/realtime';
 import L from 'leaflet';
 import { Tournament, Venue } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
@@ -12,7 +13,6 @@ type Notification = { id: string; title: string; message: string; type: string; 
 
 interface SedesMapViewProps { onSelectVenueTournament?: (tournamentId: string) => void }
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000';
 const VENUE_IMAGES = [
   'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=900&auto=format&fit=crop&q=82',
   'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=900&auto=format&fit=crop&q=82',
@@ -136,7 +136,7 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
 
   useEffect(() => {
     void loadNotifications();
-    const socket = io(SOCKET_URL, { reconnectionAttempts: 4 });
+    const socket = io(realtimeServerUrl(), { reconnectionAttempts: 4 });
     socketRef.current = socket;
     socket.on('connect', () => { setSocketConnected(true); socket.emit('subscribe-notifications'); });
     socket.on('disconnect', () => setSocketConnected(false));

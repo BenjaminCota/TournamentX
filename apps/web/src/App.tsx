@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { io } from 'socket.io-client';
 import { Sidebar, TabId } from './features/shell/Sidebar';
 import { LandingView } from './features/landing/LandingView';
 import { DashboardView } from './features/analytics/DashboardView';
@@ -21,6 +22,7 @@ import { supabase } from './services/supabaseClient';
 import { FeedbackToaster } from './shared/components/FeedbackToaster';
 import { notify } from './shared/feedback';
 import { isActiveTeam } from './shared/teamStatus';
+import { realtimeServerUrl } from './services/realtime';
 
 function normalizeTeam(team: Team | Record<string, unknown>): Team {
   const roster = Array.isArray((team as Team).roster) ? (team as Team).roster : [];
@@ -184,9 +186,11 @@ export default function App() {
         notify('error', error instanceof Error ? error.message : 'No se pudieron cargar los datos persistidos.');
       }
     };
-    loadData();
+    const onRealtimeRefresh = () => void loadData();
+    window.addEventListener('tournamentx:refresh', onRealtimeRefresh);
+    void loadData();
 
-    if (!supabase) return;
+    if (!supabase) return () => window.removeEventListener('tournamentx:refresh', onRealtimeRefresh);
     const channel = supabase
       .channel('tournamentx-core-data')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => void loadData())
@@ -194,7 +198,23 @@ export default function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_roster' }, () => void loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => void loadData())
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => { window.removeEventListener('tournamentx:refresh', onRealtimeRefresh); void supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
+    const socket = io(realtimeServerUrl(), { reconnectionAttempts: 6 });
+    let refreshTimer: number | undefined;
+    const refresh = () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => window.dispatchEvent(new Event('tournamentx:refresh')), 120);
+    };
+    socket.on('connect', () => socket.emit('subscribe-platform'));
+    socket.on('tournament-update', refresh);
+    return () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer);
+      socket.emit('unsubscribe-platform');
+      socket.disconnect();
+    };
   }, []);
 
   const activeTeams = useMemo(() => teams.filter(isActiveTeam), [teams]);

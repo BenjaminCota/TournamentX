@@ -167,6 +167,8 @@ export interface Tournament {
   organizer: string;
   createdBy?: string | null;
   tier: 'PRO CIRCUIT' | 'CHALLENGER' | 'OPEN' | 'COMMUNITY';
+  createdAt?: string;
+  updatedAt?: string;
   venue?: string;
   location?: { lat: number; lng: number; city: string; country: string };
   rounds?: BracketRound[];
