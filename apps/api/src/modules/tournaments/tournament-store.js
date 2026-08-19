@@ -489,6 +489,42 @@ function seed() {
   });
 }
 
+function seedAdditionalCatalog() {
+  const catalog = [
+    {
+      id: 'tour-futbol-sonora-2026', name: 'Copa Sonora de Fútbol 2026', game: 'Fútbol', gameCategory: 'TRADITIONAL',
+      description: 'Torneo presencial de fútbol amateur con fase de grupos y playoffs.',
+      banner: 'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=1200&auto=format&fit=crop&q=80',
+      prizePool: '$3,000 USD', prizeAmountUSD: 3000, format: 'GROUP_STAGE_PLAYOFFS', dates: '2026-10-10 al 2026-10-25', startDate: '2026-10-10', endDate: '2026-10-25',
+      maxTeams: 16, privacy: 'PUBLIC', organizer: 'Arena TournamentX', createdBy: 'user-organizer-2', tier: 'OPEN', venue: 'Arena TournamentX', groupAdvanceCount: 2,
+    },
+    {
+      id: 'tour-cs2-norte-2026', name: 'CS2 Norte Open', game: 'Counter-Strike 2', gameCategory: 'FPS',
+      description: 'Circuito competitivo online para equipos del norte de México.',
+      banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1200&auto=format&fit=crop&q=80',
+      prizePool: '$1,500 USD', prizeAmountUSD: 1500, format: 'DOUBLE_ELIMINATION', dates: '2026-09-12 al 2026-09-20', startDate: '2026-09-12', endDate: '2026-09-20',
+      maxTeams: 16, privacy: 'PUBLIC', organizer: 'TournamentX Community Staff', createdBy: 'user-organizer', tier: 'CHALLENGER', venue: 'Online (Servidores Dedicados)', status: 'PUBLISHED',
+    },
+    {
+      id: 'tour-basket-hermosillo-2026', name: 'Hermosillo 3x3 Challenge', game: 'Baloncesto 3x3', gameCategory: 'TRADITIONAL',
+      description: 'Competencia local de baloncesto 3x3 para equipos emergentes.',
+      banner: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1200&auto=format&fit=crop&q=80',
+      prizePool: '$800 USD', prizeAmountUSD: 800, format: 'ROUND_ROBIN', dates: '2026-11-07 al 2026-11-08', startDate: '2026-11-07', endDate: '2026-11-08',
+      maxTeams: 8, privacy: 'PUBLIC', organizer: 'Arena TournamentX', createdBy: 'user-organizer-2', tier: 'COMMUNITY', venue: 'Arena TournamentX',
+    },
+    {
+      id: 'tour-valorant-rush-2026', name: 'Valorant Rush LATAM', game: 'Valorant', gameCategory: 'FPS',
+      description: 'Torneo relámpago online para escuadras competitivas de LATAM.',
+      banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1200&auto=format&fit=crop&q=80',
+      prizePool: '$1,200 USD', prizeAmountUSD: 1200, format: 'SINGLE_ELIMINATION', dates: '2026-09-05 al 2026-09-06', startDate: '2026-09-05', endDate: '2026-09-06',
+      maxTeams: 32, privacy: 'PUBLIC', organizer: 'TournamentX Community Staff', createdBy: 'user-organizer', tier: 'OPEN', venue: 'Online (Servidores Dedicados)',
+    },
+  ];
+  for (const tournament of catalog) {
+    if (!tournaments.some((entry) => entry.id === tournament.id)) createTournament(tournament);
+  }
+}
+
 function restoreChampionFromCompletedFinals() {
   let changed = false;
   for (const tournament of tournaments) {
@@ -506,7 +542,8 @@ function restoreChampionFromCompletedFinals() {
 }
 
 if (tournaments.length === 0) seed();
-else restoreChampionFromCompletedFinals();
+seedAdditionalCatalog();
+restoreChampionFromCompletedFinals();
 
 module.exports = {
   listTournaments,

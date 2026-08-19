@@ -126,8 +126,8 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     return () => { active = false; };
   }, [currentUserTeam?.id, tournaments]);
 
-  const canManageTournament = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
-  const canEditScores = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
+  const canManageTournament = currentUserRole === 'Admin' || (currentUserRole === 'Organizador' && selectedTournament?.createdBy === currentUserId);
+  const canEditScores = canManageTournament;
   const canCancelTournament = currentUserRole === 'Admin' || (currentUserRole === 'Organizador' && selectedTournament?.createdBy === currentUserId);
 
   const loadGroups = async (tournamentId: string) => {

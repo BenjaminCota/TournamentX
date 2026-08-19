@@ -14,6 +14,11 @@ function adminAuthorization() {
   return { Authorization: `Bearer ${token}` };
 }
 
+function playerAuthorization(sub) {
+  const token = jwt.sign({ sub, role: 'player', name: sub }, process.env.JWT_SECRET || 'development-only-secret');
+  return { Authorization: `Bearer ${token}` };
+}
+
 test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async () => {
   const teamsList = await request(app).get('/api/teams');
   assert.equal(teamsList.status, 200);
@@ -33,10 +38,19 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
   const organizerCreate = await request(app).post('/api/teams').set(organizer).send({ ...teamData, name: 'Equipo sin capitán', abbreviation: 'SCP' });
   assert.equal(organizerCreate.status, 403);
 
-  const playerResponse = await request(app).post('/api/players').set(authorization).send({
+  const playerAuth = playerAuthorization('player-teams-1');
+  const playerResponse = await request(app).post('/api/players').set(playerAuth).send({
     name: 'Carlos', lastname: 'Hernández', nickname: `CarlosX-${Date.now()}`, avatar: 'https://example.com/player.png', sport: 'Valorant', position: 'Duelista', nationality: 'MX', status: 'active',
   });
   assert.equal(playerResponse.status, 201);
+
+  const duplicatedProfile = await request(app).post('/api/players').set(playerAuth).send({
+    name: 'Perfil', lastname: 'Duplicado', nickname: `Duplicado-${Date.now()}`, sport: 'Valorant', position: 'Jugador', nationality: 'MX', status: 'active',
+  });
+  assert.equal(duplicatedProfile.status, 409);
+
+  const foreignOrganizerRoster = await request(app).post(`/api/teams/${teamResponse.body.id}/roster`).set(organizer).send({ playerId: playerResponse.body.id, role: 'Capitán', status: 'active' });
+  assert.equal(foreignOrganizerRoster.status, 403);
 
   const addMember = await request(app).post(`/api/teams/${teamResponse.body.id}/roster`).set(authorization).send({ playerId: playerResponse.body.id, role: 'Capitán', status: 'active' });
   assert.equal(addMember.status, 201);
@@ -46,13 +60,16 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
 
   const teamDetail = await request(app).get(`/api/teams/${teamResponse.body.id}`);
   assert.equal(teamDetail.status, 200);
-  assert.equal(teamDetail.body.roster.length, 1);
+  assert.equal(teamDetail.body.roster.length, 2);
+
+  const removeCaptain = await request(app).delete(`/api/teams/${teamResponse.body.id}/roster/${teamDetail.body.roster.find((member) => member.playerId !== playerResponse.body.id).playerId}`).set(authorization);
+  assert.equal(removeCaptain.status, 409);
 
   const removeMember = await request(app).delete(`/api/teams/${teamResponse.body.id}/roster/${playerResponse.body.id}`).set(authorization);
   assert.equal(removeMember.status, 200);
   assert.equal(removeMember.body.status, 'inactive');
 
-  const deletablePlayer = await request(app).post('/api/players').set(authorization).send({
+  const deletablePlayer = await request(app).post('/api/players').set(playerAuthorization('player-teams-2')).send({
     name: 'Lucía', lastname: 'Torres', nickname: `Delete-${Date.now()}`, avatar: 'https://example.com/delete-player.png', sport: 'Valorant', position: 'Controladora', nationality: 'MX', status: 'active',
   });
   assert.equal(deletablePlayer.status, 201);

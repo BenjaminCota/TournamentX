@@ -21,7 +21,6 @@ test('Dev 4 emite match-update solo para la sala del partido', async () => {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   const client = createClient(`http://127.0.0.1:${address.port}`, { transports: ['websocket'] });
-  const token = jwt.sign({ sub: 'organizer-score-realtime', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
   const managerToken = jwt.sign({ sub: 'organizer-realtime', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
 
   try {
@@ -48,7 +47,7 @@ test('Dev 4 emite match-update solo para la sala del partido', async () => {
     await new Promise((resolve) => client.emit('subscribe-match', created.body.id, resolve));
     const updateEvent = waitFor(client, 'match-update');
     const updated = await request(app).patch(`/api/matches/${created.body.id}/score`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', `Bearer ${managerToken}`)
       .send({ team1Score: 1, team2Score: 0, status: 'live' });
 
     assert.equal(updated.status, 200);

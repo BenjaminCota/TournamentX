@@ -122,26 +122,31 @@ test('Dev 4 protege y actualiza el marcador con transiciones válidas', async ()
     team2Id: 'team-titans',
     scheduledAt: '2026-08-23T18:00:00.000Z',
   });
-  const token = jwt.sign({ sub: 'organizer-score-1', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
+  const foreignToken = jwt.sign({ sub: 'organizer-score-1', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
 
   const unauthenticated = await request(app).patch(`/api/matches/${created.body.id}/score`).send({ status: 'live' });
   assert.equal(unauthenticated.status, 401);
 
+  const forbidden = await request(app).patch(`/api/matches/${created.body.id}/score`)
+    .set('Authorization', `Bearer ${foreignToken}`)
+    .send({ status: 'live' });
+  assert.equal(forbidden.status, 403);
+
   const live = await request(app).patch(`/api/matches/${created.body.id}/score`)
-    .set('Authorization', `Bearer ${token}`)
+    .set(managerAuthorization)
     .send({ team1Score: 2, team2Score: 1, status: 'live' });
   assert.equal(live.status, 200);
   assert.equal(live.body.status, 'live');
   assert.deepEqual(live.body.score, { team1: 2, team2: 1 });
 
   const completed = await request(app).patch(`/api/matches/${created.body.id}/score`)
-    .set('Authorization', `Bearer ${token}`)
+    .set(managerAuthorization)
     .send({ status: 'completed' });
   assert.equal(completed.status, 200);
   assert.equal(completed.body.status, 'completed');
 
   const afterCompletion = await request(app).patch(`/api/matches/${created.body.id}/score`)
-    .set('Authorization', `Bearer ${token}`)
+    .set(managerAuthorization)
     .send({ team1Score: 3, team2Score: 1 });
   assert.equal(afterCompletion.status, 409);
 });

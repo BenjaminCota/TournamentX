@@ -25,10 +25,8 @@ test('al finalizar un partido se publica una notificación de resultado', async 
   });
   assert.equal(created.status, 201);
 
-  const token = jwt.sign({ sub: 'organizer-notification', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret');
-  const authorization = { Authorization: `Bearer ${token}` };
-  await request(app).patch(`/api/matches/${created.body.id}/score`).set(authorization).send({ status: 'live' });
-  const completed = await request(app).patch(`/api/matches/${created.body.id}/score`).set(authorization).send({ team1Score: 3, team2Score: 1, status: 'completed' });
+  await request(app).patch(`/api/matches/${created.body.id}/score`).set(managerAuthorization).send({ status: 'live' });
+  const completed = await request(app).patch(`/api/matches/${created.body.id}/score`).set(managerAuthorization).send({ team1Score: 3, team2Score: 1, status: 'completed' });
   assert.equal(completed.status, 200);
 
   const notifications = await request(app).get('/api/geolocation/notifications');

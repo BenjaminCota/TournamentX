@@ -28,6 +28,14 @@ function startOfTodayUtc() {
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 }
 
+function assertTournamentManager(req, tournamentId) {
+  const tournament = store.getTournament(tournamentId);
+  const role = String(req.user?.role || '').toLowerCase();
+  if (role === 'admin') return tournament;
+  if (role === 'organizer' && tournament.createdBy === req.user?.sub) return tournament;
+  throw new HttpError(403, 'Solo el administrador o el organizador creador puede administrar este torneo');
+}
+
 async function listTournaments(_req, res, next) {
   try {
     res.json(store.listTournaments());
@@ -80,6 +88,7 @@ async function listParticipants(req, res, next) {
 
 async function registerParticipant(req, res, next) {
   try {
+    assertTournamentManager(req, req.params.id);
     const { teamId, teamName, seed } = req.body;
     res.status(201).json(store.registerParticipant(req.params.id, { teamId, teamName, seed: Number(seed) }));
   } catch (error) {
@@ -89,6 +98,7 @@ async function registerParticipant(req, res, next) {
 
 async function generateGroups(req, res, next) {
   try {
+    assertTournamentManager(req, req.params.id);
     const groupCount = Number(req.body.groupCount);
     res.status(201).json(store.generateGroupsForTournament(req.params.id, groupCount));
   } catch (error) {
@@ -106,6 +116,7 @@ async function getGroups(req, res, next) {
 
 async function reportGroupMatchResult(req, res, next) {
   try {
+    assertTournamentManager(req, req.params.id);
     const score1 = Number(req.body.score1);
     const score2 = Number(req.body.score2);
     res.json(store.reportGroupMatchResult(req.params.id, req.params.matchId, { score1, score2 }));
@@ -116,6 +127,7 @@ async function reportGroupMatchResult(req, res, next) {
 
 async function generateBracket(req, res, next) {
   try {
+    assertTournamentManager(req, req.params.id);
     res.status(201).json(store.generateBracket(req.params.id));
   } catch (error) {
     next(error);
@@ -132,6 +144,7 @@ async function getBracket(req, res, next) {
 
 async function reportBracketMatchResult(req, res, next) {
   try {
+    assertTournamentManager(req, req.params.id);
     const score1 = Number(req.body.score1);
     const score2 = Number(req.body.score2);
     const result = store.reportBracketMatchResult(req.params.id, req.params.matchId, { score1, score2 });
@@ -159,17 +172,17 @@ async function getStatus(req, res, next) {
 async function changeStatus(req, res, next) {
   try {
     const allowed = ['DRAFT', 'OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+    const tournament = assertTournamentManager(req, req.params.id);
     const role = String(req.user.role).toLowerCase();
     const isAdmin = role === 'admin';
-    const isOwnerOrganizer = role === 'organizer' && store.canUserManageTournament(req.params.id, req.user.sub);
-    if (req.body.status === 'CANCELLED' && !isAdmin && !isOwnerOrganizer) throw new HttpError(403, 'Solo el administrador o el organizador creador puede dar de baja este torneo');
+    const isOwnerOrganizer = role === 'organizer' && tournament.createdBy === req.user.sub;
     if (!allowed.includes(req.body.status)) throw new HttpError(400, 'Estado de torneo no válido');
     res.json(store.changeStatus(req.params.id, req.body.status, req.user.sub, String(req.body.note || '').slice(0, 500), { forceCancellation: isAdmin || isOwnerOrganizer }));
   } catch (error) { next(error); }
 }
 
 async function listAudit(req, res, next) {
-  try { res.json({ data: store.listAudit(req.params.id) }); } catch (error) { next(error); }
+  try { assertTournamentManager(req, req.params.id); res.json({ data: store.listAudit(req.params.id) }); } catch (error) { next(error); }
 }
 
 module.exports = {

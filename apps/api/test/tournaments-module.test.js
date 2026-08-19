@@ -69,6 +69,10 @@ test('el organizador creador o el administrador pueden dar de baja un torneo', a
   assert.equal(created.status, 201);
 
   const foreignOrganizer = { Authorization: `Bearer ${jwt.sign({ sub: 'other-organizer', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
+  const deniedTransition = await request(app).patch(`/api/tournaments/${created.body.id}/status`).set(foreignOrganizer).send({ status: 'CLOSED' });
+  assert.equal(deniedTransition.status, 403);
+  const deniedRegistration = await request(app).post(`/api/tournaments/${created.body.id}/participants`).set(foreignOrganizer).send({ teamId: 'team-lnx', teamName: 'LUMINEX ESPORTS', seed: 1 });
+  assert.equal(deniedRegistration.status, 403);
   const denied = await request(app).patch(`/api/tournaments/${created.body.id}/status`).set(foreignOrganizer).send({ status: 'CANCELLED' });
   assert.equal(denied.status, 403);
 

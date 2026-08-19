@@ -10,13 +10,28 @@ if (!isNodeTest) {
   dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
 }
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+const webAppUrl = process.env.WEB_APP_URL || 'http://localhost:4173';
+const toOrigins = (value) => String(value || '').split(',')
+  .map((item) => item.trim())
+  .filter(Boolean)
+  .map((item) => {
+    try { return new URL(item).origin; } catch (_error) { return item.replace(/\/$/, ''); }
+  });
+const corsOrigins = [...new Set(toOrigins(process.env.CORS_ORIGIN || webAppUrl))];
+
+if (nodeEnv === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET es obligatorio cuando NODE_ENV=production');
+}
+
 module.exports = {
   port: Number(process.env.PORT || 3000),
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   databaseUrl: isNodeTest && !usesIntegrationDatabase ? undefined : process.env.DATABASE_URL,
   isTestRun: isNodeTest,
   jwtSecret: process.env.JWT_SECRET || 'development-only-secret',
-  socketCorsOrigin: process.env.SOCKET_CORS_ORIGIN || 'http://localhost:4173',
+  socketCorsOrigin: toOrigins(process.env.SOCKET_CORS_ORIGIN || corsOrigins.join(',')),
+  corsOrigins,
   supabaseUrl: process.env.SUPABASE_URL,
   supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY,
   stripeMode: process.env.STRIPE_MODE || 'disabled',
@@ -26,7 +41,7 @@ module.exports = {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   stripeConnectReturnUrl: process.env.STRIPE_CONNECT_RETURN_URL || 'http://localhost:4173/?stripe_connect=return',
   stripeConnectRefreshUrl: process.env.STRIPE_CONNECT_REFRESH_URL || 'http://localhost:4173/?stripe_connect=refresh',
-  webAppUrl: process.env.WEB_APP_URL || 'http://localhost:4173',
+  webAppUrl,
   lobbyEncryptionKey: process.env.LOBBY_ENCRYPTION_KEY || process.env.JWT_SECRET || 'development-only-lobby-key',
   privateAssetSigningKey: process.env.PRIVATE_ASSET_SIGNING_KEY || process.env.JWT_SECRET || 'development-only-asset-key',
 };

@@ -31,11 +31,22 @@ function verifyPassword(password, stored) {
 const seedUsers = [
   { id: 'user-admin', name: 'Administrador TournamentX', username: '@admin', email: 'admin@tournamentx.local', role: 'admin', passwordHash: hashPassword('Admin123!'), status: 'ACTIVE' },
   { id: 'user-organizer', name: 'Organizador Local', username: '@organizer', email: 'organizer@tournamentx.local', role: 'organizer', passwordHash: hashPassword('Organizer123!'), status: 'ACTIVE' },
+  { id: 'user-organizer-2', name: 'Organizadora Arena', username: '@arena', email: 'organizer2@tournamentx.local', role: 'organizer', passwordHash: hashPassword('Organizer2!'), status: 'ACTIVE' },
   { id: 'user-captain', name: 'Capitán Luminex', username: '@captain', email: 'captain@tournamentx.local', role: 'captain', passwordHash: hashPassword('Captain123!'), status: 'ACTIVE' },
   { id: 'user-player', name: 'Jugador Local', username: '@player', email: 'player@tournamentx.local', role: 'player', passwordHash: hashPassword('Player123!'), status: 'ACTIVE' },
 ].map((user) => ({ ...user, createdAt: '2026-08-16T00:00:00.000Z', updatedAt: '2026-08-16T00:00:00.000Z' }));
 
-function users() { return localStore.collection('users', seedUsers); }
+function users() {
+  const list = localStore.collection('users', seedUsers);
+  let changed = false;
+  for (const seed of seedUsers) {
+    if (list.some((user) => user.id === seed.id || user.email.toLowerCase() === seed.email.toLowerCase())) continue;
+    list.push(structuredClone(seed));
+    changed = true;
+  }
+  if (changed) localStore.saveCollection('users', list);
+  return list;
+}
 function organizerRequests() { return localStore.collection('organizerRequests', []); }
 function persist(list) { localStore.saveCollection('users', list); }
 function persistOrganizerRequests(list) { localStore.saveCollection('organizerRequests', list); }

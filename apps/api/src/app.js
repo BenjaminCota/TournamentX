@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const openapi = require('./docs/openapi');
+const env = require('./config/env');
 const apiRoutes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errors');
 const { requestContext } = require('./middleware/observability');
@@ -13,15 +14,24 @@ const stripeWebhookController = require('./controllers/stripe-webhook.controller
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || env.corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origen no permitido'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json', limit: '100kb' }), stripeWebhookController.handle);
 // Las evidencias se envían temporalmente como data URL. En el VPS conviene
 // reemplazar este transporte por carga directa a almacenamiento privado.
 app.use(express.json({ limit: '7mb' }));
 app.use(requestContext);
-app.use(morgan('dev'));
+app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(express.static(path.join(__dirname, '../public')));
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: 'TournamentX API' }));
+if (env.nodeEnv !== 'production') {
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: 'TournamentX API' }));
+}
 
 app.get('/api/health', (_req, res) => {
   const io = app.get('io');

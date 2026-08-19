@@ -413,6 +413,11 @@ function getPlayer(playerId) {
   return serializePlayer(playerId);
 }
 
+function findPlayerByAuthUserId(authUserId) {
+  const player = players.find((entry) => entry.authUserId === authUserId && !entry.deletedAt);
+  return player ? serializePlayer(player.id) : null;
+}
+
 function linkPlayerAccount(playerId, authUserId) {
   const player = players.find((entry) => entry.id === playerId);
   if (!player || player.deletedAt) return null;
@@ -515,9 +520,17 @@ function canUserManageTeam(teamId, userId) {
   return Boolean(team && team.captainUserId === userId);
 }
 
+function isUserActiveTeamMember(teamId, userId) {
+  return roster.some((membership) => {
+    const player = players.find((entry) => entry.id === membership.playerId && !entry.deletedAt);
+    return membership.teamId === teamId && membership.status === 'active' && player?.authUserId === userId;
+  });
+}
+
 function transferCaptain(teamId, captainUserId) {
   const team = teams.find((entry) => entry.id === teamId);
   if (!team) return null;
+  if (!isUserActiveTeamMember(teamId, captainUserId)) return { error: 'El nuevo capitán debe pertenecer a la plantilla activa', status: 409 };
   team.captainUserId = captainUserId;
   team.updatedAt = new Date().toISOString();
   persist();
@@ -583,8 +596,13 @@ function decideJoinRequest(teamId, requestId, { decision, decidedBy }) {
 }
 
 function removeMemberFromRoster(teamId, playerId) {
+  const team = teams.find((entry) => entry.id === teamId);
   const membership = roster.find((entry) => entry.teamId === teamId && entry.playerId === playerId && entry.status === 'active');
   if (!membership) return null;
+  const player = players.find((entry) => entry.id === playerId);
+  if (team?.captainUserId && team.captainUserId === player?.authUserId) {
+    return { error: 'Transfiere la capitanía antes de retirar al líder del equipo', status: 409 };
+  }
   membership.status = 'inactive';
   membership.leftAt = new Date().toISOString();
   persist();
@@ -606,6 +624,7 @@ module.exports = {
   updateTeam,
   listPlayers,
   getPlayer,
+  findPlayerByAuthUserId,
   linkPlayerAccount,
   createPlayer,
   updatePlayer,
@@ -613,6 +632,7 @@ module.exports = {
   addMemberToRoster,
   removeMemberFromRoster,
   canUserManageTeam,
+  isUserActiveTeamMember,
   transferCaptain,
   createInvitation,
   listInvitations,

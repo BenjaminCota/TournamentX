@@ -54,7 +54,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
     trend: 'EQUAL', region: '', bio: '', description: '', sport: '', competitionType: '',
     status: 'inactive', roster: [],
   };
-  const canManage = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || (currentUserRole === 'Capitán' && currentTeam.captainUserId === currentUserId);
+  const canManage = currentUserRole === 'Admin' || (currentUserRole === 'Capitán' && currentTeam.captainUserId === currentUserId);
   const canDissolve = currentUserRole === 'Admin' && currentTeam.status === 'active';
 
   useEffect(() => {

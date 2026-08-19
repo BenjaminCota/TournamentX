@@ -2,6 +2,8 @@ const HttpError = require('../../utils/http-error');
 const scheduleStore = require('./schedule-store');
 const { getActiveTeam } = require('../teams/teams.public');
 const { getRegisteredTeamIds } = require('../tournaments/tournaments.public');
+const tournamentStore = require('../tournaments/tournament-store');
+const { assertOrganizerOwnership } = require('../../utils/resource-ownership');
 
 async function listSchedules(req, res, next) {
   try {
@@ -23,6 +25,14 @@ async function getSchedule(req, res, next) {
 
 async function createSchedule(req, res, next) {
   try {
+    const tournament = tournamentStore.getTournament(req.validated.body.tournamentId);
+    assertOrganizerOwnership(req, tournament.createdBy, 'Solo el administrador o el organizador creador puede programar este torneo');
+    if (['CANCELLED', 'COMPLETED'].includes(tournament.status)) {
+      throw new HttpError(409, 'No se puede programar un torneo cancelado o finalizado');
+    }
+    if (req.validated.body.startsAt.getTime() < Date.now()) {
+      throw new HttpError(400, 'La fecha de inicio del calendario no puede estar en el pasado');
+    }
     const missing = req.validated.body.teamIds.find((teamId) => !getActiveTeam(teamId));
     if (missing) throw new HttpError(404, `El equipo ${missing} no existe o no está activo`);
     const registered = getRegisteredTeamIds(req.validated.body.tournamentId);
