@@ -29,6 +29,8 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
   assert.equal(unauthenticated.status, 401);
 
   const authorization = managerAuthorization();
+  const tooLongName = await request(app).post('/api/teams').set(authorization).send({ ...teamData, name: 'E'.repeat(61) });
+  assert.equal(tooLongName.status, 400);
   const teamResponse = await request(app).post('/api/teams').set(authorization).send(teamData);
   assert.equal(teamResponse.status, 201);
   assert.equal(teamResponse.body.name, 'Atlas Esports');

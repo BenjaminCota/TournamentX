@@ -18,6 +18,14 @@ function localDateInputValue(date = new Date()) {
   return offsetDate.toISOString().slice(0, 10);
 }
 
+function nextDateInputValue(date: string) {
+  const next = new Date(`${date}T00:00:00`);
+  next.setDate(next.getDate() + 1);
+  return localDateInputValue(next);
+}
+
+const MAX_PRIZE_AMOUNT_USD = 1_000_000;
+
 interface WizardProps {
   onClose: () => void;
   onCreateTournament: (payload: Partial<Tournament>) => Promise<Tournament> | Tournament;
@@ -48,7 +56,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
   const [endDate, setEndDate] = useState('');
   const today = localDateInputValue();
   const prizeAmount = Number(prizePool.replace(/,/g, ''));
-  const hasPrizeAmount = Number.isFinite(prizeAmount) && prizeAmount > 0;
+  const hasPrizeAmount = Number.isFinite(prizeAmount) && Number.isInteger(prizeAmount) && prizeAmount >= 1 && prizeAmount <= MAX_PRIZE_AMOUNT_USD;
 
   const steps = [
     { number: 1, title: 'Información General' },
@@ -60,22 +68,39 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
     { number: 7, title: 'Premios' }
   ];
 
-  const isStepComplete = (step: number) => {
-    if (step === 1) return name.trim().length >= 2 && description.trim().length >= 2 && privacy !== null;
-    if (step === 2) return Boolean(game);
-    if (step === 3) return format !== null;
-    if (step === 4) return maxTeams !== null;
-    if (step === 5) return true;
-    if (step === 6) return Boolean(venue && startDate && endDate && startDate >= today && endDate >= startDate);
-    if (step === 7) return hasPrizeAmount;
-    return false;
+  const stepIssue = (step: number): string | null => {
+    if (step === 1) {
+      if (name.trim().length < 2) return 'Escribe un nombre de torneo de al menos 2 caracteres.';
+      if (name.trim().length > 120) return 'El nombre del torneo no puede superar 120 caracteres.';
+      if (description.trim().length < 2) return 'Agrega una descripción de al menos 2 caracteres.';
+      if (privacy === null) return 'Selecciona si el torneo será público o privado.';
+    }
+    if (step === 2 && !game) return 'Selecciona un deporte o videojuego.';
+    if (step === 3 && !format) return 'Selecciona el formato de competencia.';
+    if (step === 4 && !maxTeams) return 'Selecciona la cantidad máxima de equipos.';
+    if (step === 6) {
+      if (!venue) return 'Selecciona la sede del torneo.';
+      if (!startDate) return `Selecciona una fecha de inicio igual o posterior a hoy (${today}).`;
+      if (startDate < today) return `La fecha de inicio debe ser igual o posterior a hoy (${today}).`;
+      if (!endDate) return 'Selecciona una fecha de finalización.';
+      if (endDate <= startDate) return 'La fecha de finalización debe ser posterior a la fecha de inicio.';
+    }
+    if (step === 7) {
+      if (!prizePool) return 'Ingresa el monto total de premios.';
+      if (!Number.isFinite(prizeAmount) || !Number.isInteger(prizeAmount)) return 'El premio debe ser un número entero en USD.';
+      if (prizeAmount < 1 || prizeAmount > MAX_PRIZE_AMOUNT_USD) return `El premio debe estar entre $1 y $${MAX_PRIZE_AMOUNT_USD.toLocaleString('en-US')} USD.`;
+    }
+    return null;
   };
+
+  const isStepComplete = (step: number) => stepIssue(step) === null;
 
   const canAccessStep = (step: number) => Array.from({ length: step - 1 }, (_, index) => isStepComplete(index + 1)).every(Boolean);
 
   const goToStep = (step: number) => {
     if (!canAccessStep(step)) {
-      setSubmitError('Completa los pasos anteriores antes de continuar.');
+      const blockedStep = Array.from({ length: step - 1 }, (_, index) => index + 1).find((previousStep) => !isStepComplete(previousStep));
+      setSubmitError(blockedStep ? `Paso ${blockedStep}: ${stepIssue(blockedStep)}` : 'Completa los pasos anteriores antes de continuar.');
       return;
     }
     setSubmitError(null);
@@ -84,7 +109,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
 
   const handleFinish = async () => {
     if (!isStepComplete(7)) {
-      setSubmitError('Ingresa un monto de premios mayor a $0 para publicar el torneo.');
+      setSubmitError(stepIssue(7));
       return;
     }
     setSubmitError(null);
@@ -215,6 +240,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     placeholder="Ej. Valorant Masters Santiago 2026"
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1.5"
                   />
+                  <p className="mt-1 text-right text-[10px] text-slate-500">{name.length}/120 caracteres</p>
                 </div>
 
                 <div>
@@ -229,6 +255,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     placeholder="Describe el propósito del torneo, reglas clave e incentivos..."
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1.5"
                   ></textarea>
+                  <p className="mt-1 text-right text-[10px] text-slate-500">{description.length}/500 caracteres</p>
                 </div>
 
                 {/* Banner Upload Mock */}
@@ -435,10 +462,11 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     onChange={(e) => {
                       const nextStartDate = e.target.value;
                       setStartDate(nextStartDate);
-                      if (endDate && endDate < nextStartDate) setEndDate('');
+                      if (endDate && endDate <= nextStartDate) setEndDate('');
                     }}
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1.5"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">Debe ser hoy ({today}) o una fecha posterior.</p>
                 </div>
 
                 <div>
@@ -447,12 +475,13 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                   </label>
                   <input
                     type="date"
-                    min={startDate || today}
+                    min={startDate ? nextDateInputValue(startDate) : ''}
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     disabled={!startDate}
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1.5 disabled:cursor-not-allowed disabled:opacity-50"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">Debe ser posterior a la fecha de inicio.</p>
                 </div>
               </div>
             )}
@@ -473,6 +502,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     <input
                       type="number"
                       min="1"
+                      max={MAX_PRIZE_AMOUNT_USD}
                       step="1"
                       value={prizePool}
                       onChange={(e) => setPrizePool(e.target.value)}
@@ -480,6 +510,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                       className="w-full bg-[#141724] border border-[#232738] rounded-xl pl-10 pr-4 py-3 text-lg font-mono-code font-bold text-white focus:border-[#ff2e83] focus:outline-none"
                     />
                   </div>
+                  <p className="mt-1 text-[10px] text-slate-400">Monto permitido: de $1 a ${MAX_PRIZE_AMOUNT_USD.toLocaleString('en-US')} USD, sin decimales.</p>
                 </div>
 
                 <div className={`p-4 rounded-2xl bg-[#141724] border text-xs text-slate-300 space-y-2 ${hasPrizeAmount ? 'border-emerald-500/30' : 'border-[#1e2230]'}`}>
@@ -518,8 +549,9 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (!isStepComplete(currentStep)) {
-                  setSubmitError('Completa los datos requeridos de este paso antes de continuar.');
+                const issue = stepIssue(currentStep);
+                if (issue) {
+                  setSubmitError(issue);
                   return;
                 }
                 goToStep(Math.min(7, currentStep + 1));

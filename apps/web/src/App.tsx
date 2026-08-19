@@ -12,6 +12,7 @@ import { SedesMapView } from './features/geolocation/SedesMapView';
 import { RecompensasView } from './features/rewards/RecompensasView';
 import { LoginView } from './features/auth/LoginView';
 import { UsersView } from './features/auth/UsersView';
+import { AdminTeamsView } from './features/auth/AdminTeamsView';
 import { OrganizerRequestCard } from './features/auth/OrganizerRequestCard';
 import { SplashScreen } from './features/landing/SplashScreen';
 import { AuthUser, Team, Tournament, User, UserRole } from './types';
@@ -521,7 +522,7 @@ export default function App() {
             )}
             {activeTab === 'analytics' && <AnalyticsView />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
-            {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} currentUserId={currentUser?.id} tournaments={tournaments} onCancelTournament={(id) => handleChangeTournamentStatus(id, 'CANCELLED', 'Torneo dado de baja desde Administración.')} />}
+            {activeTab === 'users' && <><UsersView currentUserRole={currentUserRole} currentUserId={currentUser?.id} tournaments={tournaments} onCancelTournament={(id) => handleChangeTournamentStatus(id, 'CANCELLED', 'Torneo dado de baja desde Administración.')} /><AdminTeamsView currentUserRole={currentUserRole} teams={teams} onDissolveTeam={handleDissolveTeam} /></>}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} currentUserId={currentUser?.id} isAuthenticated={Boolean(currentUser)} />}
           </main>
         </>

@@ -6,6 +6,10 @@ const { computeGroupStandings } = require('./standings');
 const localStore = require('../../config/local-store');
 const { getActiveTeam } = require('../teams/teams.public');
 
+const MAX_TOURNAMENT_NAME_LENGTH = 120;
+const MAX_TOURNAMENT_DESCRIPTION_LENGTH = 500;
+const MAX_PRIZE_AMOUNT_USD = 1_000_000;
+
 const tournaments = localStore.collection('tournaments', []);
 const tournamentAudits = localStore.collection('tournamentAudits', []);
 function persist() { localStore.saveCollection('tournaments', tournaments); localStore.saveCollection('tournamentAudits', tournamentAudits); }
@@ -113,6 +117,28 @@ function serializeTournament(tournament) {
     ...(tournament.championId ? { championId: tournament.championId } : {}),
     rounds: serializeRounds(tournament),
   };
+}
+
+function sanitizeLegacyTournaments() {
+  let changed = false;
+  for (const tournament of tournaments) {
+    const name = String(tournament.name || '').trim();
+    const description = String(tournament.description || '').trim();
+    const prizeAmountUSD = Number(tournament.prizeAmountUSD || 0);
+    const isInvalid = name.length > MAX_TOURNAMENT_NAME_LENGTH
+      || description.length > MAX_TOURNAMENT_DESCRIPTION_LENGTH
+      || !Number.isFinite(prizeAmountUSD)
+      || prizeAmountUSD > MAX_PRIZE_AMOUNT_USD;
+    if (!isInvalid) continue;
+    tournament.name = name.slice(0, MAX_TOURNAMENT_NAME_LENGTH) || 'Torneo inválido';
+    tournament.description = description.slice(0, MAX_TOURNAMENT_DESCRIPTION_LENGTH);
+    tournament.prizeAmountUSD = Math.min(Math.max(0, Number.isFinite(prizeAmountUSD) ? prizeAmountUSD : 0), MAX_PRIZE_AMOUNT_USD);
+    tournament.prizePool = tournament.prizeAmountUSD ? `$${tournament.prizeAmountUSD.toLocaleString('en-US')} USD` : '$0 USD';
+    tournament.status = 'CANCELLED';
+    tournament.updatedAt = new Date().toISOString();
+    changed = true;
+  }
+  if (changed) persist();
 }
 
 function listTournaments() {
@@ -543,6 +569,7 @@ function restoreChampionFromCompletedFinals() {
 
 if (tournaments.length === 0) seed();
 seedAdditionalCatalog();
+sanitizeLegacyTournaments();
 restoreChampionFromCompletedFinals();
 
 module.exports = {

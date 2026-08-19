@@ -61,7 +61,27 @@ test('rechaza fechas pasadas y rangos de calendario inválidos al crear un torne
     name: 'Torneo con rango invertido', game: 'Fútbol', startDate: '2099-02-02', endDate: '2099-02-01',
   });
   assert.equal(inverted.status, 400);
-  assert.match(inverted.body.error, /finalización no puede ser anterior/);
+  assert.match(inverted.body.error, /finalización debe ser posterior/);
+
+  const sameDay = await request(app).post('/api/tournaments').set(authorization).send({
+    name: 'Torneo de un solo día', game: 'Fútbol', startDate: '2099-02-02', endDate: '2099-02-02',
+  });
+  assert.equal(sameDay.status, 400);
+  assert.match(sameDay.body.error, /finalización debe ser posterior/);
+});
+
+test('rechaza bolsas de premios que no son enteros o superan el máximo', async () => {
+  const excessive = await request(app).post('/api/tournaments').set(authorization).send({
+    name: 'Torneo con bolsa excesiva', game: 'Valorant', prizeAmountUSD: 1_000_001,
+  });
+  assert.equal(excessive.status, 400);
+  assert.match(excessive.body.error, /1,000,000/);
+
+  const decimal = await request(app).post('/api/tournaments').set(authorization).send({
+    name: 'Torneo con bolsa decimal', game: 'Valorant', prizeAmountUSD: 12.5,
+  });
+  assert.equal(decimal.status, 400);
+  assert.match(decimal.body.error, /número entero/);
 });
 
 test('el organizador creador o el administrador pueden dar de baja un torneo', async () => {

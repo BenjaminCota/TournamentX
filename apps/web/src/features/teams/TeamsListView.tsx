@@ -58,8 +58,8 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   const handleCreateTeam = (e: React.FormEvent) => {
     e.preventDefault();
     if (!onCreateTeam) return;
-    if (formName.trim().length < 2 || formName.trim().length > 120 || formTag.trim().length < 2 || formTag.trim().length > 8 || formDescription.trim().length > 500 || formLogo.trim().length > 500) {
-      notify('error', 'Revisa los límites: nombre 2-120, tag 2-8, descripción 500 y URL 500 caracteres.');
+    if (formName.trim().length < 2 || formName.trim().length > 60 || formTag.trim().length < 2 || formTag.trim().length > 8 || formDescription.trim().length > 300 || formLogo.trim().length > 500) {
+      notify('error', 'Revisa los límites: nombre 2-60, tag 2-8, descripción 300 y URL 500 caracteres.');
       return;
     }
     setShowCreateConfirmation(true);
@@ -304,12 +304,13 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                   type="text"
                   required
                   minLength={2}
-                  maxLength={120}
+                  maxLength={60}
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="Ej. Linux Team"
                   className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1"
                 />
+                <p className="mt-1 text-right text-[10px] text-slate-500">{formName.length}/60 caracteres</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -361,9 +362,10 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Descripción del equipo..."
                   rows={3}
-                  maxLength={500}
+                  maxLength={300}
                   className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1"
                 />
+                <p className="mt-1 text-right text-[10px] text-slate-500">{formDescription.length}/300 caracteres</p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#1e2230]">

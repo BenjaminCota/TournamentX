@@ -3,6 +3,8 @@ const store = require('./tournament-store');
 const { publishTournamentChampion } = require('../geolocation/notifications.service');
 const { releaseTournamentChampion } = require('../rewards/local-rewards.service');
 
+const MAX_PRIZE_AMOUNT_USD = 1_000_000;
+
 function boundedText(value, label, { min = 0, max, required = false } = {}) {
   if (value === undefined || value === null || value === '') {
     if (required) throw new HttpError(400, `${label} es obligatorio`);
@@ -61,6 +63,11 @@ async function createTournament(req, res, next) {
     const dates = boundedText(req.body.dates, 'Las fechas', { max: 100 });
     const organizer = boundedText(req.body.organizer, 'El organizador', { max: 120 });
     const tier = boundedText(req.body.tier, 'El nivel', { max: 80 });
+    const prizePool = boundedText(req.body.prizePool, 'La bolsa de premios', { max: 40 });
+    const prizeAmountUSD = req.body.prizeAmountUSD === undefined ? undefined : Number(req.body.prizeAmountUSD);
+    if (prizeAmountUSD !== undefined && (!Number.isFinite(prizeAmountUSD) || !Number.isInteger(prizeAmountUSD) || prizeAmountUSD < 1 || prizeAmountUSD > MAX_PRIZE_AMOUNT_USD)) {
+      throw new HttpError(400, `El monto de premios debe ser un número entero entre $1 y $${MAX_PRIZE_AMOUNT_USD.toLocaleString('en-US')} USD`);
+    }
     const usesCalendarDates = req.body.startDate !== undefined || req.body.endDate !== undefined;
     let calendarDates = {};
     if (usesCalendarDates) {
@@ -69,10 +76,10 @@ async function createTournament(req, res, next) {
       const startTime = Date.parse(`${startDate}T00:00:00Z`);
       const endTime = Date.parse(`${endDate}T00:00:00Z`);
       if (startTime < startOfTodayUtc()) throw new HttpError(400, 'La fecha de inicio no puede ser anterior a hoy');
-      if (endTime < startTime) throw new HttpError(400, 'La fecha de finalización no puede ser anterior a la fecha de inicio');
+      if (endTime <= startTime) throw new HttpError(400, 'La fecha de finalización debe ser posterior a la fecha de inicio');
       calendarDates = { startDate, endDate };
     }
-    res.status(201).json(store.createTournament({ ...req.body, name, game, ...calendarDates, ...(description !== undefined ? { description } : {}), ...(venue !== undefined ? { venue } : {}), ...(dates !== undefined ? { dates } : {}), ...(organizer !== undefined ? { organizer } : {}), ...(tier !== undefined ? { tier } : {}), createdBy: req.user.sub }));
+    res.status(201).json(store.createTournament({ ...req.body, name, game, ...calendarDates, ...(description !== undefined ? { description } : {}), ...(venue !== undefined ? { venue } : {}), ...(dates !== undefined ? { dates } : {}), ...(organizer !== undefined ? { organizer } : {}), ...(tier !== undefined ? { tier } : {}), ...(prizePool !== undefined ? { prizePool } : {}), ...(prizeAmountUSD !== undefined ? { prizeAmountUSD } : {}), createdBy: req.user.sub }));
   } catch (error) {
     next(error);
   }

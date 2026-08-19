@@ -312,17 +312,17 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Nombre</label>
-                <input value={teamForm.name ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
+                <input maxLength={60} value={teamForm.name ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
               </div>
               <div>
                 <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Abreviatura</label>
-                <input value={teamForm.abbreviation ?? teamForm.tag ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, abbreviation: e.target.value, tag: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
+                <input maxLength={8} value={teamForm.abbreviation ?? teamForm.tag ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, abbreviation: e.target.value, tag: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
               </div>
             </div>
 
             <div>
               <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Logo</label>
-              <input value={teamForm.logo ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, logo: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
+              <input maxLength={500} value={teamForm.logo ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, logo: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -343,7 +343,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
 
             <div>
               <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Descripción</label>
-              <textarea value={teamForm.description ?? teamForm.bio ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, description: e.target.value, bio: e.target.value }))} rows={4} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
+              <textarea maxLength={300} value={teamForm.description ?? teamForm.bio ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, description: e.target.value, bio: e.target.value }))} rows={4} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#1e2230]">
