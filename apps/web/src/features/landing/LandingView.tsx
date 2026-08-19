@@ -21,9 +21,10 @@ const visitorNavigation: Array<{ id: TabId; label: string; icon: React.ElementTy
 ];
 
 export const LandingView: React.FC<LandingViewProps> = ({ onEnterApp, onOpenCreateWizard, onOpenAuth, teams, tournaments }) => {
-  const featured = tournaments.find((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status)) || tournaments[0];
+  const publicTournaments = tournaments.filter((item) => item.status !== 'CANCELLED');
+  const featured = publicTournaments.find((item) => ['OPEN', 'IN_PROGRESS', 'UPCOMING'].includes(item.status)) || publicTournaments[0];
   const rosterCount = teams.reduce((sum, team) => sum + team.roster.length, 0);
-  const highlights = tournaments.slice(0, 3);
+  const highlights = publicTournaments.slice(0, 3);
   return (
   <div className="tx-module-shell min-h-screen bg-[#0b0c10] text-white">
     <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
