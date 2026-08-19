@@ -15,6 +15,19 @@ function boundedText(value, label, { min = 0, max, required = false } = {}) {
   return normalized;
 }
 
+function validTournamentDate(value, label) {
+  const date = boundedText(value, label, { required: true, min: 10, max: 10 });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    throw new HttpError(400, `${label} debe tener el formato AAAA-MM-DD`);
+  }
+  return date;
+}
+
+function startOfTodayUtc() {
+  const now = new Date();
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+}
+
 async function listTournaments(_req, res, next) {
   try {
     res.json(store.listTournaments());
@@ -40,7 +53,18 @@ async function createTournament(req, res, next) {
     const dates = boundedText(req.body.dates, 'Las fechas', { max: 100 });
     const organizer = boundedText(req.body.organizer, 'El organizador', { max: 120 });
     const tier = boundedText(req.body.tier, 'El nivel', { max: 80 });
-    res.status(201).json(store.createTournament({ ...req.body, name, game, ...(description !== undefined ? { description } : {}), ...(venue !== undefined ? { venue } : {}), ...(dates !== undefined ? { dates } : {}), ...(organizer !== undefined ? { organizer } : {}), ...(tier !== undefined ? { tier } : {}), createdBy: req.user.sub }));
+    const usesCalendarDates = req.body.startDate !== undefined || req.body.endDate !== undefined;
+    let calendarDates = {};
+    if (usesCalendarDates) {
+      const startDate = validTournamentDate(req.body.startDate, 'La fecha de inicio');
+      const endDate = validTournamentDate(req.body.endDate, 'La fecha de finalización');
+      const startTime = Date.parse(`${startDate}T00:00:00Z`);
+      const endTime = Date.parse(`${endDate}T00:00:00Z`);
+      if (startTime < startOfTodayUtc()) throw new HttpError(400, 'La fecha de inicio no puede ser anterior a hoy');
+      if (endTime < startTime) throw new HttpError(400, 'La fecha de finalización no puede ser anterior a la fecha de inicio');
+      calendarDates = { startDate, endDate };
+    }
+    res.status(201).json(store.createTournament({ ...req.body, name, game, ...calendarDates, ...(description !== undefined ? { description } : {}), ...(venue !== undefined ? { venue } : {}), ...(dates !== undefined ? { dates } : {}), ...(organizer !== undefined ? { organizer } : {}), ...(tier !== undefined ? { tier } : {}), createdBy: req.user.sub }));
   } catch (error) {
     next(error);
   }

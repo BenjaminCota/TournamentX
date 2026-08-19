@@ -50,6 +50,20 @@ test('rechaza nombres de torneo que exceden el límite de texto', async () => {
   assert.match(response.body.error, /120 caracteres/);
 });
 
+test('rechaza fechas pasadas y rangos de calendario inválidos al crear un torneo', async () => {
+  const past = await request(app).post('/api/tournaments').set(authorization).send({
+    name: 'Torneo con fecha pasada', game: 'Fútbol', startDate: '2020-01-01', endDate: '2020-01-02',
+  });
+  assert.equal(past.status, 400);
+  assert.match(past.body.error, /no puede ser anterior a hoy/);
+
+  const inverted = await request(app).post('/api/tournaments').set(authorization).send({
+    name: 'Torneo con rango invertido', game: 'Fútbol', startDate: '2099-02-02', endDate: '2099-02-01',
+  });
+  assert.equal(inverted.status, 400);
+  assert.match(inverted.body.error, /finalización no puede ser anterior/);
+});
+
 test('el organizador creador o el administrador pueden dar de baja un torneo', async () => {
   const created = await request(app).post('/api/tournaments').set(authorization).send({ name: 'Torneo cancelable', game: 'Valorant' });
   assert.equal(created.status, 201);

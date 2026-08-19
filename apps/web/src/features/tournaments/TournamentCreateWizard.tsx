@@ -13,6 +13,11 @@ import { Tournament, TournamentFormat } from '../../types';
 import confetti from 'canvas-confetti';
 import { notify } from '../../shared/feedback';
 
+function localDateInputValue(date = new Date()) {
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return offsetDate.toISOString().slice(0, 10);
+}
+
 interface WizardProps {
   onClose: () => void;
   onCreateTournament: (payload: Partial<Tournament>) => Promise<Tournament> | Tournament;
@@ -29,29 +34,59 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Form State
-  const [name, setName] = useState('VCT Masters Santiago 2026');
-  const [description, setDescription] = useState('Torneo oficial de Valorant clasificatorio para la liga regional de verano.');
-  const [game, setGame] = useState('Valorant');
-  const [gameCategory, setGameCategory] = useState<'FPS' | 'MOBA' | 'SPORTS' | 'FIGHTING' | 'TRADITIONAL'>('FPS');
-  const [format, setFormat] = useState<TournamentFormat>('SINGLE_ELIMINATION');
-  const [maxTeams, setMaxTeams] = useState(16);
-  const [privacy, setPrivacy] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
-  const [prizePool, setPrizePool] = useState('25,000');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [game, setGame] = useState('');
+  const [gameCategory, setGameCategory] = useState<'FPS' | 'MOBA' | 'SPORTS' | 'FIGHTING' | 'TRADITIONAL'>('TRADITIONAL');
+  const [format, setFormat] = useState<TournamentFormat | null>(null);
+  const [maxTeams, setMaxTeams] = useState<number | null>(null);
+  const [privacy, setPrivacy] = useState<'PUBLIC' | 'PRIVATE' | null>(null);
+  const [prizePool, setPrizePool] = useState('');
   const bannerUrl = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1200&auto=format&fit=crop&q=80';
-  const [venue, setVenue] = useState('Movistar GameClub Santiago');
-  const [dates, setDates] = useState('NOV 20 - DEC 05');
+  const [venue, setVenue] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const today = localDateInputValue();
+  const prizeAmount = Number(prizePool.replace(/,/g, ''));
+  const hasPrizeAmount = Number.isFinite(prizeAmount) && prizeAmount > 0;
 
   const steps = [
     { number: 1, title: 'Información General' },
     { number: 2, title: 'Deporte / Juego' },
     { number: 3, title: 'Formato y Llaves' },
     { number: 4, title: 'Participantes' },
-    { number: 5, title: 'Reglas y Arbitraje' },
+    { number: 5, title: 'Reglas y Fair Play' },
     { number: 6, title: 'Calendario y Sede' },
     { number: 7, title: 'Premios' }
   ];
 
+  const isStepComplete = (step: number) => {
+    if (step === 1) return name.trim().length >= 2 && description.trim().length >= 2 && privacy !== null;
+    if (step === 2) return Boolean(game);
+    if (step === 3) return format !== null;
+    if (step === 4) return maxTeams !== null;
+    if (step === 5) return true;
+    if (step === 6) return Boolean(venue && startDate && endDate && startDate >= today && endDate >= startDate);
+    if (step === 7) return hasPrizeAmount;
+    return false;
+  };
+
+  const canAccessStep = (step: number) => Array.from({ length: step - 1 }, (_, index) => isStepComplete(index + 1)).every(Boolean);
+
+  const goToStep = (step: number) => {
+    if (!canAccessStep(step)) {
+      setSubmitError('Completa los pasos anteriores antes de continuar.');
+      return;
+    }
+    setSubmitError(null);
+    setCurrentStep(step);
+  };
+
   const handleFinish = async () => {
+    if (!isStepComplete(7)) {
+      setSubmitError('Ingresa un monto de premios mayor a $0 para publicar el torneo.');
+      return;
+    }
     setSubmitError(null);
     setIsSubmitting(true);
     try {
@@ -62,11 +97,13 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
         gameCategory,
         banner: bannerUrl,
         prizePool: `$${prizePool} USD`,
-        prizeAmountUSD: parseInt(prizePool.replace(/,/g, '')) || 0,
-        format,
-        dates,
-        maxTeams,
-        privacy,
+        prizeAmountUSD: prizeAmount,
+        format: format!,
+        dates: `${startDate} al ${endDate}`,
+        startDate,
+        endDate,
+        maxTeams: maxTeams!,
+        privacy: privacy!,
         organizer: 'TournamentX Pro Staff',
         tier: 'PRO CIRCUIT',
         venue
@@ -126,11 +163,11 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
             <div className="space-y-2">
               {steps.map((s) => {
                 const isCurrent = s.number === currentStep;
-                const isCompleted = s.number < currentStep;
+                const isCompleted = s.number < currentStep && isStepComplete(s.number);
                 return (
                   <div
                     key={s.number}
-                    onClick={() => setCurrentStep(s.number)}
+                    onClick={() => goToStep(s.number)}
                     className={`flex items-center gap-3 p-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
                       isCurrent
                         ? 'bg-[#ff2e83]/15 text-white border-l-4 border-[#ff2e83]'
@@ -258,7 +295,8 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     { name: 'Counter-Strike 2', cat: 'FPS' },
                     { name: 'Rocket League', cat: 'SPORTS' },
                     { name: 'Street Fighter 6', cat: 'FIGHTING' },
-                    { name: 'Baloncesto 3x3', cat: 'TRADITIONAL' }
+                    { name: 'Baloncesto 3x3', cat: 'TRADITIONAL' },
+                    { name: 'Fútbol', cat: 'TRADITIONAL' }
                   ].map((g) => (
                     <button
                       key={g.name}
@@ -377,6 +415,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     onChange={(e) => setVenue(e.target.value)}
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1.5"
                   >
+                    <option value="">Selecciona una sede</option>
                     <option value="Movistar GameClub Santiago">Movistar GameClub Santiago (Chile)</option>
                     <option value="Arena CDMX Esports Dome">Arena CDMX Esports Dome (México)</option>
                     <option value="Geek Lounge & Arena BA">Geek Lounge & Arena BA (Argentina)</option>
@@ -387,13 +426,32 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
 
                 <div>
                   <label className="text-xs font-mono-code uppercase font-bold text-slate-300">
-                    Rango de Fechas
+                    Fecha de inicio
                   </label>
                   <input
-                    type="text"
-                    value={dates}
-                    onChange={(e) => setDates(e.target.value)}
+                    type="date"
+                    min={today}
+                    value={startDate}
+                    onChange={(e) => {
+                      const nextStartDate = e.target.value;
+                      setStartDate(nextStartDate);
+                      if (endDate && endDate < nextStartDate) setEndDate('');
+                    }}
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-mono-code uppercase font-bold text-slate-300">
+                    Fecha de finalización
+                  </label>
+                  <input
+                    type="date"
+                    min={startDate || today}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    disabled={!startDate}
+                    className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1.5 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -413,21 +471,26 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                   <div className="relative mt-1.5">
                     <DollarSign className="w-5 h-5 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
-                      type="text"
+                      type="number"
+                      min="1"
+                      step="1"
                       value={prizePool}
                       onChange={(e) => setPrizePool(e.target.value)}
+                      placeholder="Ej. 25000"
                       className="w-full bg-[#141724] border border-[#232738] rounded-xl pl-10 pr-4 py-3 text-lg font-mono-code font-bold text-white focus:border-[#ff2e83] focus:outline-none"
                     />
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#141724] border border-emerald-500/30 text-xs text-slate-300 space-y-2">
-                  <div className="font-bold text-emerald-400 flex items-center gap-2">
+                <div className={`p-4 rounded-2xl bg-[#141724] border text-xs text-slate-300 space-y-2 ${hasPrizeAmount ? 'border-emerald-500/30' : 'border-[#1e2230]'}`}>
+                  <div className={`font-bold flex items-center gap-2 ${hasPrizeAmount ? 'text-emerald-400' : 'text-slate-400'}`}>
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Protección de fondos activada</span>
+                    <span>{hasPrizeAmount ? 'Bolsa de premios configurada' : 'Ingresa el monto de premios'}</span>
                   </div>
                   <p className="text-slate-400">
-                    Los fondos quedarán bloqueados en el contrato hasta que la Gran Final finalice y el organizador confirme el resultado oficial.
+                    {hasPrizeAmount
+                      ? 'El monto se registrará al publicar el torneo.'
+                      : 'La bolsa se habilitará cuando captures un monto mayor a $0.'}
                   </p>
                 </div>
               </div>
@@ -440,7 +503,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
           <button
             type="button"
             disabled={currentStep === 1}
-            onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+            onClick={() => goToStep(Math.max(1, currentStep - 1))}
             className="flex items-center gap-2 rounded-xl border border-[#232738] px-3 py-2.5 text-xs font-semibold text-slate-300 hover:text-white disabled:opacity-40 sm:px-5 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -454,7 +517,13 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
           {currentStep < 7 ? (
             <button
               type="button"
-              onClick={() => setCurrentStep(s => Math.min(7, s + 1))}
+              onClick={() => {
+                if (!isStepComplete(currentStep)) {
+                  setSubmitError('Completa los datos requeridos de este paso antes de continuar.');
+                  return;
+                }
+                goToStep(Math.min(7, currentStep + 1));
+              }}
               className="flex max-w-[70%] items-center gap-2 rounded-xl bg-[#ff2e83] px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-[#ff2e83]/30 hover:bg-[#e11d48] sm:max-w-none sm:px-6 cursor-pointer"
             >
               <span className="truncate">SIGUIENTE: {steps[currentStep].title}</span>

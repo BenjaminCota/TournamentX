@@ -159,6 +159,8 @@ export interface Tournament {
   status: TournamentStatus;
   format: TournamentFormat;
   dates: string;
+  startDate?: string;
+  endDate?: string;
   registeredTeams: number;
   maxTeams: number;
   privacy: 'PUBLIC' | 'PRIVATE';
