@@ -15,6 +15,7 @@ import {
 import { TabId } from '../shell/Sidebar';
 import { Team, Tournament, TournamentMatch } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { teamDisplayName } from '../../shared/teamStatus';
 
 interface DashboardViewProps {
   onNavigate: (tab: TabId, targetId?: string) => void;
@@ -61,7 +62,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const featuredTime = !featuredMatch ? 'Crea o programa un encuentro' : featuredIsLive ? 'Marcador activo' : new Date(featuredMatch.scheduledAt).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
   const completedMatches = matches.filter((match) => match.status === 'completed').length;
   const completionRate = matches.length ? Math.round(completedMatches / matches.length * 100) : 0;
-  const teamName = (id?: string) => teams.find((team) => team.id === id)?.name || id || 'Por definir';
+  const teamName = (id?: string) => teams.find((team) => team.id === id)?.name || teamDisplayName(id);
   const teamTag = (id?: string) => teams.find((team) => team.id === id)?.tag || teamName(id).slice(0, 3).toUpperCase();
 
   const upcomingMatches = matches.filter((match) => ['scheduled', 'postponed'].includes(match.status)).slice(0, 4).map((match) => ({ id: match.id, group: `${match.roundId || 'Ronda'} • ${match.mode.replaceAll('_', ' ').toUpperCase()}`, team1: teamName(match.team1Id), team2: teamName(match.team2Id), time: new Date(match.scheduledAt).toLocaleString(), game: tournaments.find((item) => item.id === match.tournamentId)?.game || 'Competencia' }));

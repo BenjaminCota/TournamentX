@@ -20,6 +20,7 @@ import { tournamentXApi } from './services/apiClient';
 import { supabase } from './services/supabaseClient';
 import { FeedbackToaster } from './shared/components/FeedbackToaster';
 import { notify } from './shared/feedback';
+import { isActiveTeam } from './shared/teamStatus';
 
 function normalizeTeam(team: Team | Record<string, unknown>): Team {
   const roster = Array.isArray((team as Team).roster) ? (team as Team).roster : [];
@@ -196,9 +197,10 @@ export default function App() {
     return () => { void supabase.removeChannel(channel); };
   }, []);
 
-  const selectedTeam = useMemo(() => teams.find((team) => team.id === selectedTeamId) || teams[0], [teams, selectedTeamId]);
+  const activeTeams = useMemo(() => teams.filter(isActiveTeam), [teams]);
+  const selectedTeam = useMemo(() => activeTeams.find((team) => team.id === selectedTeamId) || activeTeams[0], [activeTeams, selectedTeamId]);
   const currentUserPlayer = useMemo(() => players.find((player) => player.authUserId === currentUser?.id || player.email.toLowerCase() === currentUser?.email?.toLowerCase()), [currentUser?.email, currentUser?.id, players]);
-  const currentUserTeam = useMemo(() => teams.find((team) => team.id === currentUserPlayer?.teamId || team.roster.some((member) => member.playerId === currentUserPlayer?.id)) || undefined, [currentUserPlayer?.id, currentUserPlayer?.teamId, teams]);
+  const currentUserTeam = useMemo(() => activeTeams.find((team) => team.id === currentUserPlayer?.teamId || team.roster.some((member) => member.playerId === currentUserPlayer?.id)) || undefined, [activeTeams, currentUserPlayer?.id, currentUserPlayer?.teamId]);
 
   const handleCreateTeam = async (data: Partial<Team>) => {
     const payload = normalizeTeam({
@@ -435,7 +437,7 @@ export default function App() {
     <div id="tournamentx-app-root" onInputCapture={enforceTextLimit} className="tx-app-shell min-h-screen bg-[#0a0b0e] text-slate-100 flex flex-col font-sans selection:bg-[#ff2e83] selection:text-white">
       {activeTab === 'landing' ? (
         <LandingView
-          teams={teams}
+          teams={activeTeams}
           tournaments={tournaments}
           onEnterApp={enterFromLanding}
           onOpenCreateWizard={() => currentUser ? openTournamentWizard() : navigate('login')}
@@ -461,7 +463,7 @@ export default function App() {
           />
 
           <main className="tx-module-host flex-1 bg-[#0a0b0e] pb-16">
-            {activeTab === 'dashboard' && <><OrganizerRequestCard currentUserRole={currentUserRole}/><DashboardView teams={teams} tournaments={tournaments} currentUserRole={currentUserRole} currentUserTeam={currentUserTeam} onNavigate={navigate} onOpenMatch={navigateToMatch} onOpenCreateWizard={openTournamentWizard} /></>}
+            {activeTab === 'dashboard' && <><OrganizerRequestCard currentUserRole={currentUserRole}/><DashboardView teams={activeTeams} tournaments={tournaments} currentUserRole={currentUserRole} currentUserTeam={currentUserTeam} onNavigate={navigate} onOpenMatch={navigateToMatch} onOpenCreateWizard={openTournamentWizard} /></>}
             {activeTab === 'tournaments' && (
               <TournamentsView
                 onNavigate={navigate}
@@ -470,7 +472,7 @@ export default function App() {
                 highlightedTournamentId={highlightedTournamentId}
                 onOpenCreateWizard={openTournamentWizard}
                 tournaments={tournaments}
-                teams={teams}
+                teams={activeTeams}
                 currentUserTeam={currentUserTeam}
                 onReportBracketResult={handleReportBracketResult}
                 onRegisterParticipant={handleRegisterParticipant}
@@ -493,7 +495,7 @@ export default function App() {
             {(activeTab === 'teams' || activeTab === 'players') && (
               <TeamsWorkspace
                 section={activeTab}
-                teams={teams}
+                teams={activeTeams}
                 players={players}
                 currentUserRole={currentUserRole}
                 currentUserId={currentUser?.id}
@@ -509,7 +511,7 @@ export default function App() {
             {activeTab === 'team_detail' && (
               <TeamDetailView
                 teamId={selectedTeam?.id || selectedTeamId}
-                teams={teams}
+                teams={activeTeams}
                 players={players}
                 currentUserRole={currentUserRole}
                 currentUserId={currentUser?.id}

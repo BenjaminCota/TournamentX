@@ -128,6 +128,34 @@ async function createMatch({ scheduleId, tournamentId, roundId, team1Id, team2Id
   return match;
 }
 
+async function replaceTeamWithPending(teamId) {
+  const pendingId = `pending:${teamId}`;
+  const canReplace = (match) => !['completed', 'cancelled'].includes(match.status) && [match.team1Id, match.team2Id].includes(teamId);
+  if (!databaseEnabled()) {
+    let replacements = 0;
+    for (const match of matches) {
+      if (!canReplace(match)) continue;
+      if (match.team1Id === teamId) match.team1Id = pendingId;
+      if (match.team2Id === teamId) match.team2Id = pendingId;
+      match.status = 'postponed';
+      match.updatedAt = new Date().toISOString();
+      replacements += 1;
+    }
+    if (replacements) persist();
+    return replacements;
+  }
+
+  const result = await database.query(
+    `UPDATE matches
+       SET team1_id = CASE WHEN team1_id = $1 THEN $2 ELSE team1_id END,
+           team2_id = CASE WHEN team2_id = $1 THEN $2 ELSE team2_id END,
+           status = 'postponed'
+     WHERE (team1_id = $1 OR team2_id = $1) AND status NOT IN ('completed', 'cancelled')`,
+    [teamId, pendingId],
+  );
+  return result.rowCount || 0;
+}
+
 function canTransition(currentStatus, nextStatus) {
   if (currentStatus === nextStatus) return true;
   return {
@@ -173,4 +201,4 @@ async function updateMatchScore(matchId, { team1Score, team2Score, status }) {
   return getMatch(matchId);
 }
 
-module.exports = { databaseEnabled, listMatches, getMatch, createMatch, updateMatchScore };
+module.exports = { databaseEnabled, listMatches, getMatch, createMatch, updateMatchScore, replaceTeamWithPending };

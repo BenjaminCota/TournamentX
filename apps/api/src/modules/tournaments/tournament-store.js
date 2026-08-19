@@ -24,12 +24,12 @@ function participantsById(tournament) {
   return new Map(tournament.participants.map((participant) => [participant.id, participant]));
 }
 
-function teamSlot(participantId, winnerParticipantId, score, byId) {
+function teamSlot(participantId, winnerParticipantId, score, byId, { preserveHistoricalName = false } = {}) {
   if (!participantId) return { id: 'tbd', name: 'Por definir', score: 0 };
   const participant = byId.get(participantId);
   return {
     id: participant.id,
-    name: participant.name,
+    name: preserveHistoricalName && participant.originalName ? participant.originalName : participant.name,
     score: score || 0,
     seed: participant.seed,
     ...(winnerParticipantId ? { winner: winnerParticipantId === participantId } : {}),
@@ -41,8 +41,8 @@ function serializeKnockoutMatch(match, byId) {
     id: match.id,
     roundId: match.round,
     matchNumber: match.matchOrder + 1,
-    team1: teamSlot(match.participant1Id, match.winnerParticipantId, match.participant1Score, byId),
-    team2: teamSlot(match.participant2Id, match.winnerParticipantId, match.participant2Score, byId),
+    team1: teamSlot(match.participant1Id, match.winnerParticipantId, match.participant1Score, byId, { preserveHistoricalName: match.status === 'completed' }),
+    team2: teamSlot(match.participant2Id, match.winnerParticipantId, match.participant2Score, byId, { preserveHistoricalName: match.status === 'completed' }),
     status: match.status === 'completed' || match.status === 'bye' ? 'FINISHED' : 'SCHEDULED',
     bestOf: match.bestOf,
     ...(match.nextMatchId ? { nextMatchId: match.nextMatchId } : {}),
@@ -54,8 +54,8 @@ function serializeGroupMatch(match, byId) {
     id: match.id,
     groupId: match.groupId,
     round: match.round,
-    team1: teamSlot(match.participant1Id, match.winnerParticipantId, match.participant1Score, byId),
-    team2: teamSlot(match.participant2Id, match.winnerParticipantId, match.participant2Score, byId),
+    team1: teamSlot(match.participant1Id, match.winnerParticipantId, match.participant1Score, byId, { preserveHistoricalName: match.status === 'completed' }),
+    team2: teamSlot(match.participant2Id, match.winnerParticipantId, match.participant2Score, byId, { preserveHistoricalName: match.status === 'completed' }),
     status: match.status === 'completed' ? 'FINISHED' : 'SCHEDULED',
   };
 }
@@ -222,6 +222,21 @@ function listAudit(tournamentId) {
 function listParticipants(tournamentId) {
   const tournament = findTournament(tournamentId);
   return tournament.participants.map((participant) => ({ ...participant }));
+}
+
+function replaceTeamWithPending(teamId) {
+  let replacements = 0;
+  for (const tournament of tournaments) {
+    const participant = tournament.participants.find((entry) => entry.id === teamId);
+    if (!participant) continue;
+    participant.originalName = participant.originalName || participant.name;
+    participant.name = 'Pendiente';
+    participant.withdrawnAt = new Date().toISOString();
+    replacements += 1;
+    tournament.updatedAt = participant.withdrawnAt;
+  }
+  if (replacements) persist();
+  return replacements;
 }
 
 function registerParticipant(tournamentId, { teamId, teamName, seed }) {
@@ -579,6 +594,7 @@ module.exports = {
   canUserManageTournament,
   createTournament,
   listParticipants,
+  replaceTeamWithPending,
   registerParticipant,
   generateGroupsForTournament,
   getGroups,

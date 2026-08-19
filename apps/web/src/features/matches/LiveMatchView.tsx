@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { MatchWorkflow, Team, TournamentMatch, UserRole } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
+import { teamDisplayName } from '../../shared/teamStatus';
 import { io } from 'socket.io-client';
 import { OfficialStreamPlayer } from '../media/OfficialStreamPlayer';
 import type { MediaStream } from '../media/media.types';
@@ -136,7 +137,7 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
     };
   }, [apiMatch?.id]);
 
-  const teamName = (teamId: string | undefined, fallback: string) => teams.find((team) => team.id === teamId)?.name || teamId || fallback;
+  const teamName = (teamId: string | undefined, fallback: string) => teams.find((team) => team.id === teamId)?.name || teamDisplayName(teamId, fallback);
   const captainTeamId = apiMatch && currentUserId
     ? teams.find((team) => team.captainUserId === currentUserId && [apiMatch.team1Id, apiMatch.team2Id].includes(team.id))?.id
     : undefined;

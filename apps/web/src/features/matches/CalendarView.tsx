@@ -3,6 +3,7 @@ import { CalendarDays, Clock3, Gamepad2, MapPin, Radio, Search } from 'lucide-re
 import { CompetitiveEvent, Team, TournamentMatch } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
 import { matchesSearch } from '../../shared/search';
+import { teamDisplayName } from '../../shared/teamStatus';
 
 interface CalendarViewProps {
   onOpenMatch: (matchId: string) => void;
@@ -51,7 +52,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onOpenMatch, current
     return () => { active = false; };
   }, []);
 
-  const teamName = (teamId: string) => teams.find((team) => team.id === teamId)?.name || teamId;
+  const teamName = (teamId: string) => teams.find((team) => team.id === teamId)?.name || teamDisplayName(teamId);
   const visible = useMemo(() => matches.filter((match) => {
     return matchesSearch(query, match.tournamentId, teamName(match.team1Id), teamName(match.team2Id), match.venue, match.status) && (filter === 'TODOS' || matchType(match) === filter) && (!onlyMyMatches || [match.team1Id, match.team2Id].includes(currentUserTeamId || ''));
   }), [currentUserTeamId, filter, matches, onlyMyMatches, query, teams]);

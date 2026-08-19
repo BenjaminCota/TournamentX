@@ -97,7 +97,32 @@ test('solo un administrador puede dar de baja un equipo', async () => {
   });
   assert.equal(team.status, 201);
   assert.equal((await request(app).delete(`/api/teams/${team.body.id}`).set(managerAuthorization())).status, 403);
+
+  const organizer = { Authorization: `Bearer ${jwt.sign({ sub: 'organizer-team-removal', role: 'organizer' }, process.env.JWT_SECRET || 'development-only-secret')}` };
+  const tournament = await request(app).post('/api/tournaments').set(organizer).send({
+    name: `Torneo de baja ${Date.now()}`, game: 'Valorant', maxTeams: 8, status: 'OPEN', format: 'SINGLE_ELIMINATION',
+  });
+  assert.equal(tournament.status, 201);
+  assert.equal((await request(app).post(`/api/tournaments/${tournament.body.id}/participants`).set(organizer).send({ teamId: team.body.id })).status, 201);
+  assert.equal((await request(app).post(`/api/tournaments/${tournament.body.id}/participants`).set(organizer).send({ teamId: 'team-titans' })).status, 201);
+  const scheduled = await request(app).post('/api/matches').set(organizer).send({
+    tournamentId: tournament.body.id,
+    team1Id: team.body.id,
+    team2Id: 'team-titans',
+    scheduledAt: new Date(Date.now() + 86_400_000).toISOString(),
+    venue: 'Arena de pruebas',
+    mode: 'best_of_1',
+  });
+  assert.equal(scheduled.status, 201);
+
   const dissolved = await request(app).delete(`/api/teams/${team.body.id}`).set(adminAuthorization());
   assert.equal(dissolved.status, 200);
   assert.equal(dissolved.body.status, 'inactive');
+  assert.deepEqual(dissolved.body.replacements, { tournaments: 1, matches: 1 });
+  const participants = await request(app).get(`/api/tournaments/${tournament.body.id}/participants`);
+  assert.equal(participants.body.find((participant) => participant.id === team.body.id)?.name, 'Pendiente');
+  const pendingMatch = await request(app).get(`/api/matches/${scheduled.body.id}`);
+  assert.equal(pendingMatch.status, 200);
+  assert.equal(pendingMatch.body.status, 'postponed');
+  assert.ok([pendingMatch.body.team1Id, pendingMatch.body.team2Id].includes(`pending:${team.body.id}`));
 });

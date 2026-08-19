@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Trash2, UsersRound } from 'lucide-react';
 import { Team, UserRole } from '../../types';
+import { isActiveTeam } from '../../shared/teamStatus';
 
 interface AdminTeamsViewProps {
   currentUserRole: UserRole;
@@ -11,7 +12,7 @@ interface AdminTeamsViewProps {
 export const AdminTeamsView: React.FC<AdminTeamsViewProps> = ({ currentUserRole, teams, onDissolveTeam }) => {
   const [busyId, setBusyId] = useState('');
   const [message, setMessage] = useState('');
-  const activeTeams = useMemo(() => teams.filter((team) => team.status === 'active'), [teams]);
+  const activeTeams = useMemo(() => teams.filter(isActiveTeam), [teams]);
 
   if (currentUserRole !== 'Admin') return null;
 

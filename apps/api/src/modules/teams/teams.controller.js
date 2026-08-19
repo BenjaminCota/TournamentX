@@ -1,6 +1,8 @@
 const HttpError = require('../../utils/http-error');
 const teamStore = require('./team-store');
 const authStore = require('../auth/auth.store');
+const tournamentStore = require('../tournaments/tournament-store');
+const matchStore = require('../matches/match-store');
 
 function isAdmin(req) { return String(req.user?.role || '').toLowerCase() === 'admin'; }
 function assertTeamManager(req) {
@@ -60,7 +62,9 @@ async function dissolveTeam(req, res, next) {
   try {
     const team = teamStore.dissolveTeam(req.params.id);
     if (!team) throw new HttpError(404, 'Equipo no encontrado o ya dado de baja');
-    res.json(team);
+    const tournamentReplacements = tournamentStore.replaceTeamWithPending(req.params.id);
+    const matchReplacements = await matchStore.replaceTeamWithPending(req.params.id);
+    res.json({ ...team, replacements: { tournaments: tournamentReplacements, matches: matchReplacements } });
   } catch (error) { next(error); }
 }
 

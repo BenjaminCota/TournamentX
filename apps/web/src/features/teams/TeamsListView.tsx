@@ -4,6 +4,7 @@ import { CompetitiveTeam, Team } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
 import { notify } from '../../shared/feedback';
 import { matchesSearch } from '../../shared/search';
+import { isActiveTeam } from '../../shared/teamStatus';
 
 interface TeamsListViewProps {
   teams: Team[];
@@ -34,7 +35,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   useEffect(() => { let active = true; tournamentXApi.competitiveOverview().then((result) => { if (active) { setFeedTeams(result.teams); setFeedIntegration(result.integration); } }).catch(() => undefined); return () => { active = false; }; }, []);
 
   const canCreate = currentUserRole === 'Capitán';
-  const activeTeams = useMemo(() => teams.filter((team) => team.status === 'active'), [teams]);
+  const activeTeams = useMemo(() => teams.filter(isActiveTeam), [teams]);
   
   // Calculate statistics
   const uniqueRegions = useMemo(() => [...new Set(activeTeams.map(t => t.region))].length, [activeTeams]);
