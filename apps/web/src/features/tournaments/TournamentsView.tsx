@@ -109,7 +109,8 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   const [audit, setAudit] = useState<Array<{ id: string; previousStatus: string; nextStatus: string; changedBy: string; note?: string; createdAt: string }>>([]);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
-  const selectedTournament = tournaments.find((t) => t.id === selectedTournamentId) || tournaments[0];
+  const availableTournaments = tournaments.filter((tournament) => tournament.status !== 'CANCELLED');
+  const selectedTournament = availableTournaments.find((t) => t.id === selectedTournamentId) || availableTournaments[0];
 
   const canManageTournament = currentUserRole === 'Admin' || currentUserRole === 'Organizador';
   const canEditScores = currentUserRole === 'Admin' || currentUserRole === 'Organizador' || currentUserRole === 'Árbitro';
@@ -332,7 +333,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             onChange={(e) => setSelectedTournamentId(e.target.value)}
             className="w-full min-w-0 rounded-xl border border-[#232738] bg-[#141724] px-3 py-2 text-sm font-bold text-white focus:border-[#ff2e83] focus:outline-none sm:w-auto sm:max-w-xl sm:px-4 cursor-pointer"
           >
-            {tournaments.map(t => (
+            {availableTournaments.map(t => (
               <option key={t.id} value={t.id}>{t.name.slice(0, 120)} ({t.game})</option>
             ))}
           </select>

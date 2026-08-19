@@ -47,6 +47,7 @@ function synchronizeLocalTournamentPools() {
   }
 
   for (const tournament of tournaments) {
+    if (tournament.status === 'CANCELLED') continue;
     if (store.list('prizePools').some((pool) => pool.tournamentId === tournament.id)) continue;
     const prizeAmount = Math.max(0, Number(tournament.prizeAmountUSD || 0));
     const simulatedFunds = env.paymentsMode === 'simulated' || env.isTestRun ? prizeAmount : 0;

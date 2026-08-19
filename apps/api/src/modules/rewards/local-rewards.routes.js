@@ -23,6 +23,11 @@ function requireAutomatedPaymentMode(next) {
   next(Object.assign(new Error('Configura Stripe Test o PAYMENTS_MODE=simulated para procesar pagos'), { status: 503 }));
   return false;
 }
+function isVisiblePool(pool) {
+  try { return tournamentStore.getTournament(pool.tournamentId).status !== 'CANCELLED'; }
+  catch (_error) { return true; }
+}
+function visiblePools() { return store.list('prizePools').filter(isVisiblePool); }
 function poolSummary(pool) { return { id: pool.id, tournamentId: pool.tournamentId, name: pool.name, currency: pool.currency, targetAmount: pool.targetAmount, fundedAmount: pool.fundedAmount, status: pool.status, simulated: Boolean(pool.simulated), updatedAt: pool.updatedAt }; }
 function readablePool(pool, role) {
   const details = store.poolDetails(pool);
@@ -32,7 +37,7 @@ function readablePool(pool, role) {
 
 router.get('/prize-pools/public', (_req, res) => {
   rewardsService.synchronizeLocalTournamentPools();
-  return res.json({ data: store.list('prizePools').map(poolSummary) });
+  return res.json({ data: visiblePools().map(poolSummary) });
 });
 router.use(['/sponsors', '/prize-pools', '/contributions', '/rewards'], authenticate);
 router.get('/sponsors', ...managerRole, (_req, res) => res.json({ data: store.list('sponsors') }));
@@ -44,7 +49,7 @@ router.post('/sponsors', ...manager, (req, res, next) => {
   return res.status(201).json({ data: sponsor });
 });
 
-router.get('/prize-pools', (req, res) => { rewardsService.synchronizeLocalTournamentPools(); const pools = isOrganizer(req) ? store.list('prizePools').filter((pool) => pool.createdBy === req.user.sub) : store.list('prizePools'); return res.json({ data: pools.map(poolSummary) }); });
+router.get('/prize-pools', (req, res) => { rewardsService.synchronizeLocalTournamentPools(); const pools = isOrganizer(req) ? visiblePools().filter((pool) => pool.createdBy === req.user.sub) : visiblePools(); return res.json({ data: pools.map(poolSummary) }); });
 router.get('/prize-pools/claimable', authorize('captain'), (req, res) => {
   rewardsService.synchronizeLocalTournamentPools();
   const data = store.list('winners').filter((winner) => winner.position === 1).flatMap((winner) => {
@@ -52,7 +57,7 @@ router.get('/prize-pools/claimable', authorize('captain'), (req, res) => {
     if (!team || team.captainUserId !== req.user.sub) return [];
     const pool = store.find('prizePools', winner.prizePoolId);
     const rule = store.list('distributionRules').find((entry) => entry.prizePoolId === winner.prizePoolId && entry.position === winner.position);
-    if (!pool || !rule) return [];
+    if (!pool || !rule || !isVisiblePool(pool)) return [];
     const payout = store.list('payouts').find((entry) => entry.prizePoolId === pool.id && entry.position === winner.position) || null;
     let tournamentName = pool.name.replace(/^Bolsa\s+/i, '');
     try { tournamentName = tournamentStore.getTournament(pool.tournamentId).name; } catch (_error) { /* conserva el nombre de la bolsa */ }
