@@ -107,6 +107,7 @@ export default function App() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>();
+  const [highlightedTournamentId, setHighlightedTournamentId] = useState<string | undefined>();
 
   useEffect(() => { const timer = window.setTimeout(() => setShowSplash(false), 3000); return () => window.clearTimeout(timer); }, []);
 
@@ -466,6 +467,7 @@ export default function App() {
                 onNavigate={navigate}
                 currentUserRole={currentUserRole}
                 currentUserId={currentUser?.id}
+                highlightedTournamentId={highlightedTournamentId}
                 onOpenCreateWizard={openTournamentWizard}
                 tournaments={tournaments}
                 teams={teams}
@@ -521,7 +523,7 @@ export default function App() {
               />
             )}
             {activeTab === 'analytics' && <AnalyticsView />}
-            {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
+            {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={(tournamentId) => { setHighlightedTournamentId(tournamentId); navigate('tournaments'); }} />}
             {activeTab === 'users' && <><UsersView currentUserRole={currentUserRole} currentUserId={currentUser?.id} tournaments={tournaments} onCancelTournament={(id) => handleChangeTournamentStatus(id, 'CANCELLED', 'Torneo dado de baja desde Administración.')} /><AdminTeamsView currentUserRole={currentUserRole} teams={teams} onDissolveTeam={handleDissolveTeam} /></>}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} currentUserId={currentUser?.id} isAuthenticated={Boolean(currentUser)} />}
           </main>

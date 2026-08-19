@@ -10,7 +10,7 @@ type Coordinates = { lat: number; lng: number };
 type LocationState = 'idle' | 'loading' | 'ready' | 'fallback' | 'denied' | 'unsupported';
 type Notification = { id: string; title: string; message: string; type: string; createdAt: string; read?: boolean };
 
-interface SedesMapViewProps { onSelectVenueTournament?: (venueName: string) => void }
+interface SedesMapViewProps { onSelectVenueTournament?: (tournamentId: string) => void }
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3000';
 const VENUE_IMAGES = [
@@ -84,8 +84,11 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
 
   const venueTournaments = useMemo(() => tournaments.filter((tournament: Tournament) => {
     if (!selectedVenue) return false;
-    if (!['OPEN', 'PUBLISHED', 'IN_PROGRESS', 'UPCOMING'].includes(tournament.status)) return false;
-    if (tournament.venue?.toLowerCase().includes(selectedVenue.city.toLowerCase())) return true;
+    if (!['OPEN', 'CLOSED', 'PUBLISHED', 'IN_PROGRESS', 'UPCOMING'].includes(tournament.status)) return false;
+    const tournamentVenue = tournament.venue?.toLowerCase() || '';
+    const venueName = selectedVenue.name.toLowerCase();
+    const venueCity = selectedVenue.city.toLowerCase();
+    if (tournamentVenue && (tournamentVenue.includes(venueName) || venueName.includes(tournamentVenue) || tournamentVenue.includes(venueCity))) return true;
     if (!tournament.location) return false;
     return distanceKm({ lat: tournament.location.lat, lng: tournament.location.lng }, selectedVenue.coordinates) < 25;
   }), [selectedVenue, tournaments]);
@@ -214,7 +217,7 @@ export function SedesMapView({ onSelectVenueTournament }: SedesMapViewProps) {
           {userLocation && <div className="rounded-xl bg-blue-500/10 border border-blue-500/30 p-2.5 text-xs text-blue-300">A {distanceKm(userLocation, selectedVenue.coordinates).toFixed(1)} km de tu ubicación</div>}
           <div className="flex flex-wrap gap-1.5">{selectedVenue.features.map((feature) => <span key={feature} className="text-[10px] text-slate-300 bg-[#161926] px-2 py-1 rounded-md">✓ {feature}</span>)}</div>
           <div className="text-xs text-slate-400"><strong className="text-white">{venueTournaments.length}</strong> torneos activos o próximos</div>
-          <button onClick={() => onSelectVenueTournament?.(selectedVenue.name)} className="w-full py-2.5 rounded-xl bg-[#ff2e83] text-white text-xs font-bold">VER TORNEOS EN ESTA SEDE</button>
+          <button disabled={venueTournaments.length === 0} onClick={() => onSelectVenueTournament?.(venueTournaments[0].id)} className="w-full rounded-xl bg-[#ff2e83] py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{venueTournaments.length === 0 ? 'SIN TORNEOS ACTIVOS EN ESTA SEDE' : 'VER TORNEOS EN ESTA SEDE'}</button>
         </div>
         <div className="space-y-2 max-h-60 overflow-y-auto">{venuesWithDistance.length === 0 ? <p className="text-sm text-slate-500 p-3">No hay sedes dentro del radio seleccionado.</p> : venuesWithDistance.map(({ venue, distance }) => <button key={venue.id} onClick={() => selectVenue(venue)} className={`w-full p-3 rounded-2xl border text-left flex justify-between ${selectedVenue.id === venue.id ? 'bg-[#ff2e83]/10 border-[#ff2e83]' : 'bg-[#10121a] border-[#1e2230]'}`}><span><span className="block font-bold text-xs text-white">{venue.name}</span><span className="text-[10px] text-slate-500">{venue.city}{distance === null ? '' : ` · ${distance.toFixed(0)} km`}</span></span><ChevronRight className="w-4 h-4 text-slate-500"/></button>)}</div>
         </>}

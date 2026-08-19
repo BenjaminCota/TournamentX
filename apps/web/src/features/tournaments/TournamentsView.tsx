@@ -51,6 +51,7 @@ interface TournamentsViewProps {
   onNavigate: (tab: TabId, targetId?: string) => void;
   currentUserRole: UserRole;
   currentUserId?: string;
+  highlightedTournamentId?: string;
   onOpenCreateWizard: () => void;
   tournaments: Tournament[];
   teams: Team[];
@@ -66,6 +67,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   onNavigate,
   currentUserRole,
   currentUserId,
+  highlightedTournamentId,
   onOpenCreateWizard,
   tournaments,
   teams,
@@ -116,6 +118,12 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
   const availableTournaments = tournaments.filter((tournament) => tournament.status !== 'CANCELLED');
   const selectedTournament = availableTournaments.find((t) => t.id === selectedTournamentId) || availableTournaments[0];
+
+  useEffect(() => {
+    if (highlightedTournamentId && availableTournaments.some((tournament) => tournament.id === highlightedTournamentId)) {
+      setSelectedTournamentId(highlightedTournamentId);
+    }
+  }, [highlightedTournamentId, tournaments]);
 
   useEffect(() => {
     if (!currentUserTeam) { setTeamTournamentIds([]); return; }

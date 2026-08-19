@@ -34,23 +34,24 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   useEffect(() => { let active = true; tournamentXApi.competitiveOverview().then((result) => { if (active) { setFeedTeams(result.teams); setFeedIntegration(result.integration); } }).catch(() => undefined); return () => { active = false; }; }, []);
 
   const canCreate = currentUserRole === 'Capitán';
+  const activeTeams = useMemo(() => teams.filter((team) => team.status === 'active'), [teams]);
   
   // Calculate statistics
-  const uniqueRegions = useMemo(() => [...new Set(teams.map(t => t.region))].length, [teams]);
-  const totalPlayers = useMemo(() => teams.reduce((sum, t) => sum + t.roster.length, 0), [teams]);
+  const uniqueRegions = useMemo(() => [...new Set(activeTeams.map(t => t.region))].length, [activeTeams]);
+  const totalPlayers = useMemo(() => activeTeams.reduce((sum, t) => sum + t.roster.length, 0), [activeTeams]);
   
   // Filter regions for quick filter chips
-  const regions = useMemo(() => ['Todos', ...Array.from(new Set(teams.map(t => t.region)))], [teams]);
+  const regions = useMemo(() => ['Todos', ...Array.from(new Set(activeTeams.map(t => t.region)))], [activeTeams]);
 
   const filteredTeams = useMemo(() => {
-    return teams.filter((team) => {
+    return activeTeams.filter((team) => {
       const matchesQuery = matchesSearch(searchQuery, team.name, team.tag, team.abbreviation, team.region, team.sport, team.bio, team.description);
       
       const matchesRegion = selectedRegion === 'Todos' || team.region === selectedRegion;
       
       return matchesQuery && matchesRegion;
     });
-  }, [teams, searchQuery, selectedRegion]);
+  }, [activeTeams, searchQuery, selectedRegion]);
   const filteredFeedTeams = useMemo(() => feedTeams.filter((team) => {
     return matchesSearch(searchQuery, team.name, team.shortName, team.region, team.sport) && (selectedRegion === 'Todos' || team.region === selectedRegion);
   }), [feedTeams, searchQuery, selectedRegion]);
@@ -139,7 +140,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
               </div>
               <div>
                 <div className="text-[10px] font-mono-code uppercase text-slate-400 font-bold">Total de Equipos</div>
-                <div className="font-brand font-black text-2xl text-white">{teams.length}</div>
+                <div className="font-brand font-black text-2xl text-white">{activeTeams.length}</div>
               </div>
             </div>
 
