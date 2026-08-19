@@ -127,6 +127,9 @@ router.patch('/users/:id', authenticate, authorize('admin'), async (req, res, ne
   const input = parse(userUpdate, req.body, next); if (!input) return;
   const target = store.findById(req.params.id);
   if (!target) return next(Object.assign(new Error('Usuario no encontrado'), { status: 404 }));
+  if (input.role === 'admin' && store.normalizeRole(target.role) !== 'admin') {
+    return next(Object.assign(new Error('No está permitido asignar el rol de administrador a otra cuenta'), { status: 403 }));
+  }
   if (req.authProvider === 'supabase' && target.authProvider === 'supabase' && (input.role || input.status)) {
     try { await supabaseAuth.updateProfile(req.supabaseAccessToken, req.params.id, input); }
     catch (error) { return next(Object.assign(new Error(`Supabase no pudo actualizar el perfil: ${error.message}`), { status: 502 })); }

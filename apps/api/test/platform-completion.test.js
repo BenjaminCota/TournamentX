@@ -25,6 +25,8 @@ test('Dev 1 autentica, registra y protege la administración de roles', async ()
   assert.equal(forbidden.status, 403);
   const users = await request(app).get('/api/auth/users').set('Authorization', `Bearer ${token}`);
   assert.equal(users.status, 200); assert.ok(users.body.data.length >= 5); assert.equal('passwordHash' in users.body.data[0], false);
+  const promotion = await request(app).patch(`/api/auth/users/${registration.body.user.id}`).set('Authorization', `Bearer ${token}`).send({ role: 'admin' });
+  assert.equal(promotion.status, 403);
 });
 
 test('Dev 5 calcula métricas y rankings desde los módulos del sistema', async () => {

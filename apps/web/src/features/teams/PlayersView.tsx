@@ -154,9 +154,6 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ currentUserRole, curre
               className="bg-[#141724] border border-[#1e2230] text-xs text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-[#ff2e83] cursor-pointer"
             >
               <option value="ALL">All Roles</option>
-              <option value="Admin">Admin</option>
-              <option value="Organizador">Organizador</option>
-              <option value="Árbitro">Árbitro</option>
               <option value="Capitán">Capitán</option>
               <option value="Jugador">Jugador</option>
               <option value="Espectador">Espectador</option>

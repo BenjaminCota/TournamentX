@@ -85,9 +85,9 @@ function normalizePlayer(player: Partial<User> | Record<string, unknown>): User 
     email: String((player as Partial<User>).email || `${name.toLowerCase().replace(/\s+/g, '.')}@tournamentx.gg`),
     role: (player as Partial<User>).role ?? 'Jugador',
     avatar: String((player as Partial<User>).avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'),
-    teamId: (player as Partial<User>).teamId,
-    teamName: (player as Partial<User>).teamName,
-    status: (player as Partial<User>).status ?? 'ACTIVE',
+    teamId: (player as Partial<User>).teamId || (player as { currentTeamId?: string | null }).currentTeamId || undefined,
+    teamName: (player as Partial<User>).teamName || (player as { currentTeamName?: string | null }).currentTeamName || undefined,
+    status: String((player as Partial<User>).status || 'ACTIVE').toUpperCase() as User['status'],
     lastActivity: String((player as Partial<User>).lastActivity || 'Reciente'),
     ratingOVR: Number((player as Partial<User>).ratingOVR ?? 85),
     position: String((player as Partial<User>).position || 'Jugador'),
@@ -506,7 +506,7 @@ export default function App() {
             )}
             {activeTab === 'analytics' && <AnalyticsView />}
             {activeTab === 'venues' && <SedesMapView onSelectVenueTournament={() => navigate('tournaments')} />}
-            {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} currentUserId={currentUser?.id} />}
+            {activeTab === 'users' && <UsersView currentUserRole={currentUserRole} currentUserId={currentUser?.id} tournaments={tournaments} onCancelTournament={(id) => handleChangeTournamentStatus(id, 'CANCELLED', 'Torneo dado de baja desde Administración.')} />}
             {activeTab === 'rewards' && <RecompensasView currentUserRole={currentUserRole} currentUserId={currentUser?.id} isAuthenticated={Boolean(currentUser)} />}
           </main>
         </>

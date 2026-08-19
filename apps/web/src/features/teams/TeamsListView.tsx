@@ -21,6 +21,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('Todos');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
   const [formName, setFormName] = useState('');
   const [formTag, setFormTag] = useState('');
   const [formLogo, setFormLogo] = useState('https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&auto=format&fit=crop&q=80');
@@ -54,13 +55,18 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
     return matchesSearch(searchQuery, team.name, team.shortName, team.region, team.sport) && (selectedRegion === 'Todos' || team.region === selectedRegion);
   }), [feedTeams, searchQuery, selectedRegion]);
 
-  const handleCreateTeam = async (e: React.FormEvent) => {
+  const handleCreateTeam = (e: React.FormEvent) => {
     e.preventDefault();
     if (!onCreateTeam) return;
-    if (formName.trim().length < 2 || formTag.trim().length < 2) {
-      notify('error', 'El nombre y el tag deben contener al menos 2 caracteres.');
+    if (formName.trim().length < 2 || formName.trim().length > 120 || formTag.trim().length < 2 || formTag.trim().length > 8 || formDescription.trim().length > 500 || formLogo.trim().length > 500) {
+      notify('error', 'Revisa los límites: nombre 2-120, tag 2-8, descripción 500 y URL 500 caracteres.');
       return;
     }
+    setShowCreateConfirmation(true);
+  };
+
+  const confirmCreateTeam = async () => {
+    if (!onCreateTeam) return;
     try {
       setIsCreating(true);
       const created = await onCreateTeam({
@@ -77,6 +83,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
       });
 
       if (created) {
+        setShowCreateConfirmation(false);
         setShowCreateModal(false);
         setFormName('');
         setFormTag('');
@@ -296,6 +303,8 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                 <input
                   type="text"
                   required
+                  minLength={2}
+                  maxLength={120}
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="Ej. Linux Team"
@@ -338,6 +347,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                 <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Logo URL</label>
                 <input
                   type="url"
+                  maxLength={500}
                   value={formLogo}
                   onChange={(e) => setFormLogo(e.target.value)}
                   className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1"
@@ -351,6 +361,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Descripción del equipo..."
                   rows={3}
+                  maxLength={500}
                   className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1"
                 />
               </div>
@@ -375,6 +386,7 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
           </div>
         </div>
       )}
+      {showCreateConfirmation && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/85 p-4 backdrop-blur-sm"><section role="dialog" aria-modal="true" aria-labelledby="confirm-team-title" className="w-full max-w-md rounded-3xl border border-[#ff2e83]/40 bg-[#12141e] p-6 shadow-2xl"><h3 id="confirm-team-title" className="text-xl font-black text-white">¿Crear este equipo?</h3><p className="mt-3 text-sm text-slate-400">Se registrará <strong className="text-white">{formName.trim()}</strong> con el tag <strong className="text-white">{formTag.trim()}</strong>.</p><div className="mt-6 flex justify-end gap-3"><button type="button" disabled={isCreating} onClick={() => setShowCreateConfirmation(false)} className="rounded-xl px-4 py-2 text-sm text-slate-300">Cancelar</button><button type="button" disabled={isCreating} onClick={() => void confirmCreateTeam()} className="rounded-xl bg-[#ff2e83] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60">{isCreating ? 'Creando…' : 'Confirmar'}</button></div></section></div>}
     </div>
   );
 };
