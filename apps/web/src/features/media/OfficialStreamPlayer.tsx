@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Maximize, Pause, Play, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
+import { ExternalLink, Maximize, Pause, Play, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import type { MediaStream } from './media.types';
 
 interface TwitchPlayerInstance {
@@ -90,15 +90,19 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(55);
   const [message, setMessage] = useState('Conectando con el reproductor oficial…');
+  const [showTwitchPreview, setShowTwitchPreview] = useState(false);
 
   useEffect(() => {
     let active = true;
+    const isOfflineTwitchChannel = stream.platform === 'Twitch' && stream.mediaKind === 'channel' && !stream.live;
     setReady(false);
     setPlaying(false);
     setMuted(true);
-    setMessage('Conectando con el reproductor oficial…');
+    setShowTwitchPreview(isOfflineTwitchChannel);
+    setMessage(isOfflineTwitchChannel ? 'Vista de referencia del canal de Twitch. Abre el canal para ver su señal actual.' : 'Conectando con el reproductor oficial…');
     const mount = mountRef.current;
     mount?.replaceChildren();
+    if (isOfflineTwitchChannel) return () => { active = false; };
     const host = document.createElement('div');
     host.id = hostId;
     host.className = 'h-full w-full';
@@ -129,7 +133,11 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
           });
           player.addEventListener(Constructor.PLAY, () => active && setPlaying(true));
           player.addEventListener(Constructor.PAUSE, () => active && setPlaying(false));
-          player.addEventListener(Constructor.OFFLINE, () => active && setMessage('El canal está fuera de línea. TournamentX solicitará su último VOD a Twitch API en la próxima actualización.'));
+          player.addEventListener(Constructor.OFFLINE, () => {
+            if (!active) return;
+            setShowTwitchPreview(true);
+            setMessage('El canal está fuera de línea. Se muestra una vista de referencia de Twitch.');
+          });
         } else {
           await loadYouTubeApi();
           if (!active || !window.YT?.Player || !host) return;
@@ -153,7 +161,9 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
           });
         }
       } catch {
-        if (active) setMessage('No se pudo cargar la API oficial. Revisa la conexión o abre la fuente original.');
+        if (!active) return;
+        if (stream.platform === 'Twitch') setShowTwitchPreview(true);
+        setMessage('No se pudo cargar la API oficial. Revisa la conexión o abre la fuente original.');
       }
     }
 
@@ -220,7 +230,20 @@ export function OfficialStreamPlayer({ stream }: OfficialStreamPlayerProps) {
     <div ref={frameRef} className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/40">
       <div className="relative aspect-video min-h-[220px] bg-black">
         <div ref={mountRef} className="absolute inset-0 [&_iframe]:h-full [&_iframe]:w-full" />
-        {!ready && (
+        {showTwitchPreview ? (
+          <div className="absolute inset-0 overflow-hidden bg-[#17131f]">
+            <img src={stream.thumbnail} alt="" className="h-full w-full object-cover opacity-35" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#120d1a] via-[#211532]/85 to-[#9146ff]/30" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+              <span className="rounded-full bg-[#9146ff] px-3 py-1 text-[10px] font-black tracking-[.16em] text-white">TWITCH</span>
+              <h3 className="mt-4 text-xl font-black text-white sm:text-2xl">{stream.channel}</h3>
+              <p className="mt-2 max-w-md text-sm text-slate-200">Canal oficial de {stream.game}. La señal no está disponible para reproducirse aquí en este momento.</p>
+              <a href={stream.url} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#9146ff] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#a970ff]">
+                Abrir canal en Twitch <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        ) : !ready && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center bg-[#0f0f12]">
             <div className="text-center"><span className="mx-auto block h-7 w-7 animate-spin rounded-full border-2 border-white/20 border-t-[#d6b15e]"/><p className="mt-3 text-xs text-slate-400">{message}</p></div>
           </div>
