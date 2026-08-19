@@ -25,6 +25,8 @@ function nextDateInputValue(date: string) {
 }
 
 const MAX_PRIZE_AMOUNT_USD = 1_000_000;
+const MAX_TOURNAMENT_NAME_LENGTH = 60;
+const MAX_TOURNAMENT_DESCRIPTION_LENGTH = 300;
 
 interface WizardProps {
   onClose: () => void;
@@ -71,7 +73,7 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
   const stepIssue = (step: number): string | null => {
     if (step === 1) {
       if (name.trim().length < 2) return 'Escribe un nombre de torneo de al menos 2 caracteres.';
-      if (name.trim().length > 120) return 'El nombre del torneo no puede superar 120 caracteres.';
+      if (name.trim().length > MAX_TOURNAMENT_NAME_LENGTH) return `El nombre del torneo no puede superar ${MAX_TOURNAMENT_NAME_LENGTH} caracteres.`;
       if (description.trim().length < 2) return 'Agrega una descripción de al menos 2 caracteres.';
       if (privacy === null) return 'Selecciona si el torneo será público o privado.';
     }
@@ -234,13 +236,13 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                     type="text"
                     required
                     minLength={2}
-                    maxLength={120}
+                    maxLength={MAX_TOURNAMENT_NAME_LENGTH}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ej. Valorant Masters Santiago 2026"
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1.5"
                   />
-                  <p className="mt-1 text-right text-[10px] text-slate-500">{name.length}/120 caracteres</p>
+                  <p className="mt-1 text-right text-[10px] text-slate-500">{name.length}/{MAX_TOURNAMENT_NAME_LENGTH} caracteres</p>
                 </div>
 
                 <div>
@@ -249,13 +251,13 @@ export const TournamentCreateWizard: React.FC<WizardProps> = ({
                   </label>
                   <textarea
                     rows={3}
-                    maxLength={500}
+                    maxLength={MAX_TOURNAMENT_DESCRIPTION_LENGTH}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe el propósito del torneo, reglas clave e incentivos..."
                     className="w-full bg-[#141724] border border-[#232738] rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#ff2e83] focus:outline-none mt-1.5"
                   ></textarea>
-                  <p className="mt-1 text-right text-[10px] text-slate-500">{description.length}/500 caracteres</p>
+                  <p className="mt-1 text-right text-[10px] text-slate-500">{description.length}/{MAX_TOURNAMENT_DESCRIPTION_LENGTH} caracteres</p>
                 </div>
 
                 {/* Banner Upload Mock */}

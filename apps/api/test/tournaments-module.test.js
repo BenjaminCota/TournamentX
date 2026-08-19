@@ -45,9 +45,13 @@ test('Dev 2 protege la creación de torneos y expone el estado de la API', async
 });
 
 test('rechaza nombres de torneo que exceden el límite de texto', async () => {
-  const response = await request(app).post('/api/tournaments').set(authorization).send({ name: '2'.repeat(121), game: 'Valorant' });
+  const response = await request(app).post('/api/tournaments').set(authorization).send({ name: '2'.repeat(61), game: 'Valorant' });
   assert.equal(response.status, 400);
-  assert.match(response.body.error, /120 caracteres/);
+  assert.match(response.body.error, /60 caracteres/);
+
+  const longDescription = await request(app).post('/api/tournaments').set(authorization).send({ name: 'Torneo con descripcion extensa', description: 'D'.repeat(301), game: 'Valorant' });
+  assert.equal(longDescription.status, 400);
+  assert.match(longDescription.body.error, /300 caracteres/);
 });
 
 test('rechaza fechas pasadas y rangos de calendario inválidos al crear un torneo', async () => {

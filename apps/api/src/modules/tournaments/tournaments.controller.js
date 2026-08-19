@@ -56,9 +56,9 @@ async function getTournament(req, res, next) {
 
 async function createTournament(req, res, next) {
   try {
-    const name = boundedText(req.body.name, 'El nombre del torneo', { required: true, min: 2, max: 120 });
+    const name = boundedText(req.body.name, 'El nombre del torneo', { required: true, min: 2, max: 60 });
     const game = boundedText(req.body.game, 'El juego o deporte', { required: true, min: 2, max: 80 });
-    const description = boundedText(req.body.description, 'La descripción', { max: 500 });
+    const description = boundedText(req.body.description, 'La descripción', { max: 300 });
     const venue = boundedText(req.body.venue, 'La sede', { max: 160 });
     const dates = boundedText(req.body.dates, 'Las fechas', { max: 100 });
     const organizer = boundedText(req.body.organizer, 'El organizador', { max: 120 });

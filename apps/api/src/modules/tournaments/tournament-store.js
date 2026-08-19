@@ -6,8 +6,8 @@ const { computeGroupStandings } = require('./standings');
 const localStore = require('../../config/local-store');
 const { getActiveTeam } = require('../teams/teams.public');
 
-const MAX_TOURNAMENT_NAME_LENGTH = 120;
-const MAX_TOURNAMENT_DESCRIPTION_LENGTH = 500;
+const MAX_TOURNAMENT_NAME_LENGTH = 60;
+const MAX_TOURNAMENT_DESCRIPTION_LENGTH = 300;
 const MAX_PRIZE_AMOUNT_USD = 1_000_000;
 
 const tournaments = localStore.collection('tournaments', []);
