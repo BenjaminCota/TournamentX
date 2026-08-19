@@ -615,7 +615,8 @@ export function RecompensasView({ currentUserRole, isAuthenticated, currentUserI
     } catch (error) { setConnectionMessage(error instanceof Error ? error.message : 'No fue posible descargar el recibo'); }
   };
 
-  const totalPublic = publicPools.reduce((total, pool) => total + Number(pool.fundedAmount || 0), 0);
+  const visiblePools = canManage ? availablePools : publicPools;
+  const totalPublic = visiblePools.reduce((total, pool) => total + Number(pool.fundedAmount || 0), 0);
   const selectedEntryTournament = entryTournaments.find((tournament) => tournament.id === selectedEntryTournamentId);
   const accessLabel = currentUserRole === 'Admin' ? 'Auditoría y control total'
     : currentUserRole === 'Organizador' ? 'Administración de bolsas y premios'
@@ -658,12 +659,12 @@ export function RecompensasView({ currentUserRole, isAuthenticated, currentUserI
     </header>
 
     <section className="grid gap-4 sm:grid-cols-3">
-      <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><Trophy className="h-5 w-5 text-[#d6b15e]"/><p className="mt-3 text-xs text-slate-500">Total público acumulado</p><strong className="mt-1 block text-3xl text-white">${totalPublic.toLocaleString()} USD</strong></article>
-      <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><Eye className="h-5 w-5 text-blue-400"/><p className="mt-3 text-xs text-slate-500">Bolsas visibles</p><strong className="mt-1 block text-3xl text-white">{publicPools.length}</strong></article>
+      <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><Trophy className="h-5 w-5 text-[#d6b15e]"/><p className="mt-3 text-xs text-slate-500">{currentUserRole === 'Organizador' ? 'Total de tus torneos' : 'Total público acumulado'}</p><strong className="mt-1 block text-3xl text-white">${totalPublic.toLocaleString()} USD</strong></article>
+      <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><Eye className="h-5 w-5 text-blue-400"/><p className="mt-3 text-xs text-slate-500">Bolsas visibles</p><strong className="mt-1 block text-3xl text-white">{visiblePools.length}</strong></article>
       <article className="rounded-2xl border border-white/10 bg-[#10121a] p-5"><LockKeyhole className="h-5 w-5 text-emerald-400"/><p className="mt-3 text-xs text-slate-500">Tu acceso</p><strong className="mt-1 block text-sm text-white">{accessLabel}</strong></article>
     </section>
 
-    {publicPools.length > 0 && <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{publicPools.map((pool) => {
+    {visiblePools.length > 0 && <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{visiblePools.map((pool) => {
       const canOpen = availablePools.some((available) => available.id === pool.id);
       const selected = session?.pool.id === pool.id;
       return <button type="button" key={pool.id} disabled={isAuthenticated && !canOpen} onClick={() => { if (isAuthenticated && canOpen) void loadData(pool.id); }} className={`rounded-2xl border bg-[#10121a] p-4 text-left transition ${selected ? 'border-[#ff2e83]/70 shadow-[0_0_24px_rgba(255,46,131,.12)]' : 'border-white/10'} ${isAuthenticated && canOpen ? 'hover:-translate-y-0.5 hover:border-[#ff2e83]/40' : ''}`}><div className="flex items-start justify-between gap-3"><p className="text-xs text-slate-400">{pool.name}</p>{pool.simulated && <span className="rounded-full bg-violet-500/10 px-2 py-1 text-[9px] font-bold text-violet-300">SIMULADO</span>}</div><strong className="mt-2 block text-xl text-white">${Number(pool.fundedAmount).toLocaleString()} {pool.currency}</strong><span className="mt-2 inline-block text-[10px] text-emerald-300">{pool.status === 'funding' ? 'Fondo preparado' : pool.status === 'locked' ? 'Esperando cobro del capitán' : pool.status === 'distributed' ? 'Premio cobrado' : 'Cerrada'}</span></button>;
