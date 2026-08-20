@@ -13,8 +13,10 @@ const strongPassword = password
   .regex(/[a-z]/, 'Incluye una minúscula')
   .regex(/[A-Z]/, 'Incluye una mayúscula')
   .regex(/[0-9]/, 'Incluye un número');
-const credentials = z.object({ email: z.string().trim().email().max(255), password });
-const registration = credentials.extend({ name: z.string().trim().min(2).max(100), username: z.string().trim().min(2).max(50).optional(), password: strongPassword });
+const credentials = z.object({ email: z.string().trim().email().max(120), password });
+const registrationName = z.string().trim().min(2).max(60)
+  .regex(/^[\p{L}][\p{L}\s.'-]*$/u, 'El nombre contiene caracteres no permitidos');
+const registration = credentials.extend({ name: registrationName, username: z.string().trim().min(2).max(50).optional(), password: strongPassword });
 const userUpdate = z.object({ name: z.string().trim().min(2).max(100).optional(), username: z.string().trim().min(2).max(50).optional(), email: z.string().trim().email().max(255).optional(), role: z.enum(['admin', 'organizer', 'captain', 'player']).optional(), status: z.enum(['ACTIVE', 'OFFLINE', 'SUSPENDED']).optional(), password: z.string().min(8).max(128).optional() }).refine((body) => Object.keys(body).length > 0, 'Debes enviar al menos un cambio');
 const organizerRequest = z.object({
   organizationName: z.string().trim().min(2).max(120),
