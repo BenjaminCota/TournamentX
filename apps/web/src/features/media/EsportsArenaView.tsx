@@ -20,6 +20,14 @@ function compactNumber(value: number) {
   return new Intl.NumberFormat('es-MX', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
+function prioritizePlayableStreams(items: MediaStream[]) {
+  return [...items].sort((left, right) => {
+    const leftPriority = left.platform === 'YouTube' ? 0 : 1;
+    const rightPriority = right.platform === 'YouTube' ? 0 : 1;
+    return leftPriority - rightPriority;
+  });
+}
+
 export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserRole }) => {
   const [streams, setStreams] = useState<MediaStream[]>([]);
   const [events, setEvents] = useState<LiveEvent[]>([]);
@@ -44,8 +52,10 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
       setIntegration(streamBody.integration);
       setLobbies(lobbyBody.data);
       setMetrics(metricBody.data);
-      setSelectedStreamId((current) => current || streamBody.data[0]?.id || '');
-      setSelectedEventId((current) => current || streamBody.data[0]?.eventId || eventBody.data[0]?.id || '');
+      const preferredStreams = prioritizePlayableStreams(streamBody.data);
+      const preferredStream = preferredStreams[0];
+      setSelectedStreamId((current) => current && streamBody.data.some((stream) => stream.id === current) ? current : preferredStream?.id || '');
+      setSelectedEventId((current) => current || preferredStream?.eventId || eventBody.data[0]?.id || '');
       setError('');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No se pudo conectar con el módulo media');
@@ -65,7 +75,8 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
     };
   }, []);
 
-  const selectedStream = streams.find((stream) => stream.id === selectedStreamId) ?? streams[0];
+  const orderedStreams = useMemo(() => prioritizePlayableStreams(streams), [streams]);
+  const selectedStream = orderedStreams.find((stream) => stream.id === selectedStreamId) ?? orderedStreams[0];
   const selectedEvent = events.find((event) => event.id === selectedEventId) ?? events[0];
   const filteredEvents = useMemo(() => events.filter((event) => eventFilter === 'all' || event.category === eventFilter), [eventFilter, events]);
   const displayedViewers = selectedStream?.viewers || selectedEvent?.viewers || 0;
@@ -110,7 +121,7 @@ export const EsportsArenaView: React.FC<EsportsArenaViewProps> = ({ currentUserR
                 <span className="text-[11px] tabular-nums text-slate-500">{compactNumber(totalAudience)} audiencia</span>
               </div>
               <div className="grid max-h-80 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                {streams.map((stream) => {
+                {orderedStreams.map((stream) => {
                   const active = stream.id === selectedStream?.id;
                   return <button type="button" key={stream.id} onClick={() => selectStream(stream)} className={`group flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-all ${active ? 'border-[#d6b15e]/50 bg-[#d6b15e]/[.08]' : 'border-white/[.07] bg-black/20 hover:border-white/20 hover:bg-white/[.04]'}`}>
                     <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${stream.platform === 'Twitch' ? 'bg-[#9146ff]/15 text-[#b892ff]' : 'bg-[#d95656]/15 text-[#ef7777]'}`}><Radio className="h-4 w-4"/></span>
