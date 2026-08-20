@@ -315,7 +315,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Nombre</label>
-                <input maxLength={60} value={teamForm.name ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
+                <input maxLength={20} value={teamForm.name ?? ''} onChange={(e) => setTeamForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-4 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1" />
               </div>
               <div>
                 <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Abreviatura</label>
