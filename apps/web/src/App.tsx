@@ -120,16 +120,30 @@ export default function App() {
 
   useEffect(() => {
     const restoreUser = () => tournamentXApi.me()
-      .then(({ user }) => { setCurrentUser(user); setCurrentUserRole(user.roleLabel); })
+      .then(({ user }) => {
+        localStorage.setItem('tournamentx_user', JSON.stringify(user));
+        setCurrentUser(user); setCurrentUserRole(user.roleLabel);
+      })
       .catch(() => {
         if (!supabase) localStorage.removeItem('tournamentx_token');
       });
 
     if (supabase) {
-      void supabase.auth.getSession().then(({ data }) => { if (data.session) void restoreUser(); });
-      const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_OUT') { setCurrentUser(null); setCurrentUserRole('Jugador'); }
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') void restoreUser();
+      void supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) return;
+        localStorage.setItem('tournamentx_token', data.session.access_token);
+        void restoreUser();
+      });
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('tournamentx_token');
+          localStorage.removeItem('tournamentx_user');
+          setCurrentUser(null); setCurrentUserRole('Jugador');
+        }
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+          localStorage.setItem('tournamentx_token', session.access_token);
+          void restoreUser();
+        }
       });
       return () => authListener.subscription.unsubscribe();
     }

@@ -217,8 +217,11 @@ export const LiveMatchView: React.FC<LiveMatchViewProps> = ({ currentUserRole, c
       setScoreError('');
       const updated = await tournamentXApi.updateMatchScore(apiMatch.id, score, import.meta.env.VITE_MATCH_TOKEN);
       setApiMatch(updated as TournamentMatch);
-    } catch {
-      setScoreError('No fue posible actualizar el marcador. Inicia sesión como administrador u organizador.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No fue posible actualizar el marcador.';
+      setScoreError(/token.*(inválido|expirado)|token de acceso requerido/i.test(message)
+        ? 'Tu sesión venció. Cierra sesión e inicia nuevamente para actualizar el marcador.'
+        : message);
     } finally {
       setIsSavingScore(false);
     }
