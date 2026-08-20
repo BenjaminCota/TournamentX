@@ -34,6 +34,10 @@ const seedUsers = [
   { id: 'user-organizer-2', name: 'Organizadora Arena', username: '@arena', email: 'organizer2@tournamentx.local', role: 'organizer', passwordHash: hashPassword('Organizer2!'), status: 'ACTIVE' },
   { id: 'user-captain', name: 'Capitán Luminex', username: '@captain', email: 'captain@tournamentx.local', role: 'captain', passwordHash: hashPassword('Captain123!'), status: 'ACTIVE' },
   { id: 'user-player', name: 'Jugador Local', username: '@player', email: 'player@tournamentx.local', role: 'player', passwordHash: hashPassword('Player123!'), status: 'ACTIVE' },
+  { id: 'user-free-agent-1', name: 'Mariana Torres', username: '@mariana.t', email: 'mariana.torres@tournamentx.local', role: 'player', passwordHash: hashPassword('FreeAgent2026!'), status: 'ACTIVE' },
+  { id: 'user-free-agent-2', name: 'Hugo Mendez', username: '@hugo.m', email: 'hugo.mendez@tournamentx.local', role: 'player', passwordHash: hashPassword('FreeAgent2026!'), status: 'ACTIVE' },
+  { id: 'user-free-agent-3', name: 'Paula Ibarra', username: '@paula.i', email: 'paula.ibarra@tournamentx.local', role: 'player', passwordHash: hashPassword('FreeAgent2026!'), status: 'ACTIVE' },
+  { id: 'user-free-agent-4', name: 'Diego Salas', username: '@diego.s', email: 'diego.salas@tournamentx.local', role: 'player', passwordHash: hashPassword('FreeAgent2026!'), status: 'ACTIVE' },
 ].map((user) => ({ ...user, createdAt: '2026-08-16T00:00:00.000Z', updatedAt: '2026-08-16T00:00:00.000Z' }));
 
 function users() {

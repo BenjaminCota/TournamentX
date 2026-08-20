@@ -40,7 +40,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   const [showRosterModal, setShowRosterModal] = useState(false);
   const [teamForm, setTeamForm] = useState<Partial<Team>>({});
   const [searchText, setSearchText] = useState('');
-  const [selectedRole, setSelectedRole] = useState('Capitán');
+  const [selectedRole, setSelectedRole] = useState('Jugador');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
   const [invitationCode, setInvitationCode] = useState('');
   const [invitationUrl, setInvitationUrl] = useState('');
@@ -72,7 +72,9 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
   };
 
   const availablePlayers = useMemo(() => {
-    return players.filter((player) => !currentTeam.roster.some((member) => member.playerId === player.id));
+    return players.filter((player) => Boolean(player.authUserId)
+      && !player.teamId
+      && !currentTeam.roster.some((member) => member.playerId === player.id));
   }, [currentTeam.roster, players]);
 
   const filteredAvailablePlayers = useMemo(() => availablePlayers.filter((player) => {
@@ -133,11 +135,12 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
 
   const addRosterMember = async () => {
     if (!selectedPlayerId || !onAddRosterMember) return;
-    const result = await onAddRosterMember(currentTeam.id, selectedPlayerId, selectedRole);
+    const result = await onAddRosterMember(currentTeam.id, selectedPlayerId, currentUserRole === 'Capitán' ? 'Jugador' : selectedRole);
+    setTeamFlowMessage(result.message);
     if (result.ok) {
       setShowRosterModal(false);
       setSelectedPlayerId('');
-      setSelectedRole('Capitán');
+      setSelectedRole('Jugador');
       setSearchText('');
     }
   };
@@ -358,7 +361,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#12141e] border border-[#282e44] rounded-3xl p-6 sm:p-8 max-w-xl w-full space-y-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#1e2230] pb-4">
-              <h3 className="font-display font-black text-2xl text-white">＋ AGREGAR JUGADOR</h3>
+              <div><h3 className="font-display font-black text-2xl text-white">＋ AGREGAR JUGADOR</h3><p className="mt-1 text-xs text-slate-400">Solo se muestran jugadores con cuenta que actualmente no pertenecen a un equipo.</p></div>
               <button onClick={() => setShowRosterModal(false)} className="text-slate-400 hover:text-white text-lg">✕</button>
             </div>
 
@@ -383,7 +386,7 @@ export const TeamDetailView: React.FC<TeamDetailViewProps> = ({
                 )) : <div className="text-sm text-slate-400">No hay jugadores disponibles para añadir.</div>}
               </div>
 
-              {selectedPlayerId && (
+              {selectedPlayerId && currentUserRole === 'Admin' && (
                 <div>
                   <label className="text-xs font-mono-code uppercase font-bold text-slate-300">Rol</label>
                   <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className="w-full bg-[#181b28] border border-[#232738] rounded-xl px-3 py-2 text-xs text-white focus:border-[#ff2e83] focus:outline-none mt-1">

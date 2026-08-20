@@ -210,6 +210,7 @@ export default function App() {
     };
     socket.on('connect', () => socket.emit('subscribe-platform'));
     socket.on('tournament-update', refresh);
+    socket.on('team-update', refresh);
     return () => {
       if (refreshTimer) window.clearTimeout(refreshTimer);
       socket.emit('unsubscribe-platform');
@@ -351,6 +352,11 @@ export default function App() {
       if (updatedTeam) {
         setTeams((current) => current.map((entry) => entry.id === teamId ? normalizeTeam(updatedTeam) : entry));
       }
+      setPlayers((current) => current.map((entry) => entry.id === playerId ? normalizePlayer({
+        ...entry,
+        teamId,
+        teamName: team?.name || '',
+      }) : entry));
       return { ok: true, message: 'Jugador agregado a la plantilla.' };
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : 'No se pudo modificar la plantilla.' };
@@ -370,6 +376,9 @@ export default function App() {
         roster: team.roster.filter((member) => member.playerId !== playerId),
       });
     }));
+    setPlayers((current) => current.map((player) => player.id === playerId
+      ? normalizePlayer({ ...player, teamId: undefined, teamName: undefined })
+      : player));
   };
 
   const handleCreateTournament = async (data: Partial<Tournament>) => {

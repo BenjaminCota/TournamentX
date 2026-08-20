@@ -3,6 +3,7 @@ const teamStore = require('./team-store');
 const authStore = require('../auth/auth.store');
 const tournamentStore = require('../tournaments/tournament-store');
 const matchStore = require('../matches/match-store');
+const { publishTeamUpdate } = require('../../utils/realtime');
 
 function isAdmin(req) { return String(req.user?.role || '').toLowerCase() === 'admin'; }
 function assertTeamManager(req) {
@@ -52,6 +53,7 @@ async function createTeam(req, res, next) {
       });
     }
     const team = teamStore.createTeam({ ...input, createdBy: req.user.sub, captainUserId: req.user.sub });
+    publishTeamUpdate(req.app, team.id, 'created');
     res.status(201).json(team);
   } catch (error) {
     next(error);
@@ -64,6 +66,7 @@ async function dissolveTeam(req, res, next) {
     if (!team) throw new HttpError(404, 'Equipo no encontrado o ya dado de baja');
     const tournamentReplacements = tournamentStore.replaceTeamWithPending(req.params.id);
     const matchReplacements = await matchStore.replaceTeamWithPending(req.params.id);
+    publishTeamUpdate(req.app, team.id, 'dissolved');
     res.json({ ...team, replacements: { tournaments: tournamentReplacements, matches: matchReplacements } });
   } catch (error) { next(error); }
 }
@@ -73,6 +76,7 @@ async function updateTeam(req, res, next) {
     assertTeamManager(req);
     const team = teamStore.updateTeam(req.params.id, req.validated?.body || req.body);
     if (!team) throw new HttpError(404, 'Equipo no encontrado');
+    publishTeamUpdate(req.app, team.id, 'updated');
     res.json(team);
   } catch (error) {
     next(error);
@@ -134,11 +138,16 @@ async function deletePlayer(req, res, next) {
 async function addRosterMember(req, res, next) {
   try {
     assertTeamManager(req);
-    const result = teamStore.addMemberToRoster(req.params.id, req.validated?.body || req.body);
+    const input = req.validated?.body || req.body;
+    const player = teamStore.getPlayer(input.playerId);
+    if (!player?.authUserId) throw new HttpError(409, 'Solo se pueden agregar jugadores con una cuenta activa.');
+    if (player.currentTeamId) throw new HttpError(409, 'Este jugador ya pertenece a otro equipo activo.');
+    const result = teamStore.addMemberToRoster(req.params.id, { ...input, role: isAdmin(req) ? input.role : 'Jugador' });
     if (result.error) {
       const error = new HttpError(409, result.error);
       throw error;
     }
+    publishTeamUpdate(req.app, req.params.id, 'roster-member-added');
     res.status(201).json(result);
   } catch (error) {
     next(error);

@@ -8,4 +8,14 @@ function publishTournamentUpdate(app, tournamentId, action) {
   });
 }
 
-module.exports = { publishTournamentUpdate };
+function publishTeamUpdate(app, teamId, action) {
+  const io = app?.get?.('io');
+  if (!io) return;
+  io.to('platform').emit('team-update', {
+    teamId,
+    action,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+module.exports = { publishTournamentUpdate, publishTeamUpdate };
