@@ -8,7 +8,11 @@ const roleLabels: Record<AuthUser['role'], AuthUser['roleLabel']> = {
 };
 
 function fail(error: { message: string } | null) {
-  if (error) throw new Error(error.message);
+  if (!error) return;
+  if (/email rate limit exceeded/i.test(error.message)) {
+    throw new Error('Supabase alcanzó temporalmente el límite de correos de confirmación. Espera unos minutos y vuelve a intentarlo una sola vez.');
+  }
+  throw new Error(error.message);
 }
 
 function mapProfile(row: Row): AuthUser {
