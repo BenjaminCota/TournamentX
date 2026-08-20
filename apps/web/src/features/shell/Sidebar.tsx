@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   BarChart3,
   CalendarDays,
@@ -39,17 +39,32 @@ const mainItems = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, currentUserRole, currentUserName, currentUserTeamName, isAuthenticated, onOpenAuth, onRequestLogout, onOpenCreateWizard }) => {
   const [accountOpen, setAccountOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const closeWhenClickingOutside = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) setAccountOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setAccountOpen(false); };
+    document.addEventListener('pointerdown', closeWhenClickingOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeWhenClickingOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [accountOpen]);
   const visitorItems = mainItems.filter((item) => item.id !== 'dashboard' && item.id !== 'analytics');
   const visibleItems = isAuthenticated
     ? (currentUserRole === 'Admin' ? [...mainItems, { id: 'users' as const, label: 'Administración', icon: ShieldCheck, tabs: ['users'] as TabId[] }] : mainItems)
     : visitorItems;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
+    <header ref={accountMenuRef} className="sticky top-0 z-40 border-b border-white/[.08] bg-[#090a0e]/95 shadow-[0_8px_30px_rgba(0,0,0,.28)] backdrop-blur-xl">
       <div className="mx-auto flex min-h-16 max-w-[1540px] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:gap-5 lg:px-7">
         <div className="shrink-0 border-r border-white/[.08] pr-2 sm:pr-4">
-          <TournamentXLogo variant="icon" size="sm" className="sm:hidden" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
-          <TournamentXLogo size="sm" className="hidden sm:flex" onClick={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'landing')} />
+          <TournamentXLogo variant="icon" size="sm" className="sm:hidden" onClick={() => { setAccountOpen(false); setCurrentTab(isAuthenticated ? 'dashboard' : 'landing'); }} />
+          <TournamentXLogo size="sm" className="hidden sm:flex" onClick={() => { setAccountOpen(false); setCurrentTab(isAuthenticated ? 'dashboard' : 'landing'); }} />
         </div>
 
         <nav className="tx-nav-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-2" aria-label="Navegación principal">
@@ -60,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
               <button
                 type="button"
                 key={item.id}
-                onClick={() => setCurrentTab(item.id)}
+                onClick={() => { setAccountOpen(false); setCurrentTab(item.id); }}
                 aria-current={active ? 'page' : undefined}
                 className={`group relative inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-2.5 text-xs font-semibold transition-all sm:px-3 ${active ? 'bg-[#ff2e83]/12 text-white ring-1 ring-[#ff2e83]/25' : 'text-slate-400 hover:bg-white/[.05] hover:text-white'}`}
               >
@@ -75,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
         {(currentUserRole === 'Admin' || currentUserRole === 'Organizador') && (
           <button
             type="button"
-            onClick={onOpenCreateWizard}
+            onClick={() => { setAccountOpen(false); onOpenCreateWizard(); }}
             className="hidden h-10 shrink-0 items-center gap-2 rounded-xl bg-[#ff2e83] px-4 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 hover:-translate-y-0.5 hover:bg-[#ef2778] xl:flex"
           >
             <Plus className="h-4 w-4" /> Crear torneo
@@ -87,18 +102,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, cur
             type="button"
             onClick={() => setAccountOpen((open) => !open)}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#ff2e83]/25 bg-[#ff2e83]/10 text-sm font-bold text-white hover:bg-[#ff2e83]/20"
-            aria-label="Cerrar sesión"
-            title={currentUserName ? `Cerrar sesión de ${currentUserName}` : 'Cerrar sesión'}
+            aria-expanded={accountOpen}
+            aria-haspopup="menu"
+            aria-label="Abrir menú de cuenta"
+            title={currentUserName ? `Cuenta de ${currentUserName}` : 'Cuenta'}
           >
             {(currentUserName || currentUserRole).charAt(0)}
           </button>
         ) : (
-          <button type="button" onClick={onOpenAuth} className="h-10 shrink-0 rounded-xl bg-[#ff2e83] px-3 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778] sm:px-4">
+          <button type="button" onClick={() => { setAccountOpen(false); onOpenAuth(); }} className="h-10 shrink-0 rounded-xl bg-[#ff2e83] px-3 text-xs font-bold text-white shadow-lg shadow-[#ff2e83]/20 transition-all hover:-translate-y-0.5 hover:bg-[#ef2778] sm:px-4">
             <span className="sm:hidden">Entrar</span><span className="hidden sm:inline">Iniciar sesión</span>
           </button>
         )}
       </div>
-      {accountOpen && <div className="absolute right-4 top-[68px] z-50 w-56 rounded-2xl border border-white/10 bg-[#11131d] p-3 shadow-2xl"><strong className="block text-sm text-white">{currentUserName || 'Cuenta TournamentX'}</strong><p className="mt-1 text-xs text-slate-400">{currentUserRole}{['Jugador', 'Capitán'].includes(currentUserRole) ? ` · ${currentUserTeamName || 'Sin equipo'}` : ''}</p><button type="button" onClick={onRequestLogout} className="mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 hover:border-[#ff2e83]/50 hover:text-white">Cerrar sesión</button></div>}
+      {accountOpen && <div role="menu" className="absolute right-4 top-[68px] z-50 w-56 rounded-2xl border border-white/10 bg-[#11131d] p-3 shadow-2xl"><strong className="block text-sm text-white">{currentUserName || 'Cuenta TournamentX'}</strong><p className="mt-1 text-xs text-slate-400">{currentUserRole}{['Jugador', 'Capitán'].includes(currentUserRole) ? ` · ${currentUserTeamName || 'Sin equipo'}` : ''}</p><button type="button" role="menuitem" onClick={() => { setAccountOpen(false); onRequestLogout(); }} className="mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 hover:border-[#ff2e83]/50 hover:text-white">Cerrar sesión</button></div>}
     </header>
   );
 };

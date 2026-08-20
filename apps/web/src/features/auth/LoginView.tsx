@@ -3,7 +3,6 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Lock, Mail, UserPlus } from 'lucid
 import { TournamentXLogo } from '../../shared/components/TournamentXLogo';
 import { AuthUser } from '../../types';
 import { tournamentXApi } from '../../services/apiClient';
-import { isSupabaseConfigured } from '../../services/supabaseClient';
 
 interface LoginViewProps {
   onAuthenticated: (user: AuthUser) => void;
@@ -42,7 +41,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, onBackToH
         <div className="absolute inset-0 bg-cyber-grid opacity-70" /><div className="absolute -right-28 top-24 w-96 h-96 rounded-full bg-[#ff2e83]/20 blur-[100px]" />
         <div className="relative"><TournamentXLogo size="lg" onClick={onBackToHome} /></div>
         <div className="relative max-w-lg"><span className="inline-flex px-3 py-1 rounded-full border border-[#ff2e83]/30 bg-[#ff2e83]/10 text-[#ff69a8] text-xs font-bold tracking-[.2em]">CONTROL TOTAL DEL TORNEO</span><h1 className="tx-hero-title mt-6 font-brand text-7xl font-black uppercase">Compite.<br/><span className="text-[#ff2e83]">Organiza.</span><br/>Domina.</h1><p className="mt-6 text-slate-400 max-w-md">Identidad, torneos, resultados en vivo, streams y premios desde una plataforma segura y sincronizada.</p></div>
-        <div className="relative grid grid-cols-3 gap-3">{['8 módulos','Tiempo real',isSupabaseConfigured ? 'Datos en Supabase' : 'Datos locales'].map((item) => <div key={item} className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-xs text-slate-300"><CheckCircle2 className="w-4 h-4 text-[#ff2e83] mb-2" />{item}</div>)}</div>
+        <div className="relative grid grid-cols-3 gap-3">{['8 módulos','Tiempo real','Datos sincronizados'].map((item) => <div key={item} className="rounded-xl border border-white/10 bg-white/[.03] p-3 text-xs text-slate-300"><CheckCircle2 className="w-4 h-4 text-[#ff2e83] mb-2" />{item}</div>)}</div>
       </section>
       <section className="p-6 sm:p-12 flex items-center justify-center">
         <div className="w-full max-w-md">
@@ -51,7 +50,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, onBackToH
           <div className="flex p-1 rounded-xl bg-white/[.04] border border-white/10 mb-7"><button type="button" onClick={() => { setMode('login'); setError(''); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${mode === 'login' ? 'bg-[#ff2e83] text-white' : 'text-slate-400'}`}>Iniciar sesión</button><button type="button" onClick={() => { setMode('register'); setError(''); }} className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${mode === 'register' ? 'bg-[#ff2e83] text-white' : 'text-slate-400'}`}>Crear cuenta</button></div>
           <h2 className="text-3xl font-black">{mode === 'login' ? 'Bienvenido de vuelta' : 'Únete a TournamentX'}</h2>
           <p className="mt-2 text-sm text-slate-500">{mode === 'login' ? 'Tu rol y permisos se cargan de forma segura.' : 'La cuenta nueva inicia como Jugador; un administrador puede autorizar funciones adicionales.'}</p>
-          {isSupabaseConfigured && <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Base de datos Supabase conectada</div>}
           <form onSubmit={submit} className="mt-7 space-y-4">
             {mode === 'register' && <label className="block"><span className="block mb-2 text-sm text-slate-300">Nombre completo</span><div className="relative"><UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} className="field pl-11" placeholder="Nombre del usuario" /></div></label>}
             <label className="block"><span className="block mb-2 text-sm text-slate-300">Correo electrónico</span><div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="field pl-11" autoComplete="email" /></div></label>
