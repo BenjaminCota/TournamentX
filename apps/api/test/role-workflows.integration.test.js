@@ -35,7 +35,7 @@ test('el capitÃ¡n crea su equipo, invita y aprueba el ingreso de un jugador', 
   const captain = authorization(captainId, 'captain');
   const player = authorization(playerId, 'player');
 
-  const team = await request(app).post('/api/teams').set(captain).send({ name: `Equipo ${suffix}`, abbreviation: `E${suffix.slice(-5)}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Regional', description: '', status: 'active' });
+  const team = await request(app).post('/api/teams').set(captain).send({ name: `Equipo-${suffix.slice(-10)}`, abbreviation: `E${suffix.slice(-5)}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Regional', description: '', status: 'active' });
   assert.equal(team.status, 201);
   assert.equal(team.body.captainUserId, captainId);
 
@@ -60,7 +60,7 @@ test('el resultado aprobado conecta check-in, calendario, bracket, notificaciÃ�
   const captainOne = authorization(`captain-one-${suffix}`, 'captain');
   const captainTwo = authorization(`captain-two-${suffix}`, 'captain');
   const createTeam = (auth, name, abbreviation) => request(app).post('/api/teams').set(auth).send({ name, abbreviation, sport: 'Valorant', region: 'LATAM', competitionType: 'Regional', description: '', status: 'active' });
-  const [teamOne, teamTwo] = await Promise.all([createTeam(captainOne, `Uno ${suffix}`, `U${suffix.slice(-4)}`), createTeam(captainTwo, `Dos ${suffix}`, `D${suffix.slice(-4)}`)]);
+  const [teamOne, teamTwo] = await Promise.all([createTeam(captainOne, `Uno-${suffix.slice(-10)}`, `U${suffix.slice(-4)}`), createTeam(captainTwo, `Dos-${suffix.slice(-10)}`, `D${suffix.slice(-4)}`)]);
   assert.equal(teamOne.status, 201); assert.equal(teamTwo.status, 201);
 
   const tournament = await request(app).post('/api/tournaments').set(organizer).send({ name: `Copa conectada ${suffix}`, game: 'Valorant', format: 'SINGLE_ELIMINATION', maxTeams: 2 });

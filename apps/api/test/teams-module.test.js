@@ -29,7 +29,7 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
   assert.equal(unauthenticated.status, 401);
 
   const authorization = managerAuthorization();
-  const tooLongName = await request(app).post('/api/teams').set(authorization).send({ ...teamData, name: 'E'.repeat(61) });
+  const tooLongName = await request(app).post('/api/teams').set(authorization).send({ ...teamData, name: 'E'.repeat(21) });
   assert.equal(tooLongName.status, 400);
   const teamResponse = await request(app).post('/api/teams').set(authorization).send(teamData);
   assert.equal(teamResponse.status, 201);
@@ -92,7 +92,7 @@ test('Dev 3 protege la escritura y gestiona equipos, jugadores y roster', async 
 
 test('solo un administrador puede dar de baja un equipo', async () => {
   const team = await request(app).post('/api/teams').set(managerAuthorization()).send({
-    name: `Equipo baja ${Date.now()}`, abbreviation: `DB${Date.now().toString().slice(-5)}`,
+    name: `Baja-${Date.now().toString(36).slice(-5)}`, abbreviation: `DB${Date.now().toString().slice(-5)}`,
     sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
   });
   assert.equal(team.status, 201);

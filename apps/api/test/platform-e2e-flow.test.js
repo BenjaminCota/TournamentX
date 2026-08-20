@@ -14,7 +14,7 @@ test('recorrido E2E: equipos, torneo, calendario, resultado, notificación y pre
   const teamIds = [];
   for (const [index, label] of ['Alfa', 'Beta'].entries()) {
     const team = await request(app).post('/api/teams').set(index === 0 ? captainOne : captainTwo).send({
-      name: `E2E ${label} ${suffix}`,
+      name: `E2E-${label}-${suffix.slice(-8)}`,
       abbreviation: `${label[0]}${suffix.slice(-5)}`,
       sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
     });

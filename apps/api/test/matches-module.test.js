@@ -73,7 +73,7 @@ test('Dev 4 valida partidos y devuelve 404 para IDs desconocidos', async () => {
 
 test('Dev 4 genera un calendario todos-contra-todos con sus partidos', async () => {
   const thirdTeam = await request(app).post('/api/teams').set(captainAuthorization).send({
-    name: `Equipo calendario ${Date.now()}`, abbreviation: `C${Date.now().toString(36).slice(-5)}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
+    name: `Calendario-${Date.now().toString(36).slice(-5)}`, abbreviation: `C${Date.now().toString(36).slice(-5)}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
   });
   assert.equal(thirdTeam.status, 201);
   const tournamentId = await createTournamentWithTeams(['team-lnx', 'team-titans', thirdTeam.body.id]);

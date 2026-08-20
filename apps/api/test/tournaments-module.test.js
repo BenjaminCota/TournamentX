@@ -13,7 +13,7 @@ async function activeTeamIds(count) {
   const marker = Date.now().toString(36).slice(-5);
   for (let index = ids.length; index < count; index += 1) {
     const created = await request(app).post('/api/teams').set(captainAuthorization).send({
-      name: `Equipo torneo ${marker}-${index}`, abbreviation: `T${marker}${index}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
+      name: `Equipo-${marker}-${index}`, abbreviation: `T${marker}${index}`, sport: 'Valorant', region: 'LATAM', competitionType: 'Pruebas', description: '', status: 'active',
     });
     assert.equal(created.status, 201);
     ids.push(created.body.id);
