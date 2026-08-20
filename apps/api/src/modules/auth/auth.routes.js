@@ -9,14 +9,19 @@ const { publishNotification } = require('../geolocation/notifications.service');
 const teamStore = require('../teams/team-store');
 
 const password = z.string().min(8).max(128);
-const strongPassword = password
+const credentials = z.object({ email: z.string().trim().email().max(120), password });
+const registrationPassword = z.string().min(8).max(20)
   .regex(/[a-z]/, 'Incluye una minúscula')
   .regex(/[A-Z]/, 'Incluye una mayúscula')
   .regex(/[0-9]/, 'Incluye un número');
-const credentials = z.object({ email: z.string().trim().email().max(120), password });
-const registrationName = z.string().trim().min(2).max(60)
+const registrationName = z.string().trim().min(2).max(30)
   .regex(/^[\p{L}][\p{L}\s.'-]*$/u, 'El nombre contiene caracteres no permitidos');
-const registration = credentials.extend({ name: registrationName, username: z.string().trim().min(2).max(50).optional(), password: strongPassword });
+const registration = z.object({
+  name: registrationName,
+  username: z.string().trim().min(2).max(50).optional(),
+  email: z.string().trim().email().max(30),
+  password: registrationPassword,
+});
 const userUpdate = z.object({ name: z.string().trim().min(2).max(100).optional(), username: z.string().trim().min(2).max(50).optional(), email: z.string().trim().email().max(255).optional(), role: z.enum(['admin', 'organizer', 'captain', 'player']).optional(), status: z.enum(['ACTIVE', 'OFFLINE', 'SUSPENDED']).optional(), password: z.string().min(8).max(128).optional() }).refine((body) => Object.keys(body).length > 0, 'Debes enviar al menos un cambio');
 const organizerRequest = z.object({
   organizationName: z.string().trim().min(2).max(120),

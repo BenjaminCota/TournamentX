@@ -9,7 +9,7 @@ const authorization = (sub, role) => ({ Authorization: `Bearer ${jwt.sign({ sub,
 
 test('un jugador solicita ser organizador y el administrador aprueba la solicitud', async () => {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const registered = await request(app).post('/api/auth/register').send({ name: 'Nuevo organizador', email: `organizer-request-${suffix}@example.test`, password: 'Password123!' });
+  const registered = await request(app).post('/api/auth/register').send({ name: 'Nuevo organizador', email: `o${Date.now()}@e.test`, password: 'Password123!' });
   assert.equal(registered.status, 201);
   assert.equal(registered.body.user.role, 'player');
 
